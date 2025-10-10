@@ -3,11 +3,15 @@ CREATE TABLE "Provider" (
     "id" TEXT NOT NULL,
     "email" TEXT NOT NULL,
     "businessName" TEXT NOT NULL,
+    "slug" TEXT NOT NULL,
+    "tagline" TEXT,
     "city" TEXT NOT NULL,
     "state" TEXT NOT NULL,
     "zip" TEXT,
-    "lat" DOUBLE PRECISION NOT NULL,
-    "lng" DOUBLE PRECISION NOT NULL,
+    "rating" DOUBLE PRECISION DEFAULT 0,
+    "verified" BOOLEAN NOT NULL DEFAULT false,
+    "logo" TEXT,
+    "services" TEXT[] DEFAULT ARRAY[]::TEXT[],
     "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
     "updatedAt" TIMESTAMP(3) NOT NULL,
 
@@ -18,4 +22,4 @@ CREATE TABLE "Provider" (
 CREATE UNIQUE INDEX "Provider_email_key" ON "Provider"("email");
 
 -- CreateIndex
-CREATE INDEX "Provider_lat_lng_idx" ON "Provider"("lat", "lng");
+CREATE UNIQUE INDEX "Provider_slug_key" ON "Provider"("slug");
