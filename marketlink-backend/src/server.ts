@@ -49,15 +49,18 @@ fastify.get('/providers', async (req, reply) => {
 
   // Optional filters (only applied if provided)
   if (service && service.trim()) {
-    const s = service.trim().toLowerCase();
-    andFilters.push({
-      OR: [
-        // If Provider.services is a string[] column
-        { services: { has: s } } as any,
-        // If you have a relation to Service[]
-        { services: { some: { OR: [{ name: s }, { slug: s }] } } } as any,
-      ],
-    });
+    const tokens = service
+      .split(',') // support comma-separated values (optional)
+      .map((x) => x.trim().toLowerCase())
+      .filter(Boolean);
+
+    if (tokens.length === 1) {
+      andFilters.push({ services: { has: tokens[0] } }); // exact match of one service
+    } else if (tokens.length > 1) {
+      andFilters.push({ services: { hasSome: tokens } }); // match ANY of the services
+      // If you need ALL selected services instead, use hasEvery:
+      // andFilters.push({ services: { hasEvery: tokens } });
+    }
   }
 
   if (minRating && !Number.isNaN(parseFloat(minRating))) {
@@ -103,6 +106,118 @@ fastify.get('/providers/:slug', async (req, reply) => {
   }
 
   return provider;
+});
+
+// ====== CREATE PROVIDER (ONBOARDING) ======
+// Body: { businessName, city, state, zip?, services?: string[] | string, tagline?, logo? }
+// Uses the logged-in user (session cookie) as the owner; sets Provider.email = user.email
+fastify.post('/providers', async (req, reply) => {
+  // ---- 1) Require session (same pattern as /me/summary) ----
+  const raw = (req.cookies as any)?.session;
+  if (!raw) return reply.code(401).send({ error: 'Not authenticated' });
+
+  const { valid, value } = fastify.unsignCookie(raw);
+  if (!valid) return reply.code(401).send({ error: 'Invalid session signature' });
+
+  const sess = sessionStore.get(value);
+  if (!sess || Date.now() > sess.expiresAt) {
+    return reply.code(401).send({ error: 'Session expired' });
+  }
+
+  const user = await prisma.user.findUnique({ where: { id: sess.userId } });
+  if (!user) return reply.code(401).send({ error: 'User not found' });
+
+  // Prevent multiple providers per user for now (soft rule)
+  const existing = await prisma.provider.findFirst({ where: { userId: user.id } });
+  if (existing) {
+    return reply.code(409).send({ error: 'You already have a provider profile.' });
+  }
+
+  // ---- 2) Parse & validate body ----
+  const body = (req.body || {}) as {
+    businessName?: string;
+    city?: string;
+    state?: string;
+    zip?: string;
+    services?: string[] | string;
+    tagline?: string;
+    logo?: string;
+  };
+
+  const businessName = (body.businessName || '').trim();
+  const city = (body.city || '').trim();
+  const state = (body.state || '').trim();
+  const zip = (body.zip || '').trim() || null;
+  const tagline = (body.tagline || '').trim() || null;
+  const logo = (body.logo || '').trim() || null;
+
+  if (!businessName) return reply.code(400).send({ error: 'businessName is required' });
+  if (!city) return reply.code(400).send({ error: 'city is required' });
+  if (!state) return reply.code(400).send({ error: 'state is required' });
+  if (state.length < 2) return reply.code(400).send({ error: 'state must be at least 2 characters' });
+
+  // Normalize services: accept string ("seo,ads") or array; store all-lowercase
+  let services: string[] = [];
+  if (Array.isArray(body.services)) {
+    services = body.services.map((s) => String(s).trim().toLowerCase()).filter(Boolean);
+  } else if (typeof body.services === 'string') {
+    services = body.services
+      .split(',')
+      .map((s) => s.trim().toLowerCase())
+      .filter(Boolean);
+  }
+
+  // ---- 3) Generate a unique slug from businessName ----
+  const slugify = (str: string) =>
+    str
+      .toLowerCase()
+      .trim()
+      .replace(/[^a-z0-9]+/g, '-')
+      .replace(/(^-|-$)/g, '');
+
+  const base = slugify(businessName) || `provider-${Date.now()}`;
+  let slug = base;
+  let i = 2;
+  // ensure uniqueness by appending -2, -3, ...
+  while (await prisma.provider.findUnique({ where: { slug } })) {
+    slug = `${base}-${i++}`;
+  }
+
+  // ---- 4) Create the provider (email = user.email; owner = this user) ----
+  try {
+    const provider = await prisma.provider.create({
+      data: {
+        userId: user.id,
+        email: user.email, // unique; ties profile to login email
+        businessName,
+        slug,
+        tagline,
+        city,
+        state,
+        zip: zip || undefined,
+        services,
+        logo: logo || undefined,
+        // rating, verified keep defaults
+      },
+      select: {
+        id: true,
+        slug: true,
+        businessName: true,
+        city: true,
+        state: true,
+        services: true,
+      },
+    });
+
+    return reply.code(201).send({ ok: true, provider });
+  } catch (e: any) {
+    // Handle unique email/slug collisions gracefully
+    if (e?.code === 'P2002') {
+      return reply.code(409).send({ error: 'A provider with this email or slug already exists.' });
+    }
+    req.log.error({ err: e }, 'create-provider.failed');
+    return reply.code(500).send({ error: 'Failed to create provider' });
+  }
 });
 
 // ====== MAGIC LINK (REQUEST) ======
@@ -193,6 +308,34 @@ fastify.get('/auth/me', async (req, reply) => {
   if (!user) return reply.code(401).send({ error: 'User not found' });
 
   return { ok: true, user: { id: user.id, email: user.email, role: user.role } };
+});
+
+// GET /me/summary  → returns logged-in user + their provider (if any)
+fastify.get('/me/summary', async (req, reply) => {
+  const raw = req.cookies?.session;
+  if (!raw) return reply.code(401).send({ error: 'No session' });
+
+  const { valid, value } = fastify.unsignCookie(raw);
+  if (!valid) return reply.code(401).send({ error: 'Invalid signature' });
+
+  const sess = sessionStore.get(value);
+  if (!sess || Date.now() > sess.expiresAt) {
+    return reply.code(401).send({ error: 'Expired session' });
+  }
+
+  const user = await prisma.user.findUnique({ where: { id: sess.userId } });
+  if (!user) return reply.code(401).send({ error: 'User not found' });
+
+  const provider = await prisma.provider.findFirst({
+    where: { userId: user.id },
+    select: { id: true, slug: true, businessName: true, city: true, state: true },
+  });
+
+  return {
+    ok: true,
+    user: { id: user.id, email: user.email, role: user.role },
+    provider, // null if none → dashboard will show onboarding
+  };
 });
 
 // MAIN: Start the server
