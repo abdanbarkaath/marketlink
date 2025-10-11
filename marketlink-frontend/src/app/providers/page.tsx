@@ -1,4 +1,5 @@
 // app/providers/page.tsx
+import Link from 'next/link';
 import React from 'react';
 
 const API_BASE = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:4000';
@@ -36,7 +37,12 @@ export default async function ProvidersPage({ searchParams }: { searchParams: Se
 
       <div className="mt-6 grid grid-cols-1 gap-4 md:grid-cols-2 lg:grid-cols-3">
         {providers.map((p: any) => (
-          <article key={p.id} className="rounded-xl border p-4">
+          <Link
+            key={p.id}
+            href={`/providers/${p.slug}`}
+            prefetch={true} // ← this triggers background pre-rendering
+            className="rounded-xl border p-4 block hover:bg-gray-50 transition"
+          >
             <div className="flex items-center gap-3">
               {/* eslint-disable-next-line @next/next/no-img-element */}
               <img src={p.logo ?? 'https://placehold.co/80x80'} alt={p.businessName} className="h-12 w-12 rounded-lg object-cover" />
@@ -60,7 +66,7 @@ export default async function ProvidersPage({ searchParams }: { searchParams: Se
                 ))}
               </div>
             ) : null}
-          </article>
+          </Link>
         ))}
       </div>
     </main>

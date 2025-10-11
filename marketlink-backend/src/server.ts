@@ -71,6 +71,26 @@ fastify.get('/providers', async (req, reply) => {
   return providers;
 });
 
+// DETAIL: /providers/:slug  ← NEW
+fastify.get('/providers/:slug', async (req, reply) => {
+  const { slug } = (req.params || {}) as { slug?: string };
+  if (!slug) {
+    reply.code(400).send({ error: 'Missing slug' });
+    return;
+  }
+
+  const provider = await prisma.provider.findUnique({
+    where: { slug },
+  });
+
+  if (!provider) {
+    reply.code(404).send({ error: 'Provider not found' });
+    return;
+  }
+
+  return provider;
+});
+
 const port = Number(process.env.PORT || 4000);
 
 fastify
