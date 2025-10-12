@@ -1,6 +1,7 @@
 import type { FastifyPluginAsync } from 'fastify';
 import { prisma } from '../lib/prisma';
 import { WEB_BASE, createMagicToken, consumeMagicToken, createSessionForUser, setSessionCookie, getUserFromRequest, clearSessionCookie, sessionStore } from '../lib/session';
+import { sendMagicLinkEmail } from '../lib/mailer';
 
 const authRoutes: FastifyPluginAsync = async (fastify) => {
   /**
@@ -33,6 +34,11 @@ const authRoutes: FastifyPluginAsync = async (fastify) => {
       // Create one-time token and log verify URL (email delivery comes later)
       const { token, expiresAt } = createMagicToken(email);
       const verifyUrl = `${WEB_BASE}/login/verify?token=${token}`;
+
+      // send the email (don’t block UX if it fails)
+      await sendMagicLinkEmail(email, verifyUrl);
+
+      // still log in dev for visibility
       fastify.log.info({ email, verifyUrl, expiresAt }, 'magic-link.dev');
 
       return SAFE_OK();
