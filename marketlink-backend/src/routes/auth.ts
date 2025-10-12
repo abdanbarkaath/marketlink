@@ -1,40 +1,42 @@
 import type { FastifyPluginAsync } from 'fastify';
 import { prisma } from '../lib/prisma';
-import { WEB_BASE, createMagicToken, consumeMagicToken, createSessionForUser, setSessionCookie, getUserFromRequest } from '../lib/session';
+import { WEB_BASE, createMagicToken, consumeMagicToken, createSessionForUser, setSessionCookie, getUserFromRequest, clearSessionCookie, sessionStore } from '../lib/session';
 
 const authRoutes: FastifyPluginAsync = async (fastify) => {
   /**
    * POST /auth/magic-link
-   * Body: { email }
-   *
-   * Current policy: issue links **only for existing users** (invite/pay-gated).
-   * We still return 200 `{ ok: true }` for unknown emails to avoid enumeration.
-   * To switch to self-serve signup during dev, replace findUnique with upsert.
+   * Rate limited: 5 requests / 60s per IP
    */
-  fastify.post('/auth/magic-link', async (req, reply) => {
-    const { email } = (req.body || {}) as { email?: string };
+  fastify.route({
+    method: 'POST',
+    url: '/auth/magic-link',
+    config: {
+      rateLimit: {
+        max: 5,
+        timeWindow: '60 seconds',
+      },
+    },
+    handler: async (req, reply) => {
+      const { email } = (req.body || {}) as { email?: string };
 
-    // Always respond 200 to avoid account enumeration
-    const SAFE_OK = () => reply.send({ ok: true });
+      // Always respond 200 to avoid account enumeration
+      const SAFE_OK = () => reply.send({ ok: true });
 
-    if (!email || !/^\S+@\S+\.\S+$/.test(email)) {
+      if (!email || !/^\S+@\S+\.\S+$/.test(email)) {
+        return SAFE_OK();
+      }
+
+      // Invite/pay-gated: only existing users get a valid link
+      const user = await prisma.user.findUnique({ where: { email } });
+      if (!user) return SAFE_OK();
+
+      // Create one-time token and log verify URL (email delivery comes later)
+      const { token, expiresAt } = createMagicToken(email);
+      const verifyUrl = `${WEB_BASE}/login/verify?token=${token}`;
+      fastify.log.info({ email, verifyUrl, expiresAt }, 'magic-link.dev');
+
       return SAFE_OK();
-    }
-
-    // Allow only existing users (invite/pay-gated)
-    const user = await prisma.user.findUnique({ where: { email } });
-    if (!user) {
-      // Dev note: if you want self-signup, use:
-      // await prisma.user.upsert({ where: { email }, update: {}, create: { email, role: 'provider' } });
-      return SAFE_OK();
-    }
-
-    // Create one-time token and log verify URL (email delivery comes later)
-    const { token, expiresAt } = createMagicToken(email);
-    const verifyUrl = `${WEB_BASE}/login/verify?token=${token}`;
-    fastify.log.info({ email, verifyUrl, expiresAt }, 'magic-link.dev');
-
-    return SAFE_OK();
+    },
   });
 
   /**
@@ -66,6 +68,22 @@ const authRoutes: FastifyPluginAsync = async (fastify) => {
     const user = await getUserFromRequest(fastify, req);
     if (!user) return reply.code(401).send({ error: 'Not authenticated' });
     return { ok: true, user: { id: user.id, email: user.email, role: user.role } };
+  });
+
+  /**
+   * POST /auth/logout
+   * - Clears the session cookie and invalidates the server-side session.
+   */
+  fastify.post('/auth/logout', async (req, reply) => {
+    const raw = (req.cookies as any)?.session;
+    if (raw) {
+      const { valid, value } = fastify.unsignCookie(raw);
+      if (valid) {
+        sessionStore.delete(value); // invalidate server-side session
+      }
+    }
+    clearSessionCookie(reply); // remove cookie on client
+    return reply.send({ ok: true });
   });
 };
 

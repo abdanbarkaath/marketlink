@@ -3,6 +3,7 @@
 import { useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import Link from 'next/link';
+import LogoutButton from '@/components/LogoutButton';
 
 const API_BASE = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:4000';
 
@@ -65,6 +66,7 @@ export default function DashboardPage() {
   return (
     <main className="mx-auto max-w-4xl px-4 py-8">
       <h1 className="text-2xl font-semibold">Dashboard</h1>
+      <LogoutButton />
       <p className="mt-2 text-gray-600">
         Welcome, <span className="font-medium">{user.email}</span>
       </p>
