@@ -1,104 +1,44 @@
-import { PrismaClient } from '@prisma/client';
+// src/server.ts
+import 'dotenv/config';
 import Fastify from 'fastify';
+import cors from '@fastify/cors';
+import cookie from '@fastify/cookie';
+import rateLimit from '@fastify/rate-limit'; // 👈 add this
 
-const fastify = Fastify({ logger: true });
-const prisma = new PrismaClient();
+import authRoutes from './routes/auth';
+import accountRoutes from './routes/account';
+import providersRoutes from './routes/providers';
 
-fastify.get('/health', async () => {
-  return { ok: true, service: 'marketlink-backend', time: new Date().toISOString() };
-});
+async function start() {
+  const fastify = Fastify({ logger: true });
 
-fastify.get('/providers', async (req, reply) => {
-  const { name, city, service, minRating, verified } = (req.query || {}) as {
-    name?: string;
-    city?: string;
-    service?: string;
-    minRating?: string;
-    verified?: string;
-  };
-
-  const andFilters: any[] = [];
-
-  // City prefix match (e.g., "chi" -> Chicago), case-insensitive
-  if (city && city.trim()) {
-    andFilters.push({
-      city: { startsWith: city.trim(), mode: 'insensitive' },
-    });
-  }
-
-  // Business name contains (e.g., "wind" -> "Windy City Growth"), case-insensitive
-  if (name && name.trim()) {
-    andFilters.push({
-      businessName: { contains: name.trim(), mode: 'insensitive' },
-    });
-  }
-
-  // Optional filters (only applied if provided)
-  if (service && service.trim()) {
-    const s = service.trim().toLowerCase();
-    andFilters.push({
-      OR: [
-        // If Provider.services is a string[] column
-        { services: { has: s } } as any,
-        // If you have a relation to Service[]
-        { services: { some: { OR: [{ name: s }, { slug: s }] } } } as any,
-      ],
-    });
-  }
-
-  if (minRating && !Number.isNaN(parseFloat(minRating))) {
-    andFilters.push({ rating: { gte: parseFloat(minRating) } });
-  }
-
-  if (verified && (verified === '1' || verified.toLowerCase() === 'true')) {
-    andFilters.push({ verified: true });
-  }
-
-  const where: any = andFilters.length ? { AND: andFilters } : {};
-
-  // LOG what we received + filters we built
-  fastify.log.info({ q: { name, city, service, minRating, verified }, where }, 'providers.query');
-
-  // Use a stable default order (createdAt may be null in seed data)
-  const providers = await prisma.provider.findMany({
-    where,
-    orderBy: [{ businessName: 'asc' }],
-    take: 50,
+  await fastify.register(cors, {
+    origin: ['http://localhost:3000', 'http://127.0.0.1:3000'],
+    credentials: true,
+    methods: ['GET', 'POST', 'PUT', 'PATCH', 'DELETE', 'OPTIONS'],
+    allowedHeaders: ['Content-Type', 'Authorization'],
   });
 
-  fastify.log.info({ count: providers.length }, 'providers.result');
-
-  return providers;
-});
-
-// DETAIL: /providers/:slug  ← NEW
-fastify.get('/providers/:slug', async (req, reply) => {
-  const { slug } = (req.params || {}) as { slug?: string };
-  if (!slug) {
-    reply.code(400).send({ error: 'Missing slug' });
-    return;
-  }
-
-  const provider = await prisma.provider.findUnique({
-    where: { slug },
+  await fastify.register(cookie, {
+    secret: process.env.SESSION_SECRET || 'dev-secret',
   });
 
-  if (!provider) {
-    reply.code(404).send({ error: 'Provider not found' });
-    return;
-  }
+  // 👇 register rate-limit plugin, but don't enable globally
+  await fastify.register(rateLimit, { global: false });
 
-  return provider;
-});
+  fastify.get('/health', async () => ({
+    ok: true,
+    service: 'marketlink-backend',
+    time: new Date().toISOString(),
+  }));
 
-const port = Number(process.env.PORT || 4000);
+  await fastify.register(authRoutes);
+  await fastify.register(accountRoutes);
+  await fastify.register(providersRoutes);
 
-fastify
-  .listen({ port, host: '0.0.0.0' })
-  .then(() => {
-    console.log(`API running on http://localhost:${port}`);
-  })
-  .catch((err) => {
-    fastify.log.error(err);
-    process.exit(1);
-  });
+  const port = Number(process.env.PORT || 4000);
+  await fastify.listen({ port, host: '0.0.0.0' });
+  console.log(`API running on http://localhost:${port}`);
+}
+
+start();

@@ -26,7 +26,7 @@ async function getProviders(sp: SearchParams) {
   return res.json();
 }
 
-export default async function ProvidersPage({ searchParams }: { searchParams: SearchParams }) {
+export default async function ProvidersPage({ searchParams }: Readonly<{ searchParams: SearchParams }>) {
   const providers = await getProviders(searchParams || {});
   return (
     <main className="mx-auto max-w-5xl px-4 py-8">

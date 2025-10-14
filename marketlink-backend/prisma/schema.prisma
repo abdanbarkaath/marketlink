@@ -1,3 +1,4 @@
+// prisma/schema.prisma
 datasource db {
   provider = "postgresql"
   url      = env("DATABASE_URL")
@@ -7,19 +8,49 @@ generator client {
   provider = "prisma-client-js"
 }
 
+enum UserRole {
+  provider
+  admin
+}
+
+enum PlanTier {
+  free
+  pro
+}
+
+model User {
+  id        String     @id @default(cuid())
+  email     String     @unique
+  role      UserRole   @default(provider)
+  createdAt DateTime   @default(now())
+  updatedAt DateTime   @updatedAt
+
+  // Ownership: one user can own one or more providers (we can enforce 1:1 later if needed)
+  providers Provider[]
+}
+
 model Provider {
-  id           String   @id @default(cuid())
-  email        String   @unique
+  id           String    @id @default(cuid())
+  // Owner (optional for now so your existing rows don’t break; we’ll backfill and can make required later)
+  userId       String?
+  owner        User?     @relation(fields: [userId], references: [id], onDelete: SetNull)
+
+  email        String    @unique
   businessName String
-  slug         String   @unique
+  slug         String    @unique
+
   tagline      String?
   city         String
   state        String
   zip          String?
-  rating       Float?   @default(0)
-  verified     Boolean  @default(false)
+
+  rating       Float?    @default(0)
+  verified     Boolean   @default(false)
   logo         String?
-  services     String[] @default([])
-  createdAt    DateTime @default(now())
-  updatedAt    DateTime @updatedAt
+  services     String[]  @default([])
+
+  planTier     PlanTier  @default(free)
+
+  createdAt    DateTime  @default(now())
+  updatedAt    DateTime  @updatedAt
 }
