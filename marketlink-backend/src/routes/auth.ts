@@ -1,12 +1,13 @@
 import type { FastifyPluginAsync } from 'fastify';
 import { prisma } from '../lib/prisma';
-import { WEB_BASE, createMagicToken, consumeMagicToken, createSessionForUser, setSessionCookie, getUserFromRequest, clearSessionCookie, sessionStore } from '../lib/session';
+import { WEB_BASE, createMagicToken, consumeMagicToken, createSessionForUser, setSessionCookie, getUserFromRequest, deleteCurrentSession } from '../lib/session';
 import { sendMagicLinkEmail } from '../lib/mailer';
 
 const authRoutes: FastifyPluginAsync = async (fastify) => {
   /**
    * POST /auth/magic-link
    * Rate limited: 5 requests / 60s per IP
+   * (invite-only for now)
    */
   fastify.route({
     method: 'POST',
@@ -31,14 +32,11 @@ const authRoutes: FastifyPluginAsync = async (fastify) => {
       const user = await prisma.user.findUnique({ where: { email } });
       if (!user) return SAFE_OK();
 
-      // Create one-time token and log verify URL (email delivery comes later)
+      // Create one-time token and log verify URL (email delivery)
       const { token, expiresAt } = createMagicToken(email);
       const verifyUrl = `${WEB_BASE}/login/verify?token=${token}`;
 
-      // send the email (don’t block UX if it fails)
       await sendMagicLinkEmail(email, verifyUrl);
-
-      // still log in dev for visibility
       fastify.log.info({ email, verifyUrl, expiresAt }, 'magic-link.dev');
 
       return SAFE_OK();
@@ -48,7 +46,7 @@ const authRoutes: FastifyPluginAsync = async (fastify) => {
   /**
    * POST /auth/verify
    * Body: { token }
-   * - Consumes magic token, creates session, sets signed httpOnly cookie.
+   * - Consumes magic token, creates DB session, sets signed httpOnly cookie.
    */
   fastify.post('/auth/verify', async (req, reply) => {
     const { token } = (req.body || {}) as { token?: string };
@@ -60,8 +58,8 @@ const authRoutes: FastifyPluginAsync = async (fastify) => {
     const user = await prisma.user.findUnique({ where: { email: consumed.email } });
     if (!user) return reply.code(400).send({ error: 'User not found' });
 
-    const { sessionToken } = createSessionForUser(user.id);
-    setSessionCookie(reply, sessionToken);
+    const { sessionToken } = await createSessionForUser(user.id); // DB-backed
+    setSessionCookie(reply, sessionToken); // signed httpOnly cookie
 
     return reply.send({ ok: true });
   });
@@ -78,17 +76,10 @@ const authRoutes: FastifyPluginAsync = async (fastify) => {
 
   /**
    * POST /auth/logout
-   * - Clears the session cookie and invalidates the server-side session.
+   * - Deletes the current DB session and clears the cookie.
    */
   fastify.post('/auth/logout', async (req, reply) => {
-    const raw = (req.cookies as any)?.session;
-    if (raw) {
-      const { valid, value } = fastify.unsignCookie(raw);
-      if (valid) {
-        sessionStore.delete(value); // invalidate server-side session
-      }
-    }
-    clearSessionCookie(reply); // remove cookie on client
+    await deleteCurrentSession(fastify, req, reply);
     return reply.send({ ok: true });
   });
 };
