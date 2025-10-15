@@ -20,7 +20,7 @@ async function start() {
   });
 
   await fastify.register(cookie, {
-    secret: process.env.SESSION_SECRET || 'dev-secret',
+    secret: process.env.COOKIE_SECRET ?? 'dev-secret',
   });
 
   // 👇 register rate-limit plugin, but don't enable globally

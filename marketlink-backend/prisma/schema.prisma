@@ -19,38 +19,59 @@ enum PlanTier {
 }
 
 model User {
-  id        String     @id @default(cuid())
-  email     String     @unique
-  role      UserRole   @default(provider)
-  createdAt DateTime   @default(now())
-  updatedAt DateTime   @updatedAt
+  id        String   @id @default(cuid())
+  email     String   @unique
+  role      UserRole @default(provider)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
 
   // Ownership: one user can own one or more providers (we can enforce 1:1 later if needed)
   providers Provider[]
+
+  // Back-relation for DB-backed sessions
+  sessions Session[]
 }
 
 model Provider {
-  id           String    @id @default(cuid())
+  id String @id @default(cuid())
+
   // Owner (optional for now so your existing rows don’t break; we’ll backfill and can make required later)
-  userId       String?
-  owner        User?     @relation(fields: [userId], references: [id], onDelete: SetNull)
+  userId String?
+  owner  User?   @relation(fields: [userId], references: [id], onDelete: SetNull)
 
-  email        String    @unique
+  email        String @unique
   businessName String
-  slug         String    @unique
+  slug         String @unique
 
-  tagline      String?
-  city         String
-  state        String
-  zip          String?
+  tagline String?
+  city    String
+  state   String
+  zip     String?
 
-  rating       Float?    @default(0)
-  verified     Boolean   @default(false)
-  logo         String?
-  services     String[]  @default([])
+  // Prisma: defaults are only allowed on REQUIRED fields, so keep this non-nullable
+  rating   Float    @default(0)
+  verified Boolean  @default(false)
+  logo     String?
+  services String[] @default([])
 
-  planTier     PlanTier  @default(free)
+  planTier PlanTier @default(free)
 
-  createdAt    DateTime  @default(now())
-  updatedAt    DateTime  @updatedAt
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+}
+
+model Session {
+  /// Session token stored as primary key (opaque, random string)
+  id        String   @id
+  /// Owner of this session
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  userId    String
+  /// When this session expires
+  expiresAt DateTime
+  /// Timestamps
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([userId])
+  @@index([expiresAt])
 }
