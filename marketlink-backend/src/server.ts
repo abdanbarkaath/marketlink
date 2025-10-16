@@ -3,8 +3,8 @@ import 'dotenv/config';
 import Fastify from 'fastify';
 import cors from '@fastify/cors';
 import cookie from '@fastify/cookie';
-import rateLimit from '@fastify/rate-limit'; // 👈 add this
-
+import rateLimit from '@fastify/rate-limit';
+import adminRoutes from './routes/admin';
 import authRoutes from './routes/auth';
 import accountRoutes from './routes/account';
 import providersRoutes from './routes/providers';
@@ -35,6 +35,7 @@ async function start() {
   await fastify.register(authRoutes);
   await fastify.register(accountRoutes);
   await fastify.register(providersRoutes);
+  await fastify.register(adminRoutes);
 
   const port = Number(process.env.PORT || 4000);
   await fastify.listen({ port, host: '0.0.0.0' });
