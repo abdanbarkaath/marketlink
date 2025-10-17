@@ -1,118 +1,103 @@
-🌐 MarketLink
+# MarketLink — Admin Guide
 
-MarketLink is a local marketing marketplace that connects small businesses (like salons, restaurants, gyms, etc.) with verified local marketing professionals and agencies.
-Think “Yelp × Upwork” — hyper-local, marketing-focused, and proximity-powered.
+This guide explains how the Admin Panel works, what each action does, and how to test it locally.
 
-🚀 Tech Stack
-Layer	Technology	Purpose
-Frontend	Next.js 14 + TypeScript + TailwindCSS	Responsive, SEO-friendly UI
-Backend	Fastify (Node.js)	Lightweight, fast REST API
-ORM	Prisma	Type-safe database access
-Database	PostgreSQL (Neon)	Cloud-hosted relational database
-Auth	Magic Link (Passwordless)	Easy, secure login (planned)
-Storage	Cloudinary / AWS S3	For media uploads
-Email	Resend / SendGrid	For inquiries and notifications
-Hosting	Vercel (frontend), Render (backend)	Cloud deployment
-🧩 Core Features (MVP)
+## Roles & Access
+- Only users with `role = admin` can access `/admin/*` endpoints and pages.
+- To make yourself admin (one-time), update the `User` row in your DB (Neon or Prisma Studio):
+  ```sql
+  UPDATE "User" SET "role" = 'admin' WHERE "email" = 'you@example.com';
+  ```
 
-📍 Marketplace Search
+## Auth & Sessions
+- Auth mode:
+  - `AUTH_MODE=invite` (prod): only existing users can request a magic link.
+  - `AUTH_MODE=selfserve` (dev): upsert user on magic link request.
+- Sessions are DB-backed (`Session` model). Login survives server restarts.
+- Frontend forwards the `session` cookie server-side when calling the backend.
 
-Search by city, suburb, or ZIP
+## Provider States & Admin Actions
+Provider lifecycle uses `status` and an independent `verified` flag:
 
-Filter by service, rating, and distance
+- **Status**: `pending` → `active` ↔ `disabled`
+- **Verified**: `true` / `false` (independent of status)
 
-Sort by proximity (Haversine formula)
+### What each action does
+- **Approve**: sets `status = active` (intended for **pending → active**).
+- **Disable**: sets `status = disabled` and optionally records a `disabledReason`.
+- **Enable**: sets `status = active` (intended for **disabled → active**).
+- **Verify / Unverify**: toggles `verified` (can be changed in any status).
 
-👤 Provider Profiles
+> Note: In the current build, the Approve button appears for any non-active row
+> (including `disabled`). Use **Enable** for `disabled → active`. If you prefer
+> stricter UX, change the UI to only show **Approve** for `status === 'pending'`.
+> (Recommended — see “Recommended UI/API rules” below.)
 
-Business info, Google rating, verified badge
+## Recommended UI/API rules (optional hardening)
+To avoid confusion and enforce clean transitions:
 
-Portfolio and services offered
+**Frontend (Admin Providers Table):**
+- Show **Approve** only when `status === 'pending'`.
+- Show **Disable** only when `status !== 'disabled'`.
+- Show **Enable** only when `status === 'disabled'`.
 
-Direct contact form (email relay)
+**Backend (Admin API):**
+- `/admin/providers/:id/approve`: return `409` if current status is not `pending`.
+- `/admin/providers/:id/enable`: return `409` if current status is not `disabled`.
+- `/admin/providers/:id/disable`: allow from `pending` or `active`; no-op if already disabled.
 
-📊 Provider Dashboard
+This combination ensures the table reflects intent and the API enforces it.
 
-Profile editing
+## Owner Visibility (Public Detail Page)
+- **Public** sees only **active** providers.
+- **Owners** can view their own **pending/disabled** listing when logged in; the page shows a banner:
+  - “Your listing is disabled / pending … Reason: …”
 
-Inquiry tracking
+## Endpoints (Admin)
+- `GET /admin/stats` — counters (total, active, pending, disabled, verified)
+- `GET /admin/providers?q=&status=&verified=&limit=&offset=` — list with filters
+- `POST /admin/providers/:id/approve` — status → `active`
+- `POST /admin/providers/:id/verify` `{ value?: boolean }` — toggle or set
+- `POST /admin/providers/:id/disable` `{ reason?: string }` — status → `disabled`
+- `POST /admin/providers/:id/enable` — status → `active`
 
-Analytics (views, leads, avg. distance)
+All endpoints validate params/query/body and return `400` for invalid input.
 
-🛡️ Admin Panel
+## Testing Checklist (Local)
+1. Log in as admin (magic link) and visit `/admin`.
+2. Use `/admin/providers` to:
+   - **Approve** a `pending` provider → becomes `active`.
+   - **Disable** an `active` provider with a reason → becomes `disabled`.
+   - **Enable** a `disabled` provider → becomes `active`.
+   - **Verify/Unverify** any provider.
+3. Public hardening:
+   - Disabled provider’s slug returns **404** publicly.
+   - Owner can still open their own disabled slug and see the banner.
+4. Validation:
+   - `GET /admin/providers?status=banana` → **400** (when called directly to backend).
+   - `POST /admin/providers/:id/disable` with `reason` > 200 chars → **400**.
 
-Approve, verify, and manage providers
+## Environment
+Backend `.env` essentials:
+```env
+DATABASE_URL=postgresql://...
+COOKIE_SECRET=dev_secret_key
+SESSION_TTL_DAYS=7
+AUTH_MODE=invite        # or selfserve (dev)
+WEB_URL=http://localhost:3000
+```
 
-Monitor reported listings
+Frontend `.env.local`:
+```env
+NEXT_PUBLIC_API_URL=http://localhost:4000
+```
 
-🗄️ Folder Structure
-marketlink/
-│
-├── marketlink-frontend/   # Next.js 14 app
-│   ├── src/app/           # App Router pages
-│   ├── src/components/    # Reusable components
-│   └── ...
-│
-└── marketlink-backend/    # Fastify + Prisma API
-    ├── src/server.ts      # Fastify entry point
-    ├── prisma/schema.prisma
-    ├── .env               # Database URL (Neon)
-    └── ...
+## Notes
+- Magic tokens are in-memory; request a new link if the server restarted before verify.
+- Sessions are persistent in DB; logout invalidates only the current session token.
 
-🧱 Local Development
-1. Clone the repo
-git clone https://github.com/abdanbarkaath/marketlink.git
-cd marketlink
+---
 
-2. Install frontend dependencies
-cd marketlink-frontend
-npm install
-npm run dev
-
-
-Runs on http://localhost:3000
-
-3. Install backend dependencies
-cd ../marketlink-backend
-npm install
-npm run dev
-
-
-API runs on http://localhost:4000
-
-🧮 Database Setup (Neon + Prisma)
-
-Create a Neon Postgres project and copy its connection string
-
-Paste it into .env:
-
-DATABASE_URL="postgresql://user:password@host.neon.tech/db?sslmode=require"
-
-
-Run the first migration:
-
-npx prisma migrate dev --name init
-
-📈 Roadmap
-
-✅ MVP — Marketplace + Proximity Search
-
-🔜 Phase 2 — Provider Dashboard + Analytics
-
-🔜 Phase 3 — Admin Panel + Verification System
-
-🔜 Phase 4 — Stripe Payments + Subscription Tiers
-
-🔜 Phase 5 — AI Chat Assistant (Provider Recommendations)
-
-🧑‍💻 Author
-
-Abdan Zafar Barkaath
-Senior Front-End Developer
-📧 abdanbarkaath10@gmail.com
-
-🔗 LinkedIn
-
-🪪 License
-
-This project is licensed under the MIT License — feel free to use and modify with attribution.
+**Questions or improvements?**  
+- Want me to **enforce strict transitions** in the API and hide Approve on disabled rows? I can provide the exact one-file patches.
+- Prefer to add an **Audit Log** UI for `AdminAction`? Easy to add `/admin/actions` with filters.

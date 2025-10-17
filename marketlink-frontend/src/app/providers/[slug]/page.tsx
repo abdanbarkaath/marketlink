@@ -1,83 +1,86 @@
+import React from 'react';
 import { notFound } from 'next/navigation';
-import OwnerControls from '@/components/OwnerControls';
-// If you already have ContactForm, keep it; otherwise comment it out.
-import ContactForm from '@/components/ContactForm';
+import { apiFetch } from '../../../lib/serverApi';
 
-const API_BASE = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:4000';
+type Provider = {
+  id: string;
+  slug: string;
+  businessName: string;
+  email: string;
+  tagline: string | null;
+  city: string;
+  state: string;
+  zip: string | null;
+  services: string[];
+  rating: number | null;
+  verified: boolean;
+  logo: string | null;
+  status: 'active' | 'pending' | 'disabled';
+  disabledReason: string | null;
+  createdAt: string;
+  updatedAt: string;
+};
 
-type Props = { params: { slug: string } };
+export default async function ProviderPage({ params }: { params: { slug: string } }) {
+  const res = await apiFetch(`/providers/${params.slug}`);
+  if (res.status === 404) notFound();
+  if (!res.ok) throw new Error(`Failed to load provider: ${res.status}`);
+  const p = (await res.json()) as Provider;
 
-export default async function ProviderProfile({ params }: Props) {
-  const res = await fetch(`${API_BASE}/providers/${params.slug}`, {
-    cache: 'no-store',
-  });
+  const ownerBanner = p.status !== 'active';
 
-  if (res.status === 404) return notFound();
-  if (!res.ok) throw new Error(`Failed to load provider (${res.status})`);
-
-  const provider = (await res.json()) as {
-    businessName: string;
-    slug: string;
-    city: string;
-    state: string;
-    tagline?: string | null;
-    rating?: number | null;
-    verified?: boolean | null;
-    logo?: string | null;
-    services: string[];
-  };
   return (
-    <main className="mx-auto max-w-4xl px-4 py-8">
-      <header className="flex items-center gap-4">
-        {/* eslint-disable-next-line @next/next/no-img-element */}
-        <img src={provider.logo ?? 'https://placehold.co/96x96'} alt={provider.businessName} className="h-20 w-20 rounded-2xl object-cover" />
-        <div>
-          <h1 className="text-2xl font-semibold">{provider.businessName}</h1>
-          <p className="text-gray-600">
-            {provider.city}, {provider.state}
-          </p>
-          <div className="text-sm text-gray-700 mt-1">
-            <span>{provider.rating ? `${provider.rating.toFixed(1)} ★` : 'No rating'}</span>
-            {provider.verified ? <span className="ml-2 rounded-full border px-2 py-0.5 text-xs">Verified</span> : null}
-          </div>
+    <div className="mx-auto max-w-4xl space-y-6 py-8">
+      {ownerBanner && (
+        <div className="rounded-xl border border-amber-300 bg-amber-50 p-4">
+          <div className="font-medium text-amber-900">{p.status === 'disabled' ? 'Your listing is disabled' : 'Your listing is pending approval'}</div>
+          {p.disabledReason && (
+            <div className="mt-1 text-sm text-amber-800">
+              <span className="font-medium">Reason:</span> {p.disabledReason}
+            </div>
+          )}
+          <div className="mt-2 text-xs text-amber-800">Only you can see this until it’s active.</div>
         </div>
+      )}
 
-        {/* 👇 Owner-only edit button (renders only if logged-in user owns this slug) */}
-        <OwnerControls slug={provider.slug} />
+      <header className="flex items-start gap-4">
+        {p.logo ? (
+          // eslint-disable-next-line @next/next/no-img-element
+          <img src={p.logo} alt={p.businessName} className="h-16 w-16 rounded-xl border object-cover" />
+        ) : (
+          <div className="flex h-16 w-16 items-center justify-center rounded-xl border bg-gray-50 text-gray-400">Logo</div>
+        )}
+        <div>
+          <h1 className="text-2xl font-semibold">{p.businessName}</h1>
+          <div className="mt-1 text-sm text-gray-600">
+            {p.city}, {p.state} · {p.verified ? 'Verified' : 'Unverified'}
+          </div>
+          {p.tagline && <div className="mt-1 text-gray-700">{p.tagline}</div>}
+        </div>
       </header>
 
-      {provider.tagline && <p className="mt-4 text-lg">{provider.tagline}</p>}
-
-      <section className="mt-8 grid gap-6 md:grid-cols-3">
-        <div className="md:col-span-2 rounded-2xl border p-5">
-          <h2 className="text-lg font-semibold">About</h2>
-          <p className="mt-2 text-sm text-gray-700">
-            {/* Placeholder until real description */}
-            We help local businesses grow with targeted campaigns and measurable ROI.
-          </p>
-
-          <h3 className="mt-6 text-base font-semibold">Services</h3>
+      <section className="rounded-2xl border bg-white p-4 shadow-sm">
+        <h2 className="text-sm font-medium text-gray-700">Services</h2>
+        {p.services.length ? (
           <div className="mt-2 flex flex-wrap gap-2">
-            {(provider.services || []).map((s) => (
-              <span key={s} className="text-xs rounded-full border px-2 py-1">
+            {p.services.map((s) => (
+              <span key={s} className="rounded-full border px-2 py-1 text-xs text-gray-700">
                 {s}
               </span>
             ))}
           </div>
-
-          <h3 className="mt-6 text-base font-semibold">Portfolio (preview)</h3>
-          <div className="mt-2 grid grid-cols-2 gap-3">
-            <div className="aspect-video rounded-xl bg-gray-100" />
-            <div className="aspect-video rounded-xl bg-gray-100" />
-          </div>
-        </div>
-
-        <aside className="rounded-2xl border p-5">
-          <h2 className="text-lg font-semibold">Contact</h2>
-          <ContactForm />
-          <p className="mt-3 text-xs text-gray-500">(Mock only — real email relay in Phase 3.7.)</p>
-        </aside>
+        ) : (
+          <div className="mt-2 text-sm text-gray-500">No services listed yet.</div>
+        )}
       </section>
-    </main>
+
+      <section className="rounded-2xl border bg-white p-4 shadow-sm">
+        <h2 className="text-sm font-medium text-gray-700">Contact</h2>
+        <div className="mt-2 text-sm text-gray-700">
+          <div>Email: {p.email}</div>
+          {p.zip && <div>ZIP: {p.zip}</div>}
+        </div>
+      </section>
+    </div>
   );
 }

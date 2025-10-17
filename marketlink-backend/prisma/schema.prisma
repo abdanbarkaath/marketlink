@@ -18,6 +18,27 @@ enum PlanTier {
   pro
 }
 
+/**
+ * New: Provider status for moderation
+ */
+enum ProviderStatus {
+  pending
+  active
+  disabled
+}
+
+/**
+ * New: Admin action types for audit log
+ */
+enum AdminActionType {
+  APPROVE
+  VERIFY_ON
+  VERIFY_OFF
+  DISABLE
+  ENABLE
+  EDIT
+}
+
 model User {
   id        String   @id @default(cuid())
   email     String   @unique
@@ -25,17 +46,20 @@ model User {
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
-  // Ownership: one user can own one or more providers (we can enforce 1:1 later if needed)
+  // Ownership: one user can own one or more providers
   providers Provider[]
 
   // Back-relation for DB-backed sessions
   sessions Session[]
+
+  // Back-relation for admin actions (optional)
+  adminActions AdminAction[]
 }
 
 model Provider {
   id String @id @default(cuid())
 
-  // Owner (optional for now so your existing rows don’t break; we’ll backfill and can make required later)
+  // Owner (optional so existing rows don’t break)
   userId String?
   owner  User?   @relation(fields: [userId], references: [id], onDelete: SetNull)
 
@@ -48,7 +72,6 @@ model Provider {
   state   String
   zip     String?
 
-  // Prisma: defaults are only allowed on REQUIRED fields, so keep this non-nullable
   rating   Float    @default(0)
   verified Boolean  @default(false)
   logo     String?
@@ -56,8 +79,16 @@ model Provider {
 
   planTier PlanTier @default(free)
 
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
+  // New: moderation fields
+  status         ProviderStatus @default(active)
+  disabledReason String?
+  notes          String?
+
+  createdAt   DateTime      @default(now())
+  updatedAt   DateTime      @updatedAt
+  AdminAction AdminAction[]
+
+  @@index([status])
 }
 
 model Session {
@@ -74,4 +105,24 @@ model Session {
 
   @@index([userId])
   @@index([expiresAt])
+}
+
+/**
+ * New: audit log of admin actions
+ */
+model AdminAction {
+  id String @id @default(cuid())
+
+  adminUserId String?
+  admin       User?   @relation(fields: [adminUserId], references: [id], onDelete: SetNull)
+
+  providerId String
+  provider   Provider @relation(fields: [providerId], references: [id], onDelete: Cascade)
+
+  type     AdminActionType
+  metadata Json?
+
+  createdAt DateTime @default(now())
+
+  @@index([providerId, createdAt])
 }
