@@ -2,6 +2,7 @@ import type { FastifyPluginAsync } from 'fastify';
 import type { Prisma } from '@prisma/client';
 import { prisma } from '../lib/prisma';
 import { getUserFromRequest } from '../lib/session';
+import { ProviderStatus } from '@prisma/client';
 
 const providersRoutes: FastifyPluginAsync = async (fastify) => {
   // LIST: GET /providers
@@ -50,7 +51,10 @@ const providersRoutes: FastifyPluginAsync = async (fastify) => {
       andFilters.push({ verified: true });
     }
 
-    const where: Prisma.ProviderWhereInput = andFilters.length ? { AND: andFilters } : {};
+    // Force only active providers in public list
+    const baseFilter: Prisma.ProviderWhereInput = { status: ProviderStatus.active };
+
+    const where: Prisma.ProviderWhereInput = andFilters.length ? { AND: [...andFilters, baseFilter] } : baseFilter;
 
     fastify.log.info({ q: { name, city, service, minRating, verified }, where }, 'providers.query');
 
@@ -69,7 +73,7 @@ const providersRoutes: FastifyPluginAsync = async (fastify) => {
     const { slug } = (req.params || {}) as { slug?: string };
     if (!slug) return reply.code(400).send({ error: 'Missing slug' });
 
-    const provider = await prisma.provider.findUnique({ where: { slug } });
+    const provider = await prisma.provider.findUnique({ where: { slug, status: ProviderStatus.active } });
     if (!provider) return reply.code(404).send({ error: 'Provider not found' });
 
     return provider;
