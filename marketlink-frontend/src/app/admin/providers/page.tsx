@@ -2,6 +2,7 @@ import React from 'react';
 import { apiJSON, apiFetch } from '../../../lib/serverApi';
 import { revalidatePath } from 'next/cache';
 import { redirect } from 'next/navigation';
+import { Flash, ConfirmSubmit } from '../../../components/admin/ClientBits';
 
 type ProviderItem = {
   id: string;
@@ -44,6 +45,7 @@ async function approveAction(formData: FormData) {
   const res = await apiFetch(`/admin/providers/${id}/approve`, { method: 'POST' });
   if (!res.ok) throw new Error('Approve failed');
   revalidatePath('/admin/providers');
+  redirect('/admin/providers?flash=Approved');
 }
 
 async function verifyToggleAction(formData: FormData) {
@@ -57,6 +59,7 @@ async function verifyToggleAction(formData: FormData) {
   });
   if (!res.ok) throw new Error('Verify toggle failed');
   revalidatePath('/admin/providers');
+  redirect(`/admin/providers?flash=${encodeURIComponent(next ? 'Verified' : 'Unverified')}`);
 }
 
 async function disableAction(formData: FormData) {
@@ -70,6 +73,7 @@ async function disableAction(formData: FormData) {
   });
   if (!res.ok) throw new Error('Disable failed');
   revalidatePath('/admin/providers');
+  redirect('/admin/providers?flash=Disabled');
 }
 
 async function enableAction(formData: FormData) {
@@ -78,6 +82,7 @@ async function enableAction(formData: FormData) {
   const res = await apiFetch(`/admin/providers/${id}/enable`, { method: 'POST' });
   if (!res.ok) throw new Error('Enable failed');
   revalidatePath('/admin/providers');
+  redirect('/admin/providers?flash=Enabled');
 }
 
 // Utility for building querystring safely
@@ -89,21 +94,24 @@ function qs(params: Record<string, string | undefined>) {
   return s.toString();
 }
 
-export default async function AdminProvidersPage({ searchParams }: { searchParams: { q?: string; status?: string; verified?: string; page?: string; limit?: string } }) {
+export default async function AdminProvidersPage({ searchParams }: { searchParams: { q?: string; status?: string; verified?: string; page?: string; limit?: string; flash?: string } }) {
   const q = searchParams.q ?? '';
   const status = searchParams.status ?? '';
   const verified = searchParams.verified ?? '';
   const limit = parseInt(searchParams.limit ?? '20', 10);
   const page = Math.max(parseInt(searchParams.page ?? '1', 10), 1);
   const offset = (page - 1) * limit;
+  const flash = searchParams.flash ?? '';
 
   const query = qs({ q, status, verified, limit: String(limit), offset: String(offset) });
   const data = await apiJSON<ListResponse>(`/admin/providers?${query}`);
-
   const totalPages = Math.max(1, Math.ceil(data.count / limit));
 
   return (
     <div className="space-y-6">
+      {/* flash toast */}
+      <Flash message={flash} />
+
       <h1 className="text-xl font-semibold">Providers</h1>
 
       {/* Filters (GET form) */}
@@ -182,31 +190,31 @@ export default async function AdminProvidersPage({ searchParams }: { searchParam
                   <div className="flex flex-wrap gap-2">
                     {/* Approve (-> active) */}
                     {p.status !== 'active' && (
-                      <form action={approveAction}>
+                      <ConfirmSubmit action={approveAction} message={`Approve "${p.businessName}"?`}>
                         <input type="hidden" name="id" value={p.id} />
                         <button className="rounded border px-2 py-1 text-xs hover:bg-gray-50">Approve</button>
-                      </form>
+                      </ConfirmSubmit>
                     )}
 
                     {/* Verify toggle */}
-                    <form action={verifyToggleAction}>
+                    <ConfirmSubmit action={verifyToggleAction} message={`${p.verified ? 'Unverify' : 'Verify'} "${p.businessName}"?`}>
                       <input type="hidden" name="id" value={p.id} />
                       <input type="hidden" name="next" value={(!p.verified).toString()} />
                       <button className="rounded border px-2 py-1 text-xs hover:bg-gray-50">{p.verified ? 'Unverify' : 'Verify'}</button>
-                    </form>
+                    </ConfirmSubmit>
 
-                    {/* Disable with reason */}
+                    {/* Disable with reason (confirm) */}
                     {p.status !== 'disabled' ? (
-                      <form action={disableAction} className="flex items-center gap-1">
+                      <ConfirmSubmit action={disableAction} message={`Disable "${p.businessName}"?`} className="flex items-center gap-1">
                         <input type="hidden" name="id" value={p.id} />
                         <input name="reason" placeholder="reason" className="w-32 rounded border px-2 py-1 text-xs" />
                         <button className="rounded border px-2 py-1 text-xs text-red-700 hover:bg-red-50">Disable</button>
-                      </form>
+                      </ConfirmSubmit>
                     ) : (
-                      <form action={enableAction}>
+                      <ConfirmSubmit action={enableAction} message={`Enable "${p.businessName}"?`}>
                         <input type="hidden" name="id" value={p.id} />
                         <button className="rounded border px-2 py-1 text-xs text-green-700 hover:bg-green-50">Enable</button>
-                      </form>
+                      </ConfirmSubmit>
                     )}
                   </div>
                 </td>

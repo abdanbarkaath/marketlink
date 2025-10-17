@@ -70,13 +70,70 @@ const providersRoutes: FastifyPluginAsync = async (fastify) => {
 
   // DETAIL: GET /providers/:slug
   fastify.get('/providers/:slug', async (req, reply) => {
-    const { slug } = (req.params || {}) as { slug?: string };
-    if (!slug) return reply.code(400).send({ error: 'Missing slug' });
+    const { slug } = req.params as { slug: string };
 
-    const provider = await prisma.provider.findUnique({ where: { slug, status: ProviderStatus.active } });
-    if (!provider) return reply.code(404).send({ error: 'Provider not found' });
+    // Public path: only ACTIVE providers are visible
+    const active = await prisma.provider.findFirst({
+      where: { slug, status: ProviderStatus.active },
+      select: {
+        id: true,
+        slug: true,
+        businessName: true,
+        email: true,
+        tagline: true,
+        city: true,
+        state: true,
+        zip: true,
+        services: true,
+        rating: true,
+        verified: true,
+        logo: true,
+        status: true, // included for owner banner logic (harmless for active)
+        disabledReason: true, // included for owner banner logic (harmless for active)
+        createdAt: true,
+        updatedAt: true,
+      },
+    });
+    if (active) return reply.send(active);
 
-    return provider;
+    // Not active (pending/disabled) — only the OWNER may view
+    const nonActive = await prisma.provider.findUnique({
+      where: { slug },
+      select: {
+        id: true,
+        slug: true,
+        businessName: true,
+        email: true,
+        tagline: true,
+        city: true,
+        state: true,
+        zip: true,
+        services: true,
+        rating: true,
+        verified: true,
+        logo: true,
+        status: true,
+        disabledReason: true,
+        createdAt: true,
+        updatedAt: true,
+        userId: true, // for ownership check
+      },
+    });
+    if (!nonActive) {
+      reply.code(404).send({ error: 'Not found' });
+      return;
+    }
+
+    const user = await getUserFromRequest(fastify, req);
+    if (!user || user.id !== nonActive.userId) {
+      // Mask existence for non-owners
+      reply.code(404).send({ error: 'Not found' });
+      return;
+    }
+
+    // Owner can view; strip userId before sending
+    const { userId, ...ownerVisible } = nonActive;
+    return reply.send(ownerVisible);
   });
 
   // CREATE: POST /providers (owner = logged-in user)
