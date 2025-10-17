@@ -96,8 +96,3 @@ NEXT_PUBLIC_API_URL=http://localhost:4000
 - Magic tokens are in-memory; request a new link if the server restarted before verify.
 - Sessions are persistent in DB; logout invalidates only the current session token.
 
----
-
-**Questions or improvements?**  
-- Want me to **enforce strict transitions** in the API and hide Approve on disabled rows? I can provide the exact one-file patches.
-- Prefer to add an **Audit Log** UI for `AdminAction`? Easy to add `/admin/actions` with filters.
