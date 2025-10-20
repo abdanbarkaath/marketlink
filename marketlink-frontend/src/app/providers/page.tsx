@@ -40,16 +40,34 @@ function toQS(params: Record<string, string | undefined>) {
   return usp.toString();
 }
 
+// Build a compact page number list like [1, '…', 5, 6, 7, '…', 12]
+function buildPageWindow(current: number, total: number, span = 5): (number | string)[] {
+  const pages: (number | string)[] = [];
+  const start = Math.max(1, current - Math.floor(span / 2));
+  const end = Math.min(total, start + span - 1);
+  const adjStart = Math.max(1, Math.min(start, Math.max(1, total - span + 1)));
+  const adjEnd = Math.min(total, Math.max(end, Math.min(total, span)));
+
+  if (adjStart > 1) {
+    pages.push(1);
+    if (adjStart > 2) pages.push('…');
+  }
+  for (let p = adjStart; p <= adjEnd; p++) pages.push(p);
+  if (adjEnd < total) {
+    if (adjEnd < total - 1) pages.push('…');
+    pages.push(total);
+  }
+  return pages;
+}
+
 export default async function ProvidersPage({ searchParams }: { searchParams: Record<string, string | string[] | undefined> }) {
   // Existing filters
   const name = typeof searchParams.name === 'string' ? searchParams.name : undefined;
   const city = typeof searchParams.city === 'string' ? searchParams.city : undefined;
   const service = typeof searchParams.service === 'string' ? searchParams.service : undefined; // comma-separated
+  const match = (typeof searchParams.match === 'string' ? searchParams.match : 'any') as 'any' | 'all';
   const minRating = typeof searchParams.minRating === 'string' ? searchParams.minRating : undefined;
   const verified = typeof searchParams.verified === 'string' ? searchParams.verified : undefined;
-
-  // NEW: match any|all (default any)
-  const match = (typeof searchParams.match === 'string' ? searchParams.match : 'any') as 'any' | 'all';
 
   // Sorting + pagination
   const sort = (typeof searchParams.sort === 'string' ? searchParams.sort : 'newest') as 'newest' | 'name' | 'rating' | 'verified';
@@ -61,7 +79,7 @@ export default async function ProvidersPage({ searchParams }: { searchParams: Re
     name,
     city,
     service,
-    match, // << wired to backend
+    match,
     minRating,
     verified,
     sort,
@@ -105,86 +123,134 @@ export default async function ProvidersPage({ searchParams }: { searchParams: Re
 
   const prevParams = toQS({ ...baseParams, page: String(Math.max(1, page - 1)) });
   const nextParams = toQS({ ...baseParams, page: String(Math.min(totalPages, page + 1)) });
+  const pageWindow = buildPageWindow(page, totalPages, 5);
+
+  // Utilities to generate links with overridden params
+  const linkWith = (extra: Record<string, string | undefined>) => `/providers?${toQS({ ...baseParams, page: String(page), ...extra })}`;
 
   return (
     <main className="mx-auto max-w-6xl px-4 py-8">
-      <div className="flex flex-col gap-4 mb-6">
-        <div className="flex flex-col md:flex-row md:items-end md:justify-between gap-4">
-          <div>
-            <h1 className="text-2xl font-semibold">Providers</h1>
-            <p className="text-sm text-gray-500">
-              {total} result{total === 1 ? '' : 's'} · Page {meta.page} of {meta.totalPages}
-            </p>
-          </div>
-
-          {/* Sorting form (GET) */}
-          <form method="GET" className="flex flex-wrap items-end gap-3">
-            {/* Preserve existing filters */}
-            {name ? <input type="hidden" name="name" value={name} /> : null}
-            {city ? <input type="hidden" name="city" value={city} /> : null}
-            {/* Service + match will be controlled below in the Filters bar; only preserve if not shown/changed */}
-            {minRating ? <input type="hidden" name="minRating" value={minRating} /> : null}
-            {verified ? <input type="hidden" name="verified" value={verified} /> : null}
-            <input type="hidden" name="page" value="1" />
-            <input type="hidden" name="limit" value={String(limit)} />
-            {/* Also preserve current service/match so sorting doesn't drop them */}
-            {service ? <input type="hidden" name="service" value={service} /> : null}
-            <input type="hidden" name="match" value={match} />
-
-            <label className="text-sm font-medium">
-              Sort
-              <select name="sort" defaultValue={sort} className="ml-2 rounded border px-2 py-1 text-sm">
-                <option value="newest">Newest</option>
-                <option value="name">Name</option>
-                <option value="rating">Rating</option>
-                <option value="verified">Verified</option>
-              </select>
-            </label>
-
-            <label className="text-sm font-medium">
-              Order
-              <select name="order" defaultValue={order ?? (sort === 'name' ? 'asc' : 'desc')} className="ml-2 rounded border px-2 py-1 text-sm">
-                <option value="asc">Asc</option>
-                <option value="desc">Desc</option>
-              </select>
-            </label>
-
-            <button type="submit" className="rounded bg-black text-white text-sm px-3 py-1">
-              Apply
-            </button>
-          </form>
+      {/* Header */}
+      <div className="flex flex-col md:flex-row md:items-end md:justify-between gap-4 mb-6">
+        <div>
+          <h1 className="text-2xl font-semibold">Providers</h1>
+          <p className="text-sm text-gray-500">
+            {total} result{total === 1 ? '' : 's'} · Page {meta.page} of {meta.totalPages}
+          </p>
         </div>
 
-        {/* Filters bar: Services (comma-separated) + Match any/all */}
-        <form method="GET" className="flex flex-wrap items-end gap-3 rounded border p-3">
-          {/* Preserve other active params when changing service/match */}
+        {/* Sorting bar (GET) */}
+        <form method="GET" className="flex flex-wrap items-end gap-3">
+          {/* Preserve current filters */}
           {name ? <input type="hidden" name="name" value={name} /> : null}
           {city ? <input type="hidden" name="city" value={city} /> : null}
+          {service ? <input type="hidden" name="service" value={service} /> : null}
+          <input type="hidden" name="match" value={match} />
           {minRating ? <input type="hidden" name="minRating" value={minRating} /> : null}
           {verified ? <input type="hidden" name="verified" value={verified} /> : null}
-          <input type="hidden" name="sort" value={sort} />
-          <input type="hidden" name="order" value={order ?? (sort === 'name' ? 'asc' : 'desc')} />
           <input type="hidden" name="page" value="1" />
-          <input type="hidden" name="limit" value={String(limit)} />
-
           <label className="text-sm font-medium">
-            Services
-            <input type="text" name="service" defaultValue={service ?? ''} placeholder="e.g. seo,ads,social" className="ml-2 rounded border px-2 py-1 text-sm w-64" />
+            Page size
+            <select name="limit" defaultValue={String(limit)} className="ml-2 rounded border px-2 py-1 text-sm">
+              <option value="12">12</option>
+              <option value="20">20</option>
+              <option value="30">30</option>
+              <option value="50">50</option>
+            </select>
           </label>
 
           <label className="text-sm font-medium">
-            Match
-            <select name="match" defaultValue={match} className="ml-2 rounded border px-2 py-1 text-sm">
-              <option value="any">Any</option>
-              <option value="all">All</option>
+            Sort
+            <select name="sort" defaultValue={sort} className="ml-2 rounded border px-2 py-1 text-sm">
+              <option value="newest">Newest</option>
+              <option value="name">Name</option>
+              <option value="rating">Rating</option>
+              <option value="verified">Verified</option>
+            </select>
+          </label>
+
+          <label className="text-sm font-medium">
+            Order
+            <select name="order" defaultValue={order ?? (sort === 'name' ? 'asc' : 'desc')} className="ml-2 rounded border px-2 py-1 text-sm">
+              <option value="asc">Asc</option>
+              <option value="desc">Desc</option>
             </select>
           </label>
 
           <button type="submit" className="rounded bg-black text-white text-sm px-3 py-1">
-            Filter
+            Apply
           </button>
         </form>
       </div>
+
+      {/* Filters bar */}
+      <form method="GET" className="flex flex-wrap items-end gap-3 rounded border p-3 mb-4">
+        {/* Preserve sorting/pagination when changing filters */}
+        <input type="hidden" name="sort" value={sort} />
+        <input type="hidden" name="order" value={order ?? (sort === 'name' ? 'asc' : 'desc')} />
+        <input type="hidden" name="limit" value={String(limit)} />
+        <input type="hidden" name="page" value="1" />
+
+        {/* Existing filters that might be set elsewhere */}
+        {name ? <input type="hidden" name="name" value={name} /> : null}
+        {city ? <input type="hidden" name="city" value={city} /> : null}
+
+        {/* Services + match */}
+        <label className="text-sm font-medium">
+          Services
+          <input type="text" name="service" defaultValue={service ?? ''} placeholder="e.g. seo,ads,social" className="ml-2 rounded border px-2 py-1 text-sm w-64" />
+        </label>
+
+        <label className="text-sm font-medium">
+          Match
+          <select name="match" defaultValue={match} className="ml-2 rounded border px-2 py-1 text-sm">
+            <option value="any">Any</option>
+            <option value="all">All</option>
+          </select>
+        </label>
+
+        {/* Verified-only toggle */}
+        <label className="text-sm font-medium flex items-center gap-2">
+          <input type="checkbox" name="verified" value="1" defaultChecked={verified === '1' || (verified ?? '').toLowerCase() === 'true'} />
+          Verified only
+        </label>
+
+        {/* Min rating quick presets */}
+        <div className="ml-auto flex items-center gap-2">
+          <span className="text-sm text-gray-500">Min rating:</span>
+          {[
+            { label: 'None', value: '' },
+            { label: '3.0★', value: '3.0' },
+            { label: '4.0★', value: '4.0' },
+            { label: '4.5★', value: '4.5' },
+          ].map((opt) => {
+            const isActive = (!minRating && opt.value === '') || (minRating && opt.value === minRating);
+            const href = `/providers?${toQS({
+              ...{
+                name,
+                city,
+                service,
+                match,
+                verified,
+                sort,
+                order,
+                limit: String(limit),
+                page: '1',
+              },
+              minRating: opt.value || undefined,
+            })}`;
+            return (
+              <Link key={opt.label} href={href} className={`rounded border px-2 py-1 text-xs ${isActive ? 'bg-black text-white border-black' : 'hover:bg-gray-50'}`}>
+                {opt.label}
+              </Link>
+            );
+          })}
+        </div>
+
+        <button type="submit" className="rounded bg-black text-white text-sm px-3 py-1">
+          Filter
+        </button>
+      </form>
 
       {/* Results grid */}
       {data.length === 0 ? (
@@ -217,6 +283,7 @@ export default async function ProvidersPage({ searchParams }: { searchParams: Re
                     </div>
                   </div>
 
+                  {/* Tagline */}
                   {p.tagline ? <p className="mt-3 text-sm text-gray-700 line-clamp-2">{p.tagline}</p> : null}
 
                   {/* Services chips */}
@@ -231,6 +298,7 @@ export default async function ProvidersPage({ searchParams }: { searchParams: Re
                     </div>
                   ) : null}
 
+                  {/* Footer: rating + createdAt */}
                   <div className="mt-3 flex items-center justify-between text-sm">
                     <span className="text-gray-600">⭐ {p.rating?.toFixed?.(1) ?? '0.0'}</span>
                     <span className="text-xs text-gray-400">{new Date(p.createdAt).toLocaleDateString()}</span>
@@ -247,13 +315,27 @@ export default async function ProvidersPage({ searchParams }: { searchParams: Re
         <div className="text-sm text-gray-600">
           Showing {(meta.page - 1) * meta.limit + 1}–{Math.min(meta.page * meta.limit, meta.total)} of {meta.total}
         </div>
-        <div className="flex items-center gap-2">
+        <div className="flex items-center gap-1">
           <Link aria-disabled={page <= 1} className={`px-3 py-1 rounded border text-sm ${page <= 1 ? 'pointer-events-none opacity-50' : 'hover:bg-gray-50'}`} href={`/providers?${prevParams}`}>
             ← Prev
           </Link>
-          <span className="text-sm">
-            Page {meta.page} / {meta.totalPages}
-          </span>
+
+          {pageWindow.map((p, i) =>
+            typeof p === 'number' ? (
+              <Link
+                key={`${p}-${i}`}
+                href={`/providers?${toQS({ ...baseParams, page: String(p) })}`}
+                className={`px-3 py-1 rounded border text-sm ${p === page ? 'bg-black text-white border-black' : 'hover:bg-gray-50'}`}
+              >
+                {p}
+              </Link>
+            ) : (
+              <span key={`dots-${i}`} className="px-2 text-sm text-gray-400">
+                {p}
+              </span>
+            ),
+          )}
+
           <Link
             aria-disabled={page >= totalPages}
             className={`px-3 py-1 rounded border text-sm ${page >= totalPages ? 'pointer-events-none opacity-50' : 'hover:bg-gray-50'}`}
