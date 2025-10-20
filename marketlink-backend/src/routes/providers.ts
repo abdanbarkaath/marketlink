@@ -18,172 +18,214 @@ const asOrder = (v?: string, sort: SortKey): OrderDir => {
 };
 const asMatch = (v?: string): MatchMode => (v === 'all' ? 'all' : 'any');
 
+// ---- Fastify JSON schema for query validation ----
+const listQuerySchema = {
+  type: 'object',
+  additionalProperties: false,
+  properties: {
+    name: { type: 'string' },
+    city: { type: 'string' },
+    service: { type: 'string' }, // comma-separated services
+    minRating: { type: 'string', pattern: '^[0-9]+(\\.[0-9]+)?$' }, // keep string, we parse to number
+    verified: { type: 'string' }, // "1" | "true" | "0" | "false"
+    match: { type: 'string', enum: ['any', 'all'] },
+
+    sort: { type: 'string', enum: ['newest', 'name', 'rating', 'verified'] },
+    order: { type: 'string', enum: ['asc', 'desc'] },
+    page: { type: 'string', pattern: '^[0-9]+$' },
+    limit: { type: 'string', pattern: '^[0-9]+$' },
+  },
+} as const;
+
 const providersRoutes: FastifyPluginAsync = async (fastify) => {
   // LIST: GET /providers
-  fastify.get('/providers', async (req, reply) => {
-    const {
-      name,
-      city,
-      service,
-      minRating,
-      verified,
+  fastify.get(
+    '/providers',
+    {
+      schema: {
+        querystring: listQuerySchema,
+        response: {
+          200: {
+            type: 'object',
+            properties: {
+              meta: {
+                type: 'object',
+                properties: {
+                  total: { type: 'number' },
+                  page: { type: 'number' },
+                  limit: { type: 'number' },
+                  totalPages: { type: 'number' },
+                  sort: { type: 'string' },
+                  order: { type: 'string' },
+                },
+                required: ['total', 'page', 'limit', 'totalPages', 'sort', 'order'],
+              },
+              data: { type: 'array' },
+            },
+            required: ['meta', 'data'],
+          },
+        },
+      },
+    },
+    async (req, reply) => {
+      const {
+        name,
+        city,
+        service,
+        minRating,
+        verified,
 
-      // NEW in 6.1a
-      match: matchRaw,
+        match: matchRaw,
 
-      // 6.0a
-      sort: sortRaw,
-      order: orderRaw,
-      page: pageRaw,
-      limit: limitRaw,
-    } = (req.query || {}) as {
-      name?: string;
-      city?: string;
-      service?: string; // "seo" or "seo,ads"
-      minRating?: string; // "4.5"
-      verified?: string; // "1" | "true"
-      match?: string; // "any" | "all"
+        sort: sortRaw,
+        order: orderRaw,
+        page: pageRaw,
+        limit: limitRaw,
+      } = (req.query || {}) as {
+        name?: string;
+        city?: string;
+        service?: string;
+        minRating?: string;
+        verified?: string;
+        match?: string;
+        sort?: string;
+        order?: string;
+        page?: string;
+        limit?: string;
+      };
 
-      sort?: string;
-      order?: string;
-      page?: string;
-      limit?: string;
-    };
+      // ---- Parse & sanitize pagination ----
+      const limitNum = (() => {
+        const n = Number(limitRaw);
+        if (!Number.isFinite(n)) return 20;
+        return Math.max(1, Math.min(50, Math.trunc(n)));
+      })();
+      const pageNum = (() => {
+        const n = Number(pageRaw);
+        if (!Number.isFinite(n)) return 1;
+        return Math.max(1, Math.trunc(n));
+      })();
+      const skip = (pageNum - 1) * limitNum;
+      const take = limitNum;
 
-    // ---- Parse & sanitize pagination ----
-    const limitNum = (() => {
-      const n = Number(limitRaw);
-      if (!Number.isFinite(n)) return 20;
-      return Math.max(1, Math.min(50, Math.trunc(n)));
-    })();
-    const pageNum = (() => {
-      const n = Number(pageRaw);
-      if (!Number.isFinite(n)) return 1;
-      return Math.max(1, Math.trunc(n));
-    })();
-    const skip = (pageNum - 1) * limitNum;
-    const take = limitNum;
+      // ---- Build filters (where) ----
+      const andFilters: Prisma.ProviderWhereInput[] = [];
 
-    // ---- Build filters (where) ----
-    const andFilters: Prisma.ProviderWhereInput[] = [];
+      if (city && city.trim()) {
+        andFilters.push({ city: { startsWith: city.trim(), mode: 'insensitive' } });
+      }
 
-    // City prefix match (case-insensitive)
-    if (city && city.trim()) {
-      andFilters.push({ city: { startsWith: city.trim(), mode: 'insensitive' } });
-    }
+      if (name && name.trim()) {
+        andFilters.push({ businessName: { contains: name.trim(), mode: 'insensitive' } });
+      }
 
-    // Business name contains (case-insensitive)
-    if (name && name.trim()) {
-      andFilters.push({ businessName: { contains: name.trim(), mode: 'insensitive' } });
-    }
+      if (service && service.trim()) {
+        const tokens = service
+          .split(',')
+          .map((x) => x.trim().toLowerCase())
+          .filter(Boolean);
 
-    // Services: TEXT[] column — now supports match=any|all
-    if (service && service.trim()) {
-      const tokens = service
-        .split(',')
-        .map((x) => x.trim().toLowerCase())
-        .filter(Boolean);
+        const match = asMatch(matchRaw);
 
-      const match = asMatch(matchRaw); // default 'any'
-
-      if (tokens.length === 1) {
-        // single token = fast path
-        andFilters.push({ services: { has: tokens[0] } });
-      } else if (tokens.length > 1) {
-        if (match === 'all') {
-          andFilters.push({ services: { hasEvery: tokens } });
-        } else {
-          andFilters.push({ services: { hasSome: tokens } });
+        if (tokens.length === 1) {
+          andFilters.push({ services: { has: tokens[0] } });
+        } else if (tokens.length > 1) {
+          if (match === 'all') {
+            andFilters.push({ services: { hasEvery: tokens } });
+          } else {
+            andFilters.push({ services: { hasSome: tokens } });
+          }
         }
       }
-    }
 
-    if (minRating && !Number.isNaN(parseFloat(minRating))) {
-      andFilters.push({ rating: { gte: parseFloat(minRating) } });
-    }
+      if (minRating && !Number.isNaN(parseFloat(minRating))) {
+        andFilters.push({ rating: { gte: parseFloat(minRating) } });
+      }
 
-    if (verified && (verified === '1' || verified.toLowerCase() === 'true')) {
-      andFilters.push({ verified: true });
-    }
+      if (verified) {
+        const v = verified.toLowerCase();
+        if (v === '1' || v === 'true') andFilters.push({ verified: true });
+        if (v === '0' || v === 'false') andFilters.push({ verified: false });
+      }
 
-    // Force only active providers in public list
-    const baseFilter: Prisma.ProviderWhereInput = { status: ProviderStatus.active };
-    const where: Prisma.ProviderWhereInput = andFilters.length ? { AND: [...andFilters, baseFilter] } : baseFilter;
+      // Public list only shows ACTIVE providers
+      const baseFilter: Prisma.ProviderWhereInput = { status: ProviderStatus.active };
+      const where: Prisma.ProviderWhereInput = andFilters.length ? { AND: [...andFilters, baseFilter] } : baseFilter;
 
-    // ---- Sorting (primary + stable tie-breakers) ----
-    const sortKey = asSortKey(sortRaw);
-    const primaryOrder: OrderDir = asOrder(orderRaw, sortKey);
+      // ---- Sorting (primary + stable tie-breakers) ----
+      const sortKey = asSortKey(sortRaw);
+      const primaryOrder: OrderDir = asOrder(orderRaw, sortKey);
 
-    const primaryOrderBy: Prisma.ProviderOrderByWithRelationInput =
-      sortKey === 'newest' ? { createdAt: primaryOrder } : sortKey === 'name' ? { businessName: primaryOrder } : sortKey === 'rating' ? { rating: primaryOrder } : { verified: primaryOrder }; // "verified"
+      const primaryOrderBy: Prisma.ProviderOrderByWithRelationInput =
+        sortKey === 'newest' ? { createdAt: primaryOrder } : sortKey === 'name' ? { businessName: primaryOrder } : sortKey === 'rating' ? { rating: primaryOrder } : { verified: primaryOrder };
 
-    const orderBy: Prisma.ProviderOrderByWithRelationInput[] = [primaryOrderBy];
+      const orderBy: Prisma.ProviderOrderByWithRelationInput[] = [primaryOrderBy];
 
-    // Stable tie-breakers
-    const hasPrimary = (k: keyof Prisma.ProviderOrderByWithRelationInput) => k in primaryOrderBy;
-    if (!hasPrimary('rating')) orderBy.push({ rating: 'desc' });
-    if (!hasPrimary('verified')) orderBy.push({ verified: 'desc' });
-    if (!hasPrimary('businessName')) orderBy.push({ businessName: 'asc' });
-    if (!hasPrimary('createdAt')) orderBy.push({ createdAt: 'desc' });
+      const hasPrimary = (k: keyof Prisma.ProviderOrderByWithRelationInput) => k in primaryOrderBy;
+      if (!hasPrimary('rating')) orderBy.push({ rating: 'desc' });
+      if (!hasPrimary('verified')) orderBy.push({ verified: 'desc' });
+      if (!hasPrimary('businessName')) orderBy.push({ businessName: 'asc' });
+      if (!hasPrimary('createdAt')) orderBy.push({ createdAt: 'desc' });
 
-    fastify.log.info(
-      {
-        q: {
-          name,
-          city,
-          service,
-          minRating,
-          verified,
-          match: asMatch(matchRaw),
-          sort: sortKey,
-          order: primaryOrder,
+      fastify.log.info(
+        {
+          q: {
+            name,
+            city,
+            service,
+            minRating,
+            verified,
+            match: asMatch(matchRaw),
+            sort: sortKey,
+            order: primaryOrder,
+            page: pageNum,
+            limit: take,
+          },
+          where,
+          orderBy,
+        },
+        'providers.query',
+      );
+
+      // ---- Query total & page ----
+      const [total, rows] = await Promise.all([
+        prisma.provider.count({ where }),
+        prisma.provider.findMany({
+          where,
+          orderBy,
+          skip,
+          take,
+          select: {
+            id: true,
+            slug: true,
+            businessName: true,
+            tagline: true,
+            city: true,
+            state: true,
+            verified: true,
+            logo: true,
+            services: true,
+            rating: true,
+            createdAt: true,
+          },
+        }),
+      ]);
+
+      const totalPages = Math.max(1, Math.ceil(total / take));
+
+      return reply.send({
+        meta: {
+          total,
           page: pageNum,
           limit: take,
+          totalPages,
+          sort: sortKey,
+          order: primaryOrder,
         },
-        where,
-        orderBy,
-      },
-      'providers.query',
-    );
-
-    // ---- Query total & page ----
-    const [total, rows] = await Promise.all([
-      prisma.provider.count({ where }),
-      prisma.provider.findMany({
-        where,
-        orderBy,
-        skip,
-        take,
-        select: {
-          id: true,
-          slug: true,
-          businessName: true,
-          tagline: true,
-          city: true,
-          state: true,
-          verified: true,
-          logo: true,
-          services: true,
-          rating: true,
-          createdAt: true,
-        },
-      }),
-    ]);
-
-    const totalPages = Math.max(1, Math.ceil(total / take));
-
-    return reply.send({
-      meta: {
-        total,
-        page: pageNum,
-        limit: take,
-        totalPages,
-        sort: sortKey,
-        order: primaryOrder,
-      },
-      data: rows,
-    });
-  });
+        data: rows,
+      });
+    },
+  );
 
   // DETAIL: GET /providers/:slug
   fastify.get('/providers/:slug', async (req, reply) => {
