@@ -68,8 +68,8 @@ model Provider {
   slug         String @unique
 
   tagline String?
-  city    String
-  state   String
+  city    String @db.Citext
+  state   String @db.Citext
   zip     String?
 
   rating   Float    @default(0)
@@ -79,7 +79,7 @@ model Provider {
 
   planTier PlanTier @default(free)
 
-  // New: moderation fields
+  // Moderation fields
   status         ProviderStatus @default(active)
   disabledReason String?
   notes          String?
@@ -88,7 +88,12 @@ model Provider {
   updatedAt   DateTime      @updatedAt
   AdminAction AdminAction[]
 
-  @@index([status])
+  // Indexes optimized for public listing
+  @@index([status, createdAt])
+  @@index([status, verified])
+  @@index([status, city])
+  @@index([status, rating])
+  @@index([status, businessName])
 }
 
 model Session {
