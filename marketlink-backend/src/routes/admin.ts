@@ -1,3 +1,4 @@
+// marketlink-backend/src/routes/admin.ts
 import type { FastifyPluginAsync, FastifyRequest, FastifyReply } from 'fastify';
 import { prisma } from '../lib/prisma';
 import { getUserFromRequest } from '../lib/session';
@@ -61,7 +62,8 @@ const adminRoutes: FastifyPluginAsync = async (fastify) => {
   });
 
   /**
-   * GET /admin/providers?q=&status=&verified=&limit=&offset=
+   * GET /admin/providers?q=&status=&verified=&city=&page=&limit=
+   * Admin list for moderation table
    */
   fastify.get('/admin/providers', {
     schema: {
@@ -70,10 +72,11 @@ const adminRoutes: FastifyPluginAsync = async (fastify) => {
         type: 'object',
         properties: {
           q: { type: 'string' },
+          city: { type: 'string' },
           status: { type: 'string', enum: ['pending', 'active', 'disabled'] },
           verified: { type: 'string', enum: ['true', 'false'] },
-          limit: { type: 'string', pattern: '^\\d{1,3}$' }, // keep as string; we parse
-          offset: { type: 'string', pattern: '^\\d{1,6}$' },
+          page: { type: 'string', pattern: '^\\d{1,6}$' },
+          limit: { type: 'string', pattern: '^\\d{1,3}$' },
         },
         additionalProperties: false,
       },
@@ -82,7 +85,16 @@ const adminRoutes: FastifyPluginAsync = async (fastify) => {
           type: 'object',
           properties: {
             ok: { type: 'boolean' },
-            count: { type: 'number' },
+            meta: {
+              type: 'object',
+              properties: {
+                total: { type: 'number' },
+                page: { type: 'number' },
+                limit: { type: 'number' },
+                totalPages: { type: 'number' },
+              },
+              required: ['total', 'page', 'limit', 'totalPages'],
+            },
             items: {
               type: 'array',
               items: {
@@ -105,7 +117,7 @@ const adminRoutes: FastifyPluginAsync = async (fastify) => {
               },
             },
           },
-          required: ['ok', 'count', 'items'],
+          required: ['ok', 'meta', 'items'],
         },
       },
     },
@@ -113,38 +125,53 @@ const adminRoutes: FastifyPluginAsync = async (fastify) => {
       const admin = await requireAdmin(fastify, req, reply);
       if (!admin) return;
 
-      const { q, status, verified, limit, offset } = (req.query ?? {}) as {
+      const { q, city, status, verified, page, limit } = (req.query ?? {}) as {
         q?: string;
+        city?: string;
         status?: string;
         verified?: string;
+        page?: string;
         limit?: string;
-        offset?: string;
       };
 
+      const limitNum = (() => {
+        const n = Number(limit);
+        return Number.isFinite(n) ? Math.max(1, Math.min(100, Math.trunc(n))) : 20;
+      })();
+      const pageNum = (() => {
+        const n = Number(page);
+        return Number.isFinite(n) ? Math.max(1, Math.trunc(n)) : 1;
+      })();
+      const skip = (pageNum - 1) * limitNum;
+
       const where: any = {};
-      if (q) {
+      if (q && q.trim()) {
         where.OR = [
-          { businessName: { contains: q, mode: 'insensitive' } },
-          { city: { contains: q, mode: 'insensitive' } },
-          { state: { contains: q, mode: 'insensitive' } },
-          { email: { contains: q, mode: 'insensitive' } },
+          { businessName: { contains: q.trim(), mode: 'insensitive' } },
+          { email: { contains: q.trim(), mode: 'insensitive' } },
+          { tagline: { contains: q.trim(), mode: 'insensitive' } },
+          { notes: { contains: q.trim(), mode: 'insensitive' } },
         ];
+      }
+      if (city && city.trim()) {
+        where.city = { startsWith: city.trim(), mode: 'insensitive' };
       }
       if (status && ['pending', 'active', 'disabled'].includes(status)) {
         where.status = status as ProviderStatus;
       }
-      if (verified === 'true') where.verified = true;
-      if (verified === 'false') where.verified = false;
+      if (verified) {
+        const v = verified.toLowerCase();
+        if (v === 'true') where.verified = true;
+        if (v === 'false') where.verified = false;
+      }
 
-      const take = Math.min(Math.max(parseInt(limit || '50', 10), 1), 100);
-      const skip = Math.max(parseInt(offset || '0', 10), 0);
-
-      const [items, count] = await Promise.all([
+      const [total, items] = await Promise.all([
+        prisma.provider.count({ where }),
         prisma.provider.findMany({
           where,
-          orderBy: { createdAt: 'desc' },
-          take,
+          orderBy: [{ createdAt: 'desc' }, { businessName: 'asc' }], // stable tiebreaker
           skip,
+          take: limitNum,
           select: {
             id: true,
             businessName: true,
@@ -160,10 +187,18 @@ const adminRoutes: FastifyPluginAsync = async (fastify) => {
             services: true,
           },
         }),
-        prisma.provider.count({ where }),
       ]);
 
-      reply.send({ ok: true, count, items });
+      reply.send({
+        ok: true,
+        meta: {
+          total,
+          page: pageNum,
+          limit: limitNum,
+          totalPages: Math.max(1, Math.ceil(total / limitNum)),
+        },
+        items,
+      });
     },
   });
 
@@ -175,7 +210,10 @@ const adminRoutes: FastifyPluginAsync = async (fastify) => {
       tags: ['admin'],
       params: {
         type: 'object',
-        properties: { id: { type: 'string', minLength: 10 } },
+        properties: {
+          // cuid() is typically 25+ chars alphanumeric; avoid overly strict patterns
+          id: { type: 'string', minLength: 20 },
+        },
         required: ['id'],
         additionalProperties: false,
       },
@@ -186,7 +224,10 @@ const adminRoutes: FastifyPluginAsync = async (fastify) => {
             ok: { type: 'boolean' },
             provider: {
               type: 'object',
-              properties: { id: { type: 'string' }, status: { type: 'string', enum: ['pending', 'active', 'disabled'] } },
+              properties: {
+                id: { type: 'string' },
+                status: { type: 'string', enum: ['pending', 'active', 'disabled'] },
+              },
               required: ['id', 'status'],
             },
           },
@@ -228,7 +269,7 @@ const adminRoutes: FastifyPluginAsync = async (fastify) => {
       tags: ['admin'],
       params: {
         type: 'object',
-        properties: { id: { type: 'string', minLength: 10 } },
+        properties: { id: { type: 'string', minLength: 20 } },
         required: ['id'],
         additionalProperties: false,
       },
@@ -288,7 +329,7 @@ const adminRoutes: FastifyPluginAsync = async (fastify) => {
       tags: ['admin'],
       params: {
         type: 'object',
-        properties: { id: { type: 'string', minLength: 10 } },
+        properties: { id: { type: 'string', minLength: 20 } },
         required: ['id'],
         additionalProperties: false,
       },
@@ -327,7 +368,7 @@ const adminRoutes: FastifyPluginAsync = async (fastify) => {
 
       const updated = await prisma.provider.update({
         where: { id },
-        data: { status: ProviderStatus.disabled, disabledReason: reason || null },
+        data: { status: ProviderStatus.disabled, disabledReason: (reason ?? '').trim() || null },
       });
 
       await prisma.adminAction.create({
@@ -335,7 +376,7 @@ const adminRoutes: FastifyPluginAsync = async (fastify) => {
           adminUserId: admin.id,
           providerId: id,
           type: AdminActionType.DISABLE,
-          metadata: { reason: reason || null },
+          metadata: { reason: (reason ?? '').trim() || null },
         },
       });
 
@@ -354,7 +395,7 @@ const adminRoutes: FastifyPluginAsync = async (fastify) => {
       tags: ['admin'],
       params: {
         type: 'object',
-        properties: { id: { type: 'string', minLength: 10 } },
+        properties: { id: { type: 'string', minLength: 20 } },
         required: ['id'],
         additionalProperties: false,
       },
@@ -391,6 +432,62 @@ const adminRoutes: FastifyPluginAsync = async (fastify) => {
           adminUserId: admin.id,
           providerId: id,
           type: AdminActionType.ENABLE,
+        },
+      });
+
+      reply.send({ ok: true, provider: { id: updated.id, status: updated.status } });
+    },
+  });
+
+  /**
+   * POST /admin/providers/:id/pending
+   */
+  fastify.post('/admin/providers/:id/pending', {
+    schema: {
+      tags: ['admin'],
+      params: {
+        type: 'object',
+        properties: { id: { type: 'string', minLength: 20 } },
+        required: ['id'],
+        additionalProperties: false,
+      },
+      response: {
+        200: {
+          type: 'object',
+          properties: {
+            ok: { type: 'boolean' },
+            provider: {
+              type: 'object',
+              properties: {
+                id: { type: 'string' },
+                status: { type: 'string', enum: ['pending', 'active', 'disabled'] },
+              },
+              required: ['id', 'status'],
+            },
+          },
+          required: ['ok', 'provider'],
+        },
+      },
+    },
+    handler: async (req, reply) => {
+      const admin = await requireAdmin(fastify, req, reply);
+      if (!admin) return;
+      const { id } = req.params as { id: string };
+
+      const provider = await prisma.provider.findUnique({ where: { id } });
+      if (!provider) return reply.code(404).send({ error: 'Provider not found' });
+
+      const updated = await prisma.provider.update({
+        where: { id },
+        data: { status: ProviderStatus.pending, disabledReason: null },
+      });
+
+      await prisma.adminAction.create({
+        data: {
+          adminUserId: admin.id,
+          providerId: id,
+          type: AdminActionType.REVIEW, // or a suitable type you already use
+          metadata: { from: provider.status, to: 'pending' },
         },
       });
 

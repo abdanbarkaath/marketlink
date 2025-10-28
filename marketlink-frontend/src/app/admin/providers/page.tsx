@@ -1,4 +1,5 @@
 import React from 'react';
+import Link from 'next/link';
 import { apiJSON, apiFetch } from '../../../lib/serverApi';
 import { revalidatePath } from 'next/cache';
 import { redirect } from 'next/navigation';
@@ -167,18 +168,33 @@ export default async function AdminProvidersPage({ searchParams }: { searchParam
           </thead>
           <tbody>
             {data.items.map((p) => (
-              <tr key={p.id} className="border-t">
+              <tr key={p.id} className="border-t hover:bg-gray-50">
+                {/* Business cell links to public profile */}
                 <td className="px-4 py-3">
-                  <div className="font-medium">{p.businessName}</div>
-                  <div className="text-xs text-gray-500">/{p.slug}</div>
+                  <Link href={`/providers/${p.slug}`} className="block" title={`Open ${p.businessName}`}>
+                    <div className="font-medium underline-offset-2 hover:underline">{p.businessName}</div>
+                    <div className="text-xs text-gray-500">/providers/{p.slug}</div>
+                  </Link>
                 </td>
-                <td className="px-4 py-3">{p.email}</td>
+
+                {/* Email cell also links */}
                 <td className="px-4 py-3">
-                  {p.city}, {p.state}
+                  <Link href={`/providers/${p.slug}`} className="hover:underline underline-offset-2">
+                    {p.email}
+                  </Link>
                 </td>
+
+                {/* Location cell also links */}
+                <td className="px-4 py-3">
+                  <Link href={`/providers/${p.slug}`} className="hover:underline underline-offset-2">
+                    {p.city}, {p.state}
+                  </Link>
+                </td>
+
                 <td className="px-4 py-3">
                   <span className={`inline-flex rounded-full px-2 py-0.5 text-xs ${statusColor(p.status)}`}>{p.status}</span>
                 </td>
+
                 <td className="px-4 py-3">
                   {p.verified ? (
                     <span className="rounded-full bg-green-100 px-2 py-0.5 text-xs text-green-700">Yes</span>
@@ -186,8 +202,14 @@ export default async function AdminProvidersPage({ searchParams }: { searchParam
                     <span className="rounded-full bg-gray-100 px-2 py-0.5 text-xs text-gray-700">No</span>
                   )}
                 </td>
+
                 <td className="px-4 py-3">
-                  <div className="flex flex-wrap gap-2">
+                  <div className="flex flex-wrap items-center gap-2">
+                    {/* Quick open to public page */}
+                    <Link href={`/providers/${p.slug}`} className="rounded border px-2 py-1 text-xs hover:bg-gray-50">
+                      View
+                    </Link>
+
                     {/* Approve (-> active) */}
                     {p.status !== 'active' && (
                       <ConfirmSubmit action={approveAction} message={`Approve "${p.businessName}"?`}>
