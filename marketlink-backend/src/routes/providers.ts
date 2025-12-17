@@ -37,6 +37,40 @@ const listQuerySchema = {
   },
 } as const;
 
+// ---- Reusable Prisma selects ----
+const providerDetailSelect = {
+  id: true,
+  slug: true,
+  businessName: true,
+  email: true,
+  tagline: true,
+  city: true,
+  state: true,
+  zip: true,
+  services: true,
+  rating: true,
+  verified: true,
+  logo: true,
+  status: true,
+  disabledReason: true,
+  createdAt: true,
+  updatedAt: true,
+} satisfies Prisma.ProviderSelect;
+
+const providerEditorSelect = {
+  id: true,
+  slug: true,
+  businessName: true,
+  city: true,
+  state: true,
+  zip: true,
+  tagline: true,
+  logo: true,
+  services: true,
+  status: true,
+  disabledReason: true,
+} satisfies Prisma.ProviderSelect;
+
 const providersRoutes: FastifyPluginAsync = async (fastify) => {
   // LIST: GET /providers
   fastify.get(
@@ -234,24 +268,7 @@ const providersRoutes: FastifyPluginAsync = async (fastify) => {
     // Public path: only ACTIVE providers are visible
     const active = await prisma.provider.findFirst({
       where: { slug, status: ProviderStatus.active },
-      select: {
-        id: true,
-        slug: true,
-        businessName: true,
-        email: true,
-        tagline: true,
-        city: true,
-        state: true,
-        zip: true,
-        services: true,
-        rating: true,
-        verified: true,
-        logo: true,
-        status: true,
-        disabledReason: true,
-        createdAt: true,
-        updatedAt: true,
-      },
+      select: providerDetailSelect,
     });
     if (active) return reply.send(active);
 
@@ -259,39 +276,25 @@ const providersRoutes: FastifyPluginAsync = async (fastify) => {
     const nonActive = await prisma.provider.findUnique({
       where: { slug },
       select: {
-        id: true,
-        slug: true,
-        businessName: true,
-        email: true,
-        tagline: true,
-        city: true,
-        state: true,
-        zip: true,
-        services: true,
-        rating: true,
-        verified: true,
-        logo: true,
-        status: true,
-        disabledReason: true,
-        createdAt: true,
-        updatedAt: true,
+        ...providerDetailSelect,
         userId: true, // for ownership check
-      },
+      } satisfies Prisma.ProviderSelect,
     });
+
     if (!nonActive) {
       reply.code(404).send({ error: 'Not found' });
       return;
     }
 
     const user = await getUserFromRequest(fastify, req);
-    if (!user || user.id !== nonActive.userId) {
+    if (!user || user.id !== (nonActive as any).userId) {
       // Mask existence for non-owners
       reply.code(404).send({ error: 'Not found' });
       return;
     }
 
     // Owner can view; strip userId before sending
-    const { userId, ...ownerVisible } = nonActive;
+    const { userId, ...ownerVisible } = nonActive as any;
     return reply.send(ownerVisible);
   });
 
@@ -353,7 +356,7 @@ const providersRoutes: FastifyPluginAsync = async (fastify) => {
     }
 
     try {
-      const provider = await prisma.provider.create({
+      const created = await prisma.provider.create({
         data: {
           userId: user.id,
           email: user.email,
@@ -375,7 +378,7 @@ const providersRoutes: FastifyPluginAsync = async (fastify) => {
           services: true,
         },
       });
-      return reply.code(201).send({ ok: true, provider });
+      return reply.code(201).send({ ok: true, provider: created });
     } catch (e: any) {
       if (e?.code === 'P2002') {
         return reply.code(409).send({ error: 'A provider with this email or slug already exists.' });
@@ -385,7 +388,7 @@ const providersRoutes: FastifyPluginAsync = async (fastify) => {
     }
   });
 
-  // UPDATE: PUT /providers (owner-only)
+  // UPDATE: PUT /providers (owner-only, with admin-only moderation fields)
   fastify.put('/providers', async (req, reply) => {
     const user = await getUserFromRequest(fastify, req);
     if (!user) return reply.code(401).send({ error: 'Not authenticated' });
@@ -401,6 +404,10 @@ const providersRoutes: FastifyPluginAsync = async (fastify) => {
       services?: string[] | string;
       tagline?: string;
       logo?: string;
+
+      // admin-only moderation fields
+      status?: ProviderStatus;
+      disabledReason?: string | null;
     };
 
     const data: Prisma.ProviderUpdateInput = {};
@@ -441,6 +448,34 @@ const providersRoutes: FastifyPluginAsync = async (fastify) => {
         .filter(Boolean);
     }
 
+    // Admin-only moderation updates
+    if (typeof body.status !== 'undefined' || typeof body.disabledReason !== 'undefined') {
+      if (user.role !== 'admin') {
+        return reply.code(403).send({ error: 'Only admins can change provider status.' });
+      }
+
+      if (typeof body.status !== 'undefined') {
+        const next = String(body.status) as ProviderStatus;
+        if (!Object.values(ProviderStatus).includes(next)) {
+          return reply.code(400).send({ error: 'Invalid status value.' });
+        }
+
+        (data as any).status = next;
+
+        if (next === ProviderStatus.disabled) {
+          (data as any).disabledReason = String(body.disabledReason || '').trim() || null;
+        } else {
+          (data as any).disabledReason = null;
+        }
+      } else {
+        // status not provided, but disabledReason was
+        if (provider.status !== ProviderStatus.disabled) {
+          return reply.code(400).send({ error: 'disabledReason can only be set when status is disabled.' });
+        }
+        (data as any).disabledReason = String(body.disabledReason || '').trim() || null;
+      }
+    }
+
     if (Object.keys(data).length === 0) {
       return reply.code(400).send({ error: 'No fields to update' });
     }
@@ -449,17 +484,7 @@ const providersRoutes: FastifyPluginAsync = async (fastify) => {
       const updated = await prisma.provider.update({
         where: { id: provider.id },
         data,
-        select: {
-          id: true,
-          slug: true,
-          businessName: true,
-          city: true,
-          state: true,
-          zip: true,
-          tagline: true,
-          logo: true,
-          services: true,
-        },
+        select: providerEditorSelect,
       });
       return reply.send({ ok: true, provider: updated });
     } catch (e: any) {

@@ -5,6 +5,10 @@ import { useRouter } from 'next/navigation';
 
 const API_BASE = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:4000';
 
+type Role = 'provider' | 'admin';
+
+type ProviderStatus = 'active' | 'pending' | 'disabled';
+
 type Provider = {
   slug: string;
   businessName: string;
@@ -14,6 +18,8 @@ type Provider = {
   tagline?: string | null;
   logo?: string | null;
   services: string[];
+  status?: ProviderStatus; // admin only
+  disabledReason?: string | null; // admin only
 };
 
 const SERVICE_OPTIONS = [
@@ -27,6 +33,8 @@ const SERVICE_OPTIONS = [
 export default function ProfileEditorPage() {
   const router = useRouter();
 
+  const [role, setRole] = useState<Role | null>(null);
+
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -34,7 +42,7 @@ export default function ProfileEditorPage() {
 
   const [data, setData] = useState<Provider | null>(null);
 
-  // Load current user's provider
+  // Load current user's provider from /me/summary (works for active/pending/disabled)
   useEffect(() => {
     (async () => {
       try {
@@ -43,23 +51,26 @@ export default function ProfileEditorPage() {
           cache: 'no-store',
         });
         if (meRes.status === 401) return router.replace('/login');
+
         const me = await meRes.json();
+        const meRole = (me?.user?.role || 'provider') as Role;
+        setRole(meRole);
+
         if (!me.provider) return router.replace('/dashboard/onboarding');
 
-        const pRes = await fetch(`${API_BASE}/providers/${me.provider.slug}`, {
-          cache: 'no-store',
-        });
-        if (!pRes.ok) throw new Error(`Failed to load provider (${pRes.status})`);
-        const p = await pRes.json();
+        const p = me.provider;
+
         setData({
           slug: p.slug,
           businessName: p.businessName ?? '',
           city: p.city ?? '',
-          state: (p.state ?? '').toString(),
+          state: String(p.state ?? ''),
           zip: p.zip ?? '',
           tagline: p.tagline ?? '',
           logo: p.logo ?? '',
           services: Array.isArray(p.services) ? p.services : [],
+          status: p.status as ProviderStatus | undefined,
+          disabledReason: p.disabledReason ?? '',
         });
       } catch (e: any) {
         setError(e?.message || 'Failed to load profile');
@@ -98,8 +109,9 @@ export default function ProfileEditorPage() {
     if (!data) return;
     setSaving(true);
     setError(null);
+
     try {
-      const payload = {
+      const basePayload: any = {
         businessName: data.businessName.trim(),
         city: data.city.trim(),
         state: data.state.trim().toUpperCase(),
@@ -109,11 +121,17 @@ export default function ProfileEditorPage() {
         services: Array.from(new Set(data.services.map((s) => s.trim()).filter(Boolean))),
       };
 
+      // Admin-only fields
+      if (role === 'admin') {
+        basePayload.status = data.status || 'pending';
+        basePayload.disabledReason = basePayload.status === 'disabled' ? String(data.disabledReason || '').trim() : null;
+      }
+
       const res = await fetch(`${API_BASE}/providers`, {
         method: 'PUT',
         headers: { 'Content-Type': 'application/json' },
         credentials: 'include',
-        body: JSON.stringify(payload),
+        body: JSON.stringify(basePayload),
       });
 
       if (!res.ok) {
@@ -127,7 +145,9 @@ export default function ProfileEditorPage() {
 
       const updated = await res.json(); // should include { slug }
       setDirty(false);
-      router.replace(`/providers/${updated.slug || data.slug}`);
+
+      // For pending/disabled, going to public page might 404, so go back to dashboard.
+      router.replace('/dashboard');
     } catch (e: any) {
       setError(e?.message || 'Failed to save changes');
     } finally {
@@ -135,10 +155,10 @@ export default function ProfileEditorPage() {
     }
   }
 
-  // ----- move these BEFORE any early returns so hook order never changes -----
+  // ----- keep hooks before early returns -----
   const known = useMemo(() => new Set(SERVICE_OPTIONS.map((s) => s.value)), []);
   const extraServices = useMemo(() => (data?.services || []).filter((s) => !known.has(s)), [data?.services, known]);
-  // --------------------------------------------------------------------------
+  // ------------------------------------------
 
   if (loading) {
     return (
@@ -163,7 +183,42 @@ export default function ProfileEditorPage() {
   return (
     <main className="mx-auto max-w-2xl px-4 py-10">
       <h1 className="text-2xl font-semibold">Edit profile</h1>
-      <p className="mt-2 text-gray-600">Update your public provider details.</p>
+      <p className="mt-2 text-gray-600">Update your provider details.</p>
+
+      {/* Admin-only moderation controls */}
+      {role === 'admin' ? (
+        <section className="mt-6 rounded-2xl border bg-gray-50 p-5">
+          <div className="flex items-center justify-between">
+            <h2 className="text-sm font-semibold">Admin controls</h2>
+            <span className="text-xs text-gray-500">Visibility is controlled by status</span>
+          </div>
+
+          <div className="mt-4 grid gap-4">
+            <div>
+              <label className="mb-1 block text-sm">Status</label>
+              <select className="w-full rounded-xl border px-3 py-2" value={data.status || 'pending'} onChange={(e) => setField('status', e.target.value as ProviderStatus)}>
+                <option value="active">Active (visible in search)</option>
+                <option value="pending">Pending (hidden)</option>
+                <option value="disabled">Disabled (hidden)</option>
+              </select>
+            </div>
+
+            {(data.status || 'pending') === 'disabled' ? (
+              <div>
+                <label className="mb-1 block text-sm">Disabled reason (optional)</label>
+                <input
+                  className="w-full rounded-xl border px-4 py-3"
+                  value={data.disabledReason ?? ''}
+                  onChange={(e) => setField('disabledReason', e.target.value)}
+                  placeholder="e.g., duplicate listing / policy violation / requested by owner"
+                />
+              </div>
+            ) : null}
+          </div>
+
+          <p className="mt-3 text-xs text-gray-500">Note: pending/disabled providers may 404 on the public page by design.</p>
+        </section>
+      ) : null}
 
       <form onSubmit={handleSave} className="mt-8 grid gap-5">
         <div>
@@ -225,13 +280,20 @@ export default function ProfileEditorPage() {
           )}
         </div>
 
-        <div className="flex gap-3">
+        <div className="flex flex-wrap gap-3">
           <button type="submit" disabled={disableSave} className={`rounded-xl border px-4 py-3 font-medium ${disableSave ? 'cursor-not-allowed opacity-60' : 'hover:bg-gray-50'}`}>
             {saving ? 'Saving…' : 'Save changes'}
           </button>
-          <button type="button" onClick={() => router.replace(`/providers/${data.slug}`)} className="rounded-xl border px-4 py-3 font-medium hover:bg-gray-50">
-            Cancel
+
+          <button type="button" onClick={() => router.replace('/dashboard')} className="rounded-xl border px-4 py-3 font-medium hover:bg-gray-50">
+            Back to dashboard
           </button>
+
+          {data.status === 'active' ? (
+            <button type="button" onClick={() => router.replace(`/providers/${data.slug}`)} className="rounded-xl border px-4 py-3 font-medium hover:bg-gray-50">
+              View public page
+            </button>
+          ) : null}
         </div>
 
         <p className="text-xs text-gray-500">* required</p>

@@ -23,6 +23,10 @@ const accountRoutes: FastifyPluginAsync = async (fastify) => {
         businessName: true,
         city: true,
         state: true,
+        zip: true,
+        tagline: true,
+        logo: true,
+        services: true,
         status: true,
         disabledReason: true,
       },
@@ -31,7 +35,7 @@ const accountRoutes: FastifyPluginAsync = async (fastify) => {
     return {
       ok: true,
       user: { id: user.id, email: user.email, role: user.role },
-      provider, // null if none
+      provider,
     };
   });
 };
