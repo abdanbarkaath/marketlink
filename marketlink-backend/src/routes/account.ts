@@ -17,7 +17,15 @@ const accountRoutes: FastifyPluginAsync = async (fastify) => {
 
     const provider = await prisma.provider.findFirst({
       where: { userId: user.id },
-      select: { id: true, slug: true, businessName: true, city: true, state: true },
+      select: {
+        id: true,
+        slug: true,
+        businessName: true,
+        city: true,
+        state: true,
+        status: true,
+        disabledReason: true,
+      },
     });
 
     return {
