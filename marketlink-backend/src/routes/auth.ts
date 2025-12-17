@@ -1,83 +1,65 @@
 import type { FastifyPluginAsync } from 'fastify';
+import bcrypt from 'bcryptjs';
 import { prisma } from '../lib/prisma';
-import { WEB_BASE, createMagicToken, consumeMagicToken, createSessionForUser, setSessionCookie, getUserFromRequest, deleteCurrentSession } from '../lib/session';
-import { sendMagicLinkEmail } from '../lib/mailer';
-
-// Auth mode: invite (prod default) | selfserve (dev)
-type AuthMode = 'invite' | 'selfserve';
-const AUTH_MODE: AuthMode = (process.env.AUTH_MODE?.toLowerCase() as AuthMode) === 'selfserve' ? 'selfserve' : 'invite';
+import { createSessionForUser, setSessionCookie, getUserFromRequest, deleteCurrentSession } from '../lib/session';
 
 const authRoutes: FastifyPluginAsync = async (fastify) => {
   /**
-   * POST /auth/magic-link
-   * Rate limited: 5 requests / 60s per IP
-   * - invite: only existing users get a link (prevents enumeration; SAFE_OK always)
-   * - selfserve: upsert user, then send link (still SAFE_OK)
+   * POST /auth/login
+   * Body: { email, password }
+   * - Validates credentials, creates DB session, sets signed httpOnly cookie.
    */
-  fastify.route({
-    method: 'POST',
-    url: '/auth/magic-link',
-    config: { rateLimit: { max: 5, timeWindow: '60 seconds' } },
-    handler: async (req, reply) => {
-      const { email } = (req.body || {}) as { email?: string };
-      const SAFE_OK = () => reply.send({ ok: true });
+  fastify.post('/auth/login', async (req, reply) => {
+    const { email, password } = (req.body || {}) as { email?: string; password?: string };
 
-      if (!email || !/^\S+@\S+\.\S+$/.test(email)) return SAFE_OK();
+    const cleanEmail = String(email || '')
+      .trim()
+      .toLowerCase();
+    const cleanPassword = String(password || '');
 
-      if (AUTH_MODE === 'invite') {
-        const user = await prisma.user.findUnique({ where: { email } });
-        if (!user) {
-          fastify.log.info({ email, authMode: AUTH_MODE }, 'magic-link.invite.unknown');
-          return SAFE_OK();
-        }
-        const { token, expiresAt } = createMagicToken(email);
-        const verifyUrl = `${WEB_BASE}/login/verify?token=${token}`;
-        try {
-          await sendMagicLinkEmail(email, verifyUrl);
-        } catch (err) {
-          req.log.error({ err }, 'magic-link email send failed');
-        }
-        fastify.log.info({ email, verifyUrl, expiresAt, authMode: AUTH_MODE }, 'magic-link.invite.sent');
-        return SAFE_OK();
-      }
+    if (!cleanEmail || !cleanPassword) {
+      return reply.code(400).send({ ok: false, message: 'Email and password are required.' });
+    }
 
-      // selfserve: create if missing, then send
-      const user = await prisma.user.upsert({
-        where: { email },
-        update: {},
-        create: { email },
-      });
-      const { token, expiresAt } = createMagicToken(user.email);
-      const verifyUrl = `${WEB_BASE}/login/verify?token=${token}`;
-      try {
-        await sendMagicLinkEmail(user.email, verifyUrl);
-      } catch (err) {
-        req.log.error({ err }, 'magic-link email send failed');
-      }
-      fastify.log.info({ email: user.email, verifyUrl, expiresAt, authMode: AUTH_MODE }, 'magic-link.selfserve.sent');
-      return SAFE_OK();
-    },
-  });
+    const user = await prisma.user.findUnique({
+      where: { email: cleanEmail },
+      select: {
+        id: true,
+        email: true,
+        role: true,
+        passwordHash: true,
+        mustChangePassword: true,
+        isDisabled: true,
+      },
+    });
 
-  /**
-   * POST /auth/verify
-   * Body: { token }
-   * - Consumes magic token, creates DB session, sets signed httpOnly cookie.
-   */
-  fastify.post('/auth/verify', async (req, reply) => {
-    const { token } = (req.body || {}) as { token?: string };
-    if (!token) return reply.code(400).send({ error: 'Missing token' });
+    // Avoid user enumeration
+    if (!user || !user.passwordHash) {
+      return reply.code(401).send({ ok: false, message: 'Invalid email or password.' });
+    }
 
-    const consumed = consumeMagicToken(token);
-    if (!consumed) return reply.code(400).send({ error: 'Invalid or expired token' });
+    if (user.isDisabled) {
+      return reply.code(403).send({ ok: false, message: 'Account disabled.' });
+    }
 
-    const user = await prisma.user.findUnique({ where: { email: consumed.email } });
-    if (!user) return reply.code(400).send({ error: 'User not found' });
+    const ok = await bcrypt.compare(cleanPassword, user.passwordHash);
+    if (!ok) {
+      return reply.code(401).send({ ok: false, message: 'Invalid email or password.' });
+    }
 
-    const { sessionToken, expiresAt } = await createSessionForUser(user.id); // DB-backed
-    setSessionCookie(reply, sessionToken); // signed httpOnly cookie
+    const { sessionToken, expiresAt } = await createSessionForUser(user.id);
+    setSessionCookie(reply, sessionToken);
 
-    return reply.send({ ok: true, user: { id: user.id, email: user.email, role: user.role }, expiresAt });
+    return reply.send({
+      ok: true,
+      user: {
+        id: user.id,
+        email: user.email,
+        role: user.role,
+        mustChangePassword: user.mustChangePassword,
+      },
+      expiresAt,
+    });
   });
 
   /**
@@ -87,7 +69,18 @@ const authRoutes: FastifyPluginAsync = async (fastify) => {
   fastify.get('/auth/me', async (req, reply) => {
     const user = await getUserFromRequest(fastify, req);
     if (!user) return reply.code(401).send({ error: 'Not authenticated' });
-    return { ok: true, user: { id: user.id, email: user.email, role: user.role } };
+
+    return {
+      ok: true,
+      user: {
+        id: user.id,
+        email: user.email,
+        role: user.role,
+        // include if your getUserFromRequest returns these fields
+        mustChangePassword: (user as any).mustChangePassword,
+        isDisabled: (user as any).isDisabled,
+      },
+    };
   });
 
   /**

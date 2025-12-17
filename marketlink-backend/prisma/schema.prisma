@@ -43,6 +43,12 @@ model User {
   id        String   @id @default(cuid())
   email     String   @unique
   role      UserRole @default(provider)
+
+  // ✅ Password auth (new)
+  passwordHash       String?  // optional for now so existing users don’t break
+  mustChangePassword Boolean  @default(true)
+  isDisabled         Boolean  @default(false)
+
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
