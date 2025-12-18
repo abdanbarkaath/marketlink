@@ -8,6 +8,7 @@ import adminRoutes from './routes/admin';
 import authRoutes from './routes/auth';
 import accountRoutes from './routes/account';
 import providersRoutes from './routes/providers';
+import inquiriesRoutes from './routes/inquiries';
 
 async function start() {
   const fastify = Fastify({ logger: true });
@@ -35,6 +36,7 @@ async function start() {
   await fastify.register(authRoutes);
   await fastify.register(accountRoutes);
   await fastify.register(providersRoutes);
+  await fastify.register(inquiriesRoutes);
   await fastify.register(adminRoutes);
 
   const port = Number(process.env.PORT || 4000);
