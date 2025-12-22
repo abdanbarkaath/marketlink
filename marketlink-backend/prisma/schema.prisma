@@ -1,11 +1,87 @@
-// prisma/schema.prisma
+generator client {
+  provider = "prisma-client-js"
+}
+
 datasource db {
   provider = "postgresql"
   url      = env("DATABASE_URL")
 }
 
-generator client {
-  provider = "prisma-client-js"
+model User {
+  id                 String        @id @default(cuid())
+  email              String        @unique
+  role               UserRole      @default(provider)
+  createdAt          DateTime      @default(now())
+  updatedAt          DateTime      @updatedAt
+  isDisabled         Boolean       @default(false)
+  mustChangePassword Boolean       @default(true)
+  passwordHash       String?
+  adminActions       AdminAction[]
+  providers          Provider[]
+  sessions           Session[]
+}
+
+model Provider {
+  id             String         @id @default(cuid())
+  email          String         @unique
+  businessName   String
+  slug           String         @unique
+  tagline        String?
+  city           String         @db.Citext
+  state          String         @db.Citext
+  zip            String?
+  rating         Float          @default(0)
+  verified       Boolean        @default(false)
+  logo           String?
+  services       String[]       @default([])
+  createdAt      DateTime       @default(now())
+  updatedAt      DateTime       @updatedAt
+  planTier       PlanTier       @default(free)
+  userId         String?
+  disabledReason String?
+  notes          String?
+  status         ProviderStatus @default(active)
+  AdminAction    AdminAction[]
+  owner          User?          @relation(fields: [userId], references: [id])
+
+  // ✅ New: inquiries/leads for this provider
+  inquiries      Inquiry[]
+
+  @@index([status, createdAt])
+  @@index([status, verified])
+  @@index([status, city])
+  @@index([status, rating])
+  @@index([status, businessName])
+}
+
+model Session {
+  /// Session token stored as primary key (opaque, random string)
+  id        String   @id
+  userId    String
+  /// When this session expires
+  expiresAt DateTime
+  /// Timestamps
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+  @@index([expiresAt])
+}
+
+///
+/// New: audit log of admin actions
+model AdminAction {
+  id          String          @id @default(cuid())
+  adminUserId String?
+  providerId  String
+  type        AdminActionType
+  metadata    Json?
+  createdAt   DateTime        @default(now())
+  admin       User?           @relation(fields: [adminUserId], references: [id])
+  provider    Provider        @relation(fields: [providerId], references: [id], onDelete: Cascade)
+
+  @@index([providerId, createdAt])
 }
 
 enum UserRole {
@@ -18,18 +94,16 @@ enum PlanTier {
   pro
 }
 
-/**
- * New: Provider status for moderation
- */
+///
+/// New: Provider status for moderation
 enum ProviderStatus {
   pending
   active
   disabled
 }
 
-/**
- * New: Admin action types for audit log
- */
+///
+/// New: Admin action types for audit log
 enum AdminActionType {
   APPROVE
   VERIFY_ON
@@ -39,101 +113,30 @@ enum AdminActionType {
   EDIT
 }
 
-model User {
-  id        String   @id @default(cuid())
-  email     String   @unique
-  role      UserRole @default(provider)
-
-  // ✅ Password auth (new)
-  passwordHash       String?  // optional for now so existing users don’t break
-  mustChangePassword Boolean  @default(true)
-  isDisabled         Boolean  @default(false)
-
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
-
-  // Ownership: one user can own one or more providers
-  providers Provider[]
-
-  // Back-relation for DB-backed sessions
-  sessions Session[]
-
-  // Back-relation for admin actions (optional)
-  adminActions AdminAction[]
+///
+/// ✅ New: inquiry workflow status (MVP)
+enum InquiryStatus {
+  NEW
+  READ
+  ARCHIVED
 }
 
-model Provider {
+///
+/// ✅ New: inquiry/messages sent by business owners to a provider
+model Inquiry {
   id String @id @default(cuid())
-
-  // Owner (optional so existing rows don’t break)
-  userId String?
-  owner  User?   @relation(fields: [userId], references: [id], onDelete: SetNull)
-
-  email        String @unique
-  businessName String
-  slug         String @unique
-
-  tagline String?
-  city    String @db.Citext
-  state   String @db.Citext
-  zip     String?
-
-  rating   Float    @default(0)
-  verified Boolean  @default(false)
-  logo     String?
-  services String[] @default([])
-
-  planTier PlanTier @default(free)
-
-  // Moderation fields
-  status         ProviderStatus @default(active)
-  disabledReason String?
-  notes          String?
-
-  createdAt   DateTime      @default(now())
-  updatedAt   DateTime      @updatedAt
-  AdminAction AdminAction[]
-
-  // Indexes optimized for public listing
-  @@index([status, createdAt])
-  @@index([status, verified])
-  @@index([status, city])
-  @@index([status, rating])
-  @@index([status, businessName])
-}
-
-model Session {
-  /// Session token stored as primary key (opaque, random string)
-  id        String   @id
-  /// Owner of this session
-  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
-  userId    String
-  /// When this session expires
-  expiresAt DateTime
-  /// Timestamps
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
-
-  @@index([userId])
-  @@index([expiresAt])
-}
-
-/**
- * New: audit log of admin actions
- */
-model AdminAction {
-  id String @id @default(cuid())
-
-  adminUserId String?
-  admin       User?   @relation(fields: [adminUserId], references: [id], onDelete: SetNull)
 
   providerId String
   provider   Provider @relation(fields: [providerId], references: [id], onDelete: Cascade)
 
-  type     AdminActionType
-  metadata Json?
+  name    String
+  email   String
+  phone   String?
+  message String
 
-  createdAt DateTime @default(now())
+  status    InquiryStatus @default(NEW)
+  createdAt DateTime      @default(now())
 
   @@index([providerId, createdAt])
+  @@index([status, createdAt])
 }

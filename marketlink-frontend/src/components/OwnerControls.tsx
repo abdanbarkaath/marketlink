@@ -14,30 +14,39 @@ type MeSummary =
   | { ok: false };
 
 export default function OwnerControls({ slug }: { slug: string }) {
-  const [owns, setOwns] = useState<boolean>(false);
+  const [owns, setOwns] = useState(false);
 
   useEffect(() => {
     let cancelled = false;
+    const controller = new AbortController();
+
     (async () => {
       try {
         const res = await fetch(`${API_BASE}/me/summary`, {
           credentials: 'include',
           cache: 'no-store',
+          signal: controller.signal,
         });
-        if (!res.ok) {
-          // not logged in or other error; render nothing
-          return;
-        }
+
+        if (!res.ok) return;
+
         const data: MeSummary = await res.json();
-        if (!cancelled && 'provider' in data) {
-          setOwns(!!data.provider && data.provider.slug === slug);
+
+        if (cancelled) return;
+
+        if (data.ok) {
+          setOwns(Boolean(data.provider && data.provider.slug === slug));
+        } else {
+          setOwns(false);
         }
       } catch {
-        // ignore; render nothing
+        if (!cancelled) setOwns(false);
       }
     })();
+
     return () => {
       cancelled = true;
+      controller.abort();
     };
   }, [slug]);
 

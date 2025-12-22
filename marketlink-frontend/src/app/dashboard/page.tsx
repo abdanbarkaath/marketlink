@@ -7,7 +7,22 @@ import Link from 'next/link';
 const API_BASE = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:4000';
 
 type User = { id: string; email: string; role: 'provider' | 'admin' };
-type ProviderSummary = { id: string; slug: string; businessName: string; city: string; state: string; status: 'active' | 'pending' | 'disabled'; disabledReason?: string } | null;
+
+type ProviderSummary = {
+  id: string;
+  slug: string;
+  businessName: string;
+  city: string;
+  state: string;
+  status: 'active' | 'pending' | 'disabled';
+  disabledReason?: string;
+} | null;
+
+type InquiryRow = {
+  id: string;
+  status: 'NEW' | 'READ' | 'ARCHIVED';
+  createdAt: string;
+};
 
 function Pill({ children }: { children: React.ReactNode }) {
   return <span className="inline-flex items-center rounded-full border bg-white px-2 py-0.5 text-xs font-medium text-gray-700">{children}</span>;
@@ -19,10 +34,15 @@ function SectionTitle({ children }: { children: React.ReactNode }) {
 
 export default function DashboardPage() {
   const router = useRouter();
+
   const [user, setUser] = useState<User | null>(null);
   const [provider, setProvider] = useState<ProviderSummary>(null);
+
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+
+  const [inquiryCount, setInquiryCount] = useState<number | null>(null);
+  const [newInquiryCount, setNewInquiryCount] = useState<number | null>(null);
 
   useEffect(() => {
     (async () => {
@@ -51,6 +71,31 @@ export default function DashboardPage() {
       }
     })();
   }, [router]);
+
+  // Pull inquiry count for quick actions (only if the user has a provider)
+  useEffect(() => {
+    if (!provider) return;
+
+    (async () => {
+      try {
+        const res = await fetch(`${API_BASE}/inquiries`, {
+          credentials: 'include',
+          cache: 'no-store',
+        });
+
+        // If not authed or not allowed, just hide counts (don’t block dashboard)
+        if (!res.ok) return;
+
+        const body = (await res.json()) as { ok: true; data: InquiryRow[] } | any;
+        const rows = Array.isArray(body?.data) ? body.data : [];
+
+        setInquiryCount(rows.length);
+        setNewInquiryCount(rows.filter((r) => r.status === 'NEW').length);
+      } catch {
+        // ignore
+      }
+    })();
+  }, [provider]);
 
   if (loading) {
     return (
@@ -86,25 +131,14 @@ export default function DashboardPage() {
           </div>
         </div>
 
-        {/* Small hint area (optional) */}
-        <div className="text-sm text-gray-600">
-          {provider ? (
-            <span>
-              Public profile:{' '}
-              <Link href={`/providers/${provider.slug}`} className="font-medium text-gray-900 hover:underline underline-offset-4">
-                /providers/{provider.slug}
-              </Link>
-            </span>
-          ) : (
-            <span>Create your profile to get listed.</span>
-          )}
-        </div>
+        {/* no extra links here */}
+        <div className="text-sm text-gray-600">{provider ? `${provider.businessName} · ${provider.city}, ${provider.state}` : 'Create your profile to get listed.'}</div>
       </div>
 
       {/* Layout */}
       <div className="mt-8 grid gap-4 lg:grid-cols-3">
         {/* Primary column */}
-        <div className="lg:col-span-2 space-y-4">
+        <div className="space-y-4 lg:col-span-2">
           {/* Primary hero card */}
           <section className="rounded-2xl border bg-white p-6 shadow-sm">
             {!provider ? (
@@ -148,24 +182,26 @@ export default function DashboardPage() {
                       {provider.city}, {provider.state}
                     </p>
                   </div>
-                  <Pill>Live</Pill>
+                  <Pill>{provider.status}</Pill>
                 </div>
 
                 <div className="mt-6 flex flex-wrap gap-2">
-                  <Link href="/dashboard/profile" prefetch className="rounded-xl bg-black px-4 py-2 text-sm font-medium text-white hover:opacity-90">
+                  <Link href="/dashboard/profile" className="rounded-xl bg-black px-4 py-2 text-sm font-medium text-white hover:opacity-90">
                     Edit profile
                   </Link>
-                  <Link href={`/providers/${provider.slug}`} prefetch className="rounded-xl border px-4 py-2 text-sm font-medium hover:bg-gray-50">
-                    View public page
+
+                  <Link href="/dashboard/inquiries" className="rounded-xl border px-4 py-2 text-sm font-medium hover:bg-gray-50">
+                    Inquiries
+                    {newInquiryCount !== null && newInquiryCount > 0 ? <span className="ml-2 rounded-full border bg-white px-2 py-0.5 text-xs">{newInquiryCount} new</span> : null}
                   </Link>
                 </div>
 
                 <div className="mt-6 rounded-2xl border bg-gray-50 p-4">
                   <SectionTitle>Next steps</SectionTitle>
                   <ul className="mt-2 list-disc space-y-1 pl-5 text-sm text-gray-600">
+                    <li>Check your inquiries and reply fast</li>
                     <li>Add more services so you show up in more searches</li>
                     <li>Upload a logo and tighten your tagline</li>
-                    <li>Later: inquiries will show up in your dashboard</li>
                   </ul>
                 </div>
               </>
@@ -176,19 +212,22 @@ export default function DashboardPage() {
           <section className="rounded-2xl border bg-white p-6 shadow-sm">
             <div className="flex items-start justify-between gap-4">
               <SectionTitle>Quick actions</SectionTitle>
-              <Pill>Coming soon</Pill>
+              {provider ? <Pill>{inquiryCount === null ? 'Loading…' : `${inquiryCount} total`}</Pill> : <Pill>Setup first</Pill>}
             </div>
 
             <div className="mt-4 grid gap-3 sm:grid-cols-2">
-              <div className="rounded-2xl border p-4">
+              <Link href={provider ? '/dashboard/inquiries' : '/dashboard/onboarding'} className="rounded-2xl border p-4 hover:bg-gray-50" aria-disabled={!provider}>
                 <div className="text-sm font-semibold">Inquiries</div>
-                <p className="mt-1 text-sm text-gray-600">View and respond to leads.</p>
-              </div>
+                <p className="mt-1 text-sm text-gray-600">{provider ? 'View and respond to leads.' : 'Create a profile first to receive leads.'}</p>
+              </Link>
+
               <div className="rounded-2xl border p-4">
                 <div className="text-sm font-semibold">Verification</div>
                 <p className="mt-1 text-sm text-gray-600">Get verified to rank higher.</p>
               </div>
             </div>
+
+            {user.role === 'admin' ? <p className="mt-4 text-xs text-gray-500">Admin dashboard stats (active / pending / disabled) is Phase 3E. We’ll add it next.</p> : null}
           </section>
         </div>
 
@@ -223,7 +262,7 @@ export default function DashboardPage() {
                 : 'Your profile status is unknown.'}
             </p>
 
-            {provider?.status === 'pending' ? <p className="mt-3 text-xs text-gray-500">Tip: make sure your services and city are accurate, that helps approvals go faster.</p> : null}
+            {provider?.status === 'pending' ? <p className="mt-3 text-xs text-gray-500">Tip: make sure your services and city are accurate.</p> : null}
           </section>
         </div>
       </div>
