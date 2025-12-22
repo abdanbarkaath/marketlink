@@ -131,24 +131,14 @@ export default function DashboardPage() {
           </div>
         </div>
 
-        <div className="text-sm text-gray-600">
-          {provider ? (
-            <span>
-              Public profile:{' '}
-              <Link href={`/providers/${provider.slug}`} className="font-medium text-gray-900 hover:underline underline-offset-4">
-                /providers/{provider.slug}
-              </Link>
-            </span>
-          ) : (
-            <span>Create your profile to get listed.</span>
-          )}
-        </div>
+        {/* no extra links here */}
+        <div className="text-sm text-gray-600">{provider ? `${provider.businessName} · ${provider.city}, ${provider.state}` : 'Create your profile to get listed.'}</div>
       </div>
 
       {/* Layout */}
       <div className="mt-8 grid gap-4 lg:grid-cols-3">
         {/* Primary column */}
-        <div className="lg:col-span-2 space-y-4">
+        <div className="space-y-4 lg:col-span-2">
           {/* Primary hero card */}
           <section className="rounded-2xl border bg-white p-6 shadow-sm">
             {!provider ? (
@@ -196,22 +186,20 @@ export default function DashboardPage() {
                 </div>
 
                 <div className="mt-6 flex flex-wrap gap-2">
-                  <Link href="/dashboard/profile" prefetch className="rounded-xl bg-black px-4 py-2 text-sm font-medium text-white hover:opacity-90">
+                  <Link href="/dashboard/profile" className="rounded-xl bg-black px-4 py-2 text-sm font-medium text-white hover:opacity-90">
                     Edit profile
                   </Link>
-                  <Link href={`/providers/${provider.slug}`} prefetch className="rounded-xl border px-4 py-2 text-sm font-medium hover:bg-gray-50">
-                    View public page
-                  </Link>
+
                   <Link href="/dashboard/inquiries" className="rounded-xl border px-4 py-2 text-sm font-medium hover:bg-gray-50">
                     Inquiries
-                    {newInquiryCount && newInquiryCount > 0 ? <span className="ml-2 rounded-full border bg-white px-2 py-0.5 text-xs">{newInquiryCount} new</span> : null}
+                    {newInquiryCount !== null && newInquiryCount > 0 ? <span className="ml-2 rounded-full border bg-white px-2 py-0.5 text-xs">{newInquiryCount} new</span> : null}
                   </Link>
                 </div>
 
                 <div className="mt-6 rounded-2xl border bg-gray-50 p-4">
                   <SectionTitle>Next steps</SectionTitle>
                   <ul className="mt-2 list-disc space-y-1 pl-5 text-sm text-gray-600">
-                    <li>Check your inquiries and reply fast (that’s money)</li>
+                    <li>Check your inquiries and reply fast</li>
                     <li>Add more services so you show up in more searches</li>
                     <li>Upload a logo and tighten your tagline</li>
                   </ul>

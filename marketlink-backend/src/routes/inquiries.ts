@@ -1,7 +1,7 @@
 import type { FastifyPluginAsync } from 'fastify';
 import { prisma } from '../lib/prisma';
 import { getUserFromRequest } from '../lib/session';
-import { ProviderStatus } from '@prisma/client';
+import { InquiryStatus, ProviderStatus } from '@prisma/client';
 
 const isEmail = (v: string) => /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(v);
 
@@ -18,6 +18,7 @@ const inquiriesRoutes: FastifyPluginAsync = async (fastify) => {
       phone?: string;
       message?: string;
     };
+
     const providerSlug = String(body.providerSlug || '').trim();
     const name = String(body.name || '').trim();
     const email = String(body.email || '')
@@ -44,6 +45,7 @@ const inquiriesRoutes: FastifyPluginAsync = async (fastify) => {
     });
 
     if (!provider) return reply.code(404).send({ ok: false, error: 'Provider not found' });
+
     try {
       const created = await prisma.inquiry.create({
         data: {
@@ -95,6 +97,50 @@ const inquiriesRoutes: FastifyPluginAsync = async (fastify) => {
     });
 
     return reply.send({ ok: true, data: rows });
+  });
+
+  /**
+   * PATCH /inquiries/:id (owner-only)
+   * Body: { status: "READ" | "ARCHIVED" }
+   */
+  fastify.patch('/inquiries/:id', async (req, reply) => {
+    const user = await getUserFromRequest(fastify, req);
+    if (!user) return reply.code(401).send({ error: 'Not authenticated' });
+
+    const { id } = (req.params || {}) as { id?: string };
+    const body = (req.body || {}) as { status?: InquiryStatus | string };
+
+    const nextStatus = String(body.status || '')
+      .trim()
+      .toUpperCase();
+
+    if (!id) return reply.code(400).send({ ok: false, error: 'Missing inquiry id' });
+    if (!['NEW', 'READ', 'ARCHIVED'].includes(nextStatus)) {
+      return reply.code(400).send({ ok: false, error: 'status must be NEW, READ, or ARCHIVED' });
+    }
+
+    const provider = await prisma.provider.findFirst({
+      where: { userId: user.id },
+      select: { id: true },
+    });
+
+    if (!provider) return reply.code(404).send({ ok: false, error: "You don't have a provider profile yet." });
+
+    const existing = await prisma.inquiry.findFirst({
+      where: { id, providerId: provider.id },
+      select: { id: true, status: true },
+    });
+
+    if (!existing) return reply.code(404).send({ ok: false, error: 'Inquiry not found' });
+
+    const updated = await prisma.inquiry.update({
+      where: { id },
+      data: { status: nextStatus as InquiryStatus },
+      select: { id: true, status: true, createdAt: true },
+    });
+
+    req.log.info({ inquiryId: updated.id, status: updated.status }, 'inquiry.updated');
+    return reply.send({ ok: true, inquiry: updated });
   });
 };
 
