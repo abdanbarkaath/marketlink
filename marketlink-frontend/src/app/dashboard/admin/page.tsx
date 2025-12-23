@@ -314,6 +314,11 @@ export default async function AdminOverviewPage({ searchParams }: { searchParams
 
                   <td className="px-3 py-2">
                     <div className="flex flex-wrap gap-1.5">
+                      {/* ✅ Edit */}
+                      <Link href={`/dashboard/admin/providers/${p.id}`} className="px-2 py-1 rounded border text-xs hover:bg-gray-50">
+                        Edit
+                      </Link>
+
                       {p.status === 'pending' ? (
                         <form action={approve}>
                           <input type="hidden" name="id" value={p.id} />
