@@ -62,6 +62,13 @@ export default function DashboardPage() {
         }
 
         const data = await res.json();
+
+        // ✅ Role split: admins do NOT use the provider dashboard
+        if (data?.user?.role === 'admin') {
+          router.replace('/dashboard/admin');
+          return;
+        }
+
         setUser(data.user);
         setProvider(data.provider ?? null);
       } catch (e: any) {
@@ -131,7 +138,6 @@ export default function DashboardPage() {
           </div>
         </div>
 
-        {/* no extra links here */}
         <div className="text-sm text-gray-600">{provider ? `${provider.businessName} · ${provider.city}, ${provider.state}` : 'Create your profile to get listed.'}</div>
       </div>
 
@@ -226,8 +232,6 @@ export default function DashboardPage() {
                 <p className="mt-1 text-sm text-gray-600">Get verified to rank higher.</p>
               </div>
             </div>
-
-            {user.role === 'admin' ? <p className="mt-4 text-xs text-gray-500">Admin dashboard stats (active / pending / disabled) is Phase 3E. We’ll add it next.</p> : null}
           </section>
         </div>
 

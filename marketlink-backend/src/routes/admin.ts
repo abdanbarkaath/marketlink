@@ -29,6 +29,14 @@ const asProviderStatus = (v?: string): ProviderStatus | undefined => {
   return Object.values(ProviderStatus).includes(s) ? s : undefined;
 };
 
+const asBool = (v?: string): boolean | undefined => {
+  if (typeof v !== 'string') return undefined;
+  const t = v.toLowerCase();
+  if (t === '1' || t === 'true') return true;
+  if (t === '0' || t === 'false') return false;
+  return undefined;
+};
+
 const adminProviderRowSelect = {
   id: true,
   slug: true,
@@ -47,16 +55,17 @@ const adminProviderRowSelect = {
 const adminRoutes: FastifyPluginAsync = async (fastify) => {
   /**
    * GET /admin/stats
-   * { pendingCount, activeCount, disabledCount, inquiriesNewCount }
+   * { pendingCount, activeCount, disabledCount, verifiedCount, inquiriesNewCount }
    */
   fastify.get('/admin/stats', async (req, reply) => {
     const gate = await requireAdmin(fastify, req);
     if (!gate.ok) return reply.code(gate.code).send({ error: gate.error });
 
-    const [pendingCount, activeCount, disabledCount, inquiriesNewCount] = await Promise.all([
+    const [pendingCount, activeCount, disabledCount, verifiedCount, inquiriesNewCount] = await Promise.all([
       prisma.provider.count({ where: { status: ProviderStatus.pending } }),
       prisma.provider.count({ where: { status: ProviderStatus.active } }),
       prisma.provider.count({ where: { status: ProviderStatus.disabled } }),
+      prisma.provider.count({ where: { verified: true } }),
       prisma.inquiry.count({ where: { status: InquiryStatus.NEW } }),
     ]);
 
@@ -64,40 +73,51 @@ const adminRoutes: FastifyPluginAsync = async (fastify) => {
       pendingCount,
       activeCount,
       disabledCount,
+      verifiedCount,
       inquiriesNewCount,
     });
   });
 
   /**
-   * GET /admin/providers?status=pending|active|disabled&page=1&limit=20&query=...
+   * GET /admin/providers?status=pending|active|disabled&page=1&limit=20&query=...&verified=true|false
+   * - If status is omitted/empty -> return ALL statuses
    */
   fastify.get('/admin/providers', async (req, reply) => {
     const gate = await requireAdmin(fastify, req);
     if (!gate.ok) return reply.code(gate.code).send({ error: gate.error });
 
-    const { status, page, limit, query } = (req.query || {}) as {
+    const { status, page, limit, query, q, verified } = (req.query || {}) as {
       status?: string;
       page?: string;
       limit?: string;
       query?: string;
+      q?: string;
+      verified?: string;
     };
-
-    const statusVal = status ? asProviderStatus(status) : ProviderStatus.pending;
-    if (status && !statusVal) {
-      return reply.code(400).send({ error: 'Invalid status filter. Use pending|active|disabled.' });
-    }
 
     const take = parseLimit(limit, 20);
     const pageNum = parsePage(page, 1);
     const skip = (pageNum - 1) * take;
 
-    const q = (query || '').trim();
+    // Support both query= and q=
+    const text = (query || q || '').trim();
+
+    const st = status ? asProviderStatus(status) : undefined;
+    if (status && !st) {
+      return reply.code(400).send({ error: 'Invalid status filter. Use pending|active|disabled.' });
+    }
+
+    const vb = asBool(verified);
+    if (verified && typeof vb === 'undefined') {
+      return reply.code(400).send({ error: 'Invalid verified filter. Use true|false.' });
+    }
 
     const where: Prisma.ProviderWhereInput = {
-      status: statusVal,
-      ...(q
+      ...(st ? { status: st } : {}),
+      ...(typeof vb === 'boolean' ? { verified: vb } : {}),
+      ...(text
         ? {
-            OR: [{ businessName: { contains: q, mode: 'insensitive' } }, { email: { contains: q, mode: 'insensitive' } }, { city: { contains: q, mode: 'insensitive' } }],
+            OR: [{ businessName: { contains: text, mode: 'insensitive' } }, { email: { contains: text, mode: 'insensitive' } }, { city: { contains: text, mode: 'insensitive' } }],
           }
         : {}),
     };
@@ -121,8 +141,9 @@ const adminRoutes: FastifyPluginAsync = async (fastify) => {
         page: pageNum,
         limit: take,
         totalPages,
-        status: statusVal,
-        query: q || undefined,
+        status: st, // undefined when "Any"
+        query: text || undefined,
+        verified: typeof vb === 'boolean' ? vb : undefined,
       },
       data: rows,
     });
@@ -131,11 +152,6 @@ const adminRoutes: FastifyPluginAsync = async (fastify) => {
   /**
    * PATCH /admin/providers/:id
    * body: { status?: "active"|"disabled"|"pending", disabledReason?: string|null, verified?: boolean }
-   *
-   * Rules:
-   * - If status = disabled => disabledReason required (non-empty)
-   * - If status != disabled => clear disabledReason
-   * - If disabledReason provided without status => only allowed if currently disabled
    */
   fastify.patch('/admin/providers/:id', async (req, reply) => {
     const gate = await requireAdmin(fastify, req);
@@ -150,7 +166,6 @@ const adminRoutes: FastifyPluginAsync = async (fastify) => {
 
     const data: Prisma.ProviderUpdateInput = {};
 
-    // status change (optional)
     if (typeof body.status !== 'undefined') {
       const next = asProviderStatus(body.status);
       if (!next) return reply.code(400).send({ error: 'Invalid status value.' });
@@ -167,7 +182,6 @@ const adminRoutes: FastifyPluginAsync = async (fastify) => {
         (data as any).disabledReason = null;
       }
     } else if (typeof body.disabledReason !== 'undefined') {
-      // disabledReason without status change: only allowed if currently disabled
       const existing = await prisma.provider.findUnique({ where: { id }, select: { status: true } });
       if (!existing) return reply.code(404).send({ error: 'Provider not found' });
 
@@ -179,7 +193,6 @@ const adminRoutes: FastifyPluginAsync = async (fastify) => {
       (data as any).disabledReason = reason;
     }
 
-    // verified toggle (optional)
     if (typeof body.verified !== 'undefined') {
       (data as any).verified = Boolean(body.verified);
     }

@@ -2,12 +2,32 @@
 
 import Link from 'next/link';
 import { useRouter, useSearchParams } from 'next/navigation';
-import React, { useEffect, useMemo, useState } from 'react';
+import React, { useCallback, useEffect, useMemo, useState } from 'react';
 
-type LoginResponse =
-  | { ok: true; user?: { mustChangePassword?: boolean }; expiresAt?: string }
-  | { ok: false; message?: string }
+type MeSummaryResponse =
+  | {
+      user: { id: string; email: string; role: 'provider' | 'admin' };
+      provider?: unknown;
+    }
+  | { error?: string }
   | Record<string, unknown>;
+
+type LoginResponse = { ok: true; user?: { mustChangePassword?: boolean }; expiresAt?: string } | { ok: false; message?: string } | Record<string, unknown>;
+
+function safeInternalPath(raw: string | null | undefined, fallback: string) {
+  const v = (raw || '').trim();
+  if (!v || !v.startsWith('/')) return fallback;
+  if (v.startsWith('//')) return fallback;
+  return v;
+}
+
+function pickRedirect(role: 'provider' | 'admin', desiredPath: string) {
+  if (role === 'admin') {
+    return desiredPath.startsWith('/dashboard/admin') ? desiredPath : '/dashboard/admin';
+  }
+  if (desiredPath.startsWith('/dashboard/admin')) return '/dashboard';
+  return desiredPath;
+}
 
 export default function LoginPage() {
   const router = useRouter();
@@ -15,10 +35,11 @@ export default function LoginPage() {
 
   const API_BASE = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:4000';
 
-  const nextPath = useMemo(() => {
-    const n = searchParams.get('next');
-    if (n && n.startsWith('/')) return n;
-    return '/dashboard';
+  // Support both ?returnTo= and your existing ?next=
+  const desiredPath = useMemo(() => {
+    const returnTo = searchParams.get('returnTo');
+    const next = searchParams.get('next');
+    return safeInternalPath(returnTo ?? next, '/dashboard');
   }, [searchParams]);
 
   const [checkingSession, setCheckingSession] = useState(true);
@@ -28,35 +49,44 @@ export default function LoginPage() {
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState<string>('');
 
+  const fetchRoleAndRedirect = useCallback(async () => {
+    const res = await fetch(`${API_BASE}/me/summary`, {
+      method: 'GET',
+      credentials: 'include',
+      cache: 'no-store',
+    });
+
+    if (!res.ok) return false;
+
+    const data = (await res.json().catch(() => ({}))) as MeSummaryResponse;
+    const role = (data as any)?.user?.role as 'provider' | 'admin' | undefined;
+    if (!role) return false;
+
+    const target = pickRedirect(role, desiredPath);
+    router.replace(target);
+    router.refresh();
+    return true;
+  }, [API_BASE, desiredPath, router]);
+
   // If user already has a valid session cookie, don’t show login page.
   useEffect(() => {
     let cancelled = false;
 
-    async function check() {
+    (async () => {
       try {
-        const res = await fetch(`${API_BASE}/auth/me`, {
-          method: 'GET',
-          credentials: 'include',
-          cache: 'no-store',
-        });
-
-        if (!cancelled && res.ok) {
-          router.replace(nextPath);
-          router.refresh();
-          return;
-        }
+        const didRedirect = await fetchRoleAndRedirect();
+        if (didRedirect) return;
       } catch {
         // ignore and show login form
       } finally {
         if (!cancelled) setCheckingSession(false);
       }
-    }
+    })();
 
-    check();
     return () => {
       cancelled = true;
     };
-  }, [API_BASE, nextPath, router]);
+  }, [fetchRoleAndRedirect]);
 
   async function onSubmit(e: React.FormEvent) {
     e.preventDefault();
@@ -90,9 +120,12 @@ export default function LoginPage() {
         return;
       }
 
-      // Successful login: go where we intended
-      router.replace(nextPath);
-      router.refresh();
+      // After successful login, read role and redirect correctly.
+      const didRedirect = await fetchRoleAndRedirect();
+      if (!didRedirect) {
+        router.replace('/dashboard');
+        router.refresh();
+      }
     } catch {
       setError('Network error. Try again.');
     } finally {
@@ -157,11 +190,7 @@ export default function LoginPage() {
           </div>
         ) : null}
 
-        <button
-          type="submit"
-          disabled={submitting}
-          className="rounded-xl bg-black px-4 py-3 font-medium text-white hover:opacity-90 disabled:opacity-60"
-        >
+        <button type="submit" disabled={submitting} className="rounded-xl bg-black px-4 py-3 font-medium text-white hover:opacity-90 disabled:opacity-60">
           {submitting ? 'Signing in...' : 'Sign in'}
         </button>
 
