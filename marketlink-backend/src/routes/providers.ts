@@ -18,6 +18,17 @@ const asOrder = (v?: string, sort: SortKey): OrderDir => {
 };
 const asMatch = (v?: string): MatchMode => (v === 'all' ? 'all' : 'any');
 
+const parseLimit = (raw: unknown, fallback = 20) => {
+  const n = Number(raw);
+  if (!Number.isFinite(n)) return fallback;
+  return Math.max(1, Math.min(50, Math.trunc(n)));
+};
+const parsePage = (raw: unknown, fallback = 1) => {
+  const n = Number(raw);
+  if (!Number.isFinite(n)) return fallback;
+  return Math.max(1, Math.trunc(n));
+};
+
 // ---- Fastify JSON schema for query validation ----
 const listQuerySchema = {
   type: 'object',
@@ -72,7 +83,7 @@ const providerEditorSelect = {
 } satisfies Prisma.ProviderSelect;
 
 const providersRoutes: FastifyPluginAsync = async (fastify) => {
-  // LIST: GET /providers
+  // LIST: GET /providers (public ACTIVE only)
   fastify.get(
     '/providers',
     {
@@ -128,21 +139,11 @@ const providersRoutes: FastifyPluginAsync = async (fastify) => {
         limit?: string;
       };
 
-      // ---- Parse & sanitize pagination ----
-      const limitNum = (() => {
-        const n = Number(limitRaw);
-        if (!Number.isFinite(n)) return 20;
-        return Math.max(1, Math.min(50, Math.trunc(n)));
-      })();
-      const pageNum = (() => {
-        const n = Number(pageRaw);
-        if (!Number.isFinite(n)) return 1;
-        return Math.max(1, Math.trunc(n));
-      })();
+      const limitNum = parseLimit(limitRaw, 20);
+      const pageNum = parsePage(pageRaw, 1);
       const skip = (pageNum - 1) * limitNum;
       const take = limitNum;
 
-      // ---- Build filters (where) ----
       const andFilters: Prisma.ProviderWhereInput[] = [];
 
       if (city && city.trim()) {
@@ -182,11 +183,9 @@ const providersRoutes: FastifyPluginAsync = async (fastify) => {
         if (v === '0' || v === 'false') andFilters.push({ verified: false });
       }
 
-      // Public list only shows ACTIVE providers
       const baseFilter: Prisma.ProviderWhereInput = { status: ProviderStatus.active };
       const where: Prisma.ProviderWhereInput = andFilters.length ? { AND: [...andFilters, baseFilter] } : baseFilter;
 
-      // ---- Sorting (primary + stable tie-breakers) ----
       const sortKey = asSortKey(sortRaw);
       const primaryOrder: OrderDir = asOrder(orderRaw, sortKey);
 
@@ -201,27 +200,6 @@ const providersRoutes: FastifyPluginAsync = async (fastify) => {
       if (!hasPrimary('businessName')) orderBy.push({ businessName: 'asc' });
       if (!hasPrimary('createdAt')) orderBy.push({ createdAt: 'desc' });
 
-      fastify.log.info(
-        {
-          q: {
-            name,
-            city,
-            service,
-            minRating,
-            verified,
-            match: asMatch(matchRaw),
-            sort: sortKey,
-            order: primaryOrder,
-            page: pageNum,
-            limit: take,
-          },
-          where,
-          orderBy,
-        },
-        'providers.query',
-      );
-
-      // ---- Query total & page ----
       const [total, rows] = await Promise.all([
         prisma.provider.count({ where }),
         prisma.provider.findMany({
@@ -265,19 +243,17 @@ const providersRoutes: FastifyPluginAsync = async (fastify) => {
   fastify.get('/providers/:slug', async (req, reply) => {
     const { slug } = req.params as { slug: string };
 
-    // Public path: only ACTIVE providers are visible
     const active = await prisma.provider.findFirst({
       where: { slug, status: ProviderStatus.active },
       select: providerDetailSelect,
     });
     if (active) return reply.send(active);
 
-    // Not active (pending/disabled) — only the OWNER may view
     const nonActive = await prisma.provider.findUnique({
       where: { slug },
       select: {
         ...providerDetailSelect,
-        userId: true, // for ownership check
+        userId: true,
       } satisfies Prisma.ProviderSelect,
     });
 
@@ -288,12 +264,10 @@ const providersRoutes: FastifyPluginAsync = async (fastify) => {
 
     const user = await getUserFromRequest(fastify, req);
     if (!user || user.id !== (nonActive as any).userId) {
-      // Mask existence for non-owners
       reply.code(404).send({ error: 'Not found' });
       return;
     }
 
-    // Owner can view; strip userId before sending
     const { userId, ...ownerVisible } = nonActive as any;
     return reply.send(ownerVisible);
   });
@@ -303,7 +277,6 @@ const providersRoutes: FastifyPluginAsync = async (fastify) => {
     const user = await getUserFromRequest(fastify, req);
     if (!user) return reply.code(401).send({ error: 'Not authenticated' });
 
-    // One profile per user (current rule)
     const existing = await prisma.provider.findFirst({ where: { userId: user.id } });
     if (existing) return reply.code(409).send({ error: 'You already have a provider profile.' });
 
@@ -329,7 +302,6 @@ const providersRoutes: FastifyPluginAsync = async (fastify) => {
     if (!state) return reply.code(400).send({ error: 'state is required' });
     if (state.length < 2) return reply.code(400).send({ error: 'state must be at least 2 characters' });
 
-    // Normalize services
     let services: string[] = [];
     if (Array.isArray(body.services)) {
       services = body.services.map((s) => String(s).trim().toLowerCase()).filter(Boolean);
@@ -340,7 +312,6 @@ const providersRoutes: FastifyPluginAsync = async (fastify) => {
         .filter(Boolean);
     }
 
-    // Generate unique slug from businessName
     const slugify = (str: string) =>
       str
         .toLowerCase()
@@ -376,8 +347,10 @@ const providersRoutes: FastifyPluginAsync = async (fastify) => {
           city: true,
           state: true,
           services: true,
+          status: true,
         },
       });
+
       return reply.code(201).send({ ok: true, provider: created });
     } catch (e: any) {
       if (e?.code === 'P2002') {
@@ -388,7 +361,7 @@ const providersRoutes: FastifyPluginAsync = async (fastify) => {
     }
   });
 
-  // UPDATE: PUT /providers (owner-only, with admin-only moderation fields)
+  // UPDATE: PUT /providers (owner-only profile edits)
   fastify.put('/providers', async (req, reply) => {
     const user = await getUserFromRequest(fastify, req);
     if (!user) return reply.code(401).send({ error: 'Not authenticated' });
@@ -404,10 +377,6 @@ const providersRoutes: FastifyPluginAsync = async (fastify) => {
       services?: string[] | string;
       tagline?: string;
       logo?: string;
-
-      // admin-only moderation fields
-      status?: ProviderStatus;
-      disabledReason?: string | null;
     };
 
     const data: Prisma.ProviderUpdateInput = {};
@@ -446,34 +415,6 @@ const providersRoutes: FastifyPluginAsync = async (fastify) => {
         .split(',')
         .map((s) => s.trim().toLowerCase())
         .filter(Boolean);
-    }
-
-    // Admin-only moderation updates
-    if (typeof body.status !== 'undefined' || typeof body.disabledReason !== 'undefined') {
-      if (user.role !== 'admin') {
-        return reply.code(403).send({ error: 'Only admins can change provider status.' });
-      }
-
-      if (typeof body.status !== 'undefined') {
-        const next = String(body.status) as ProviderStatus;
-        if (!Object.values(ProviderStatus).includes(next)) {
-          return reply.code(400).send({ error: 'Invalid status value.' });
-        }
-
-        (data as any).status = next;
-
-        if (next === ProviderStatus.disabled) {
-          (data as any).disabledReason = String(body.disabledReason || '').trim() || null;
-        } else {
-          (data as any).disabledReason = null;
-        }
-      } else {
-        // status not provided, but disabledReason was
-        if (provider.status !== ProviderStatus.disabled) {
-          return reply.code(400).send({ error: 'disabledReason can only be set when status is disabled.' });
-        }
-        (data as any).disabledReason = String(body.disabledReason || '').trim() || null;
-      }
     }
 
     if (Object.keys(data).length === 0) {
