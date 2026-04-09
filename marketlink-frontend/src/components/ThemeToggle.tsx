@@ -2,32 +2,61 @@
 
 import { useEffect, useMemo, useState } from 'react';
 
-export type ThemeKey = 'indigo' | 'teal' | 'sunset' | 'mono';
+export type ThemeKey = 'teal';
+export type GradientStyle = 'studio' | 'soft' | 'golden' | 'ambient' | 'dramatic';
+
+type ThemeDefinition = {
+  label: string;
+
+  // page + surfaces
+  pageBg: string;
+  header: string;
+  surface: string;
+  surfaceMuted: string;
+  border: string;
+
+  // accents
+  brandBadge: string;
+  primaryBtn: string;
+  secondaryBtn: string;
+  card: string;
+  cardHover: string;
+  accentDot: string;
+  mutedText: string;
+};
 
 const STORAGE_KEY = 'marketlink_theme';
+const GRADIENT_STORAGE_KEY = 'marketlink_gradient';
 
-export const THEMES: Record<
-  ThemeKey,
-  {
-    label: string;
+const GRADIENT_STYLES: Record<GradientStyle, { label: string; pattern: string }> = {
+  studio: {
+    label: 'Studio',
+    pattern:
+      'bg-[radial-gradient(800px_ellipse_at_15%_20%,rgba(79,70,229,0.25),transparent_60%),radial-gradient(600px_ellipse_at_85%_80%,rgba(14,165,233,0.18),transparent_55%),radial-gradient(500px_circle_at_60%_-5%,rgba(236,72,153,0.15),transparent_50%),linear-gradient(to_bottom,#f8fafc,#ffffff)]',
+  },
+  soft: {
+    label: 'Soft',
+    pattern:
+      'bg-[radial-gradient(1200px_ellipse_at_50%_30%,rgba(13,148,136,0.12),transparent_70%),radial-gradient(900px_ellipse_at_70%_70%,rgba(56,189,248,0.08),transparent_65%),radial-gradient(600px_circle_at_20%_80%,rgba(34,197,94,0.06),transparent_60%),linear-gradient(to_bottom,rgba(240,253,250,0.9),#ffffff)]',
+  },
+  golden: {
+    label: 'Golden',
+    pattern:
+      'bg-[radial-gradient(1000px_ellipse_at_40%_10%,rgba(245,158,11,0.20),transparent_65%),radial-gradient(700px_ellipse_at_80%_60%,rgba(251,113,133,0.15),transparent_60%),radial-gradient(400px_circle_at_10%_90%,rgba(244,63,94,0.12),transparent_55%),linear-gradient(135deg,rgba(255,251,235,0.8),#ffffff)]',
+  },
+  ambient: {
+    label: 'Ambient',
+    pattern:
+      'bg-[radial-gradient(500px_circle_at_30%_40%,rgba(2,6,23,0.04),transparent_70%),radial-gradient(400px_circle_at_70%_20%,rgba(2,6,23,0.03),transparent_65%),radial-gradient(300px_circle_at_50%_80%,rgba(2,6,23,0.025),transparent_60%),radial-gradient(200px_circle_at_80%_60%,rgba(2,6,23,0.02),transparent_55%),linear-gradient(to_bottom,#f8fafc,#ffffff)]',
+  },
+  dramatic: {
+    label: 'Dramatic',
+    pattern:
+      'bg-[radial-gradient(700px_ellipse_at_20%_20%,rgba(99,102,241,0.30),transparent_45%),radial-gradient(600px_ellipse_at_80%_80%,rgba(168,85,247,0.25),transparent_40%),radial-gradient(500px_circle_at_80%_20%,rgba(236,72,153,0.22),transparent_35%),radial-gradient(400px_circle_at_20%_80%,rgba(34,197,94,0.20),transparent_30%),linear-gradient(to_bottom,rgba(248,250,252,0.95),#ffffff)]',
+  },
+};
 
-    // page + surfaces
-    pageBg: string;
-    header: string;
-    surface: string;
-    surfaceMuted: string;
-    border: string;
-
-    // accents
-    brandBadge: string;
-    primaryBtn: string;
-    secondaryBtn: string;
-    card: string;
-    cardHover: string;
-    accentDot: string;
-    mutedText: string;
-  }
-> = {
+export const THEMES: Record<string, ThemeDefinition> = {
   indigo: {
     label: 'Indigo',
     pageBg:
@@ -97,18 +126,25 @@ export const THEMES: Record<
   },
 };
 
-function isThemeKey(v: any): v is ThemeKey {
-  return v === 'indigo' || v === 'teal' || v === 'sunset' || v === 'mono';
+function isThemeKey(v: unknown): v is ThemeKey {
+  return v === 'teal';
 }
 
 export function useMarketLinkTheme() {
-  const [theme, setTheme] = useState<ThemeKey>('indigo');
+  const [theme, setTheme] = useState<ThemeKey>('teal');
+  const [gradientStyle, setGradientStyle] = useState<GradientStyle>('studio');
 
   useEffect(() => {
-    const saved = typeof window !== 'undefined' ? window.localStorage.getItem(STORAGE_KEY) : null;
-    const next = isThemeKey(saved) ? saved : 'indigo';
+    const saved = globalThis.window?.localStorage.getItem(STORAGE_KEY) ?? null;
+    const next = isThemeKey(saved) ? saved : 'teal';
     setTheme(next);
-    if (typeof document !== 'undefined') document.documentElement.setAttribute('data-ml-theme', next);
+    if (globalThis.document) globalThis.document.documentElement.dataset.mlTheme = next;
+  }, []);
+
+  useEffect(() => {
+    const savedGradient = globalThis.window?.localStorage.getItem(GRADIENT_STORAGE_KEY) ?? null;
+    const nextGradient = (Object.keys(GRADIENT_STYLES) as GradientStyle[]).includes(savedGradient as GradientStyle) ? (savedGradient as GradientStyle) : 'studio';
+    setGradientStyle(nextGradient);
   }, []);
 
   useEffect(() => {
@@ -116,58 +152,46 @@ export function useMarketLinkTheme() {
       const detail = (e as CustomEvent).detail;
       if (isThemeKey(detail)) setTheme(detail);
     };
-    window.addEventListener('ml-theme-change', onChange);
-    return () => window.removeEventListener('ml-theme-change', onChange);
+    globalThis.window?.addEventListener('ml-theme-change', onChange);
+    return () => globalThis.window?.removeEventListener('ml-theme-change', onChange);
   }, []);
 
-  const t = useMemo(() => THEMES[theme], [theme]);
+  const t = useMemo(() => {
+    const baseTheme = THEMES[theme];
+    const gradientPattern = GRADIENT_STYLES[gradientStyle].pattern;
+
+    return {
+      ...baseTheme,
+      pageBg: gradientPattern,
+    };
+  }, [theme, gradientStyle]);
 
   const set = (next: ThemeKey) => {
     setTheme(next);
-    window.localStorage.setItem(STORAGE_KEY, next);
-    document.documentElement.setAttribute('data-ml-theme', next);
-    window.dispatchEvent(new CustomEvent('ml-theme-change', { detail: next }));
+    globalThis.window?.localStorage.setItem(STORAGE_KEY, next);
+    if (globalThis.document) {
+      globalThis.document.documentElement.dataset.mlTheme = next;
+    }
+    globalThis.window?.dispatchEvent(new CustomEvent('ml-theme-change', { detail: next }));
   };
 
-  return { theme, t, set };
+  const setGradient = (next: GradientStyle) => {
+    setGradientStyle(next);
+    globalThis.window?.localStorage.setItem(GRADIENT_STORAGE_KEY, next);
+  };
+
+  const cycleGradient = () => {
+    const styles = Object.keys(GRADIENT_STYLES) as GradientStyle[];
+    const currentIndex = styles.indexOf(gradientStyle);
+    const nextIndex = (currentIndex + 1) % styles.length;
+    setGradient(styles[nextIndex]);
+  };
+
+  return { theme, gradientStyle, t, set, setGradient, cycleGradient };
 }
 
-export default function ThemeToggle({ compact = false }: { compact?: boolean }) {
-  const { theme, set } = useMarketLinkTheme();
+export default function ThemeToggle({ compact = false }: Readonly<{ compact?: boolean }>) {
+  useMarketLinkTheme();
 
-  return (
-    <div className={`flex items-center gap-2 ${compact ? '' : 'flex-wrap'}`}>
-      {/* Mobile: select (doesn't blow up header width) */}
-      <label className="sm:hidden">
-        <span className="sr-only">Theme</span>
-        <select value={theme} onChange={(e) => set(e.target.value as ThemeKey)} className="h-9 rounded-xl border border-slate-200/80 bg-white/70 px-2 text-xs font-medium text-slate-700">
-          {(Object.keys(THEMES) as ThemeKey[]).map((k) => (
-            <option key={k} value={k}>
-              {THEMES[k].label}
-            </option>
-          ))}
-        </select>
-      </label>
-
-      {/* Desktop: buttons */}
-      <div className="hidden sm:flex items-center gap-2">
-        {!compact ? <span className="text-xs font-medium text-slate-600">Theme</span> : null}
-
-        {(Object.keys(THEMES) as ThemeKey[]).map((k) => {
-          const active = theme === k;
-          return (
-            <button
-              key={k}
-              type="button"
-              onClick={() => set(k)}
-              className={['h-9 rounded-full px-3 text-xs font-medium transition', 'border border-slate-200/80 bg-white/70 hover:bg-white/90', active ? 'ring-2 ring-slate-900/10' : ''].join(' ')}
-              aria-pressed={active}
-            >
-              {THEMES[k].label}
-            </button>
-          );
-        })}
-      </div>
-    </div>
-  );
+  return <div className={`flex items-center gap-2 ${compact ? '' : 'flex-wrap'}`}>{/* Theme is fixed to teal by default; no visible theme button needed. */}</div>;
 }

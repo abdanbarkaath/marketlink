@@ -2,6 +2,7 @@
 
 import { useEffect, useMemo, useState } from 'react';
 import { useRouter } from 'next/navigation';
+import { useMarketLinkTheme } from '@/components/ThemeToggle';
 
 const API_BASE = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:4000';
 
@@ -17,8 +18,21 @@ type InquiryRow = {
   createdAt: string;
 };
 
-function Pill({ children }: { children: React.ReactNode }) {
-  return <span className="inline-flex items-center rounded-full border bg-white px-2 py-0.5 text-xs font-medium text-gray-700">{children}</span>;
+function Pill({ children, status, variant = 'default' }: { children: React.ReactNode; status?: InquiryStatus; variant?: 'default' | 'count' }) {
+  const { t } = useMarketLinkTheme();
+
+  const statusColors = {
+    NEW: 'bg-blue-100 text-blue-800 border-blue-200',
+    READ: 'bg-green-100 text-green-800 border-green-200',
+    ARCHIVED: 'bg-gray-100 text-gray-800 border-gray-200',
+  };
+
+  const variantStyles = {
+    default: 'bg-white/70 text-slate-700 border-slate-200/80',
+    count: `${t.surfaceMuted} ${t.border} text-slate-900 font-semibold backdrop-blur`,
+  };
+
+  return <span className={`inline-flex items-center rounded-full border px-3 py-1 text-xs font-medium ${status ? statusColors[status] : variantStyles[variant]}`}>{children}</span>;
 }
 
 function formatDate(iso: string) {
@@ -34,6 +48,7 @@ function formatDate(iso: string) {
 
 export default function DashboardInquiriesPage() {
   const router = useRouter();
+  const { t } = useMarketLinkTheme();
 
   const [rows, setRows] = useState<InquiryRow[]>([]);
   const [loading, setLoading] = useState(true);
@@ -115,99 +130,119 @@ export default function DashboardInquiriesPage() {
   const newCount = rows.filter((r) => r.status === 'NEW').length;
 
   return (
-    <main className="mx-auto max-w-6xl px-4 py-10">
-      <div className="flex flex-col gap-3 sm:flex-row sm:items-end sm:justify-between">
-        <div>
-          <h1 className="text-2xl font-semibold">Inquiries</h1>
-          <div className="mt-2 flex flex-wrap items-center gap-2 text-sm text-gray-600">
-            <Pill>{total} total</Pill>
-            <Pill>{newCount} new</Pill>
+    <main className={`${t.pageBg} min-h-[calc(100vh-72px)]`}>
+      <div className="mx-auto max-w-6xl px-4 py-10">
+        <div className="flex flex-col gap-3 sm:flex-row sm:items-end sm:justify-between">
+          <div>
+            <h1 className="text-2xl font-semibold text-slate-900">Inquiries</h1>
+            <div className="mt-2 flex flex-wrap items-center gap-2 text-sm">
+              <Pill variant="count">{total} total</Pill>
+              <Pill variant="count">{newCount} new</Pill>
+            </div>
+          </div>
+
+          <div className="flex flex-wrap gap-2">
+            <button
+              type="button"
+              onClick={() => setFilter('all')}
+              className={`rounded-xl border px-3 py-2 text-sm font-medium transition ${filter === 'all' ? `${t.primaryBtn} border-transparent` : `${t.secondaryBtn} hover:bg-white/90`}`}
+            >
+              All
+            </button>
+            <button
+              type="button"
+              onClick={() => setFilter('new')}
+              className={`rounded-xl border px-3 py-2 text-sm font-medium transition ${filter === 'new' ? `${t.primaryBtn} border-transparent` : `${t.secondaryBtn} hover:bg-white/90`}`}
+            >
+              New
+            </button>
+            <button
+              type="button"
+              onClick={() => setFilter('read')}
+              className={`rounded-xl border px-3 py-2 text-sm font-medium transition ${filter === 'read' ? `${t.primaryBtn} border-transparent` : `${t.secondaryBtn} hover:bg-white/90`}`}
+            >
+              Read
+            </button>
+            <button
+              type="button"
+              onClick={() => setFilter('archived')}
+              className={`rounded-xl border px-3 py-2 text-sm font-medium transition ${filter === 'archived' ? `${t.primaryBtn} border-transparent` : `${t.secondaryBtn} hover:bg-white/90`}`}
+            >
+              Archived
+            </button>
           </div>
         </div>
 
-        <div className="flex flex-wrap gap-2">
-          <button type="button" onClick={() => setFilter('all')} className={`rounded-xl border px-3 py-2 text-sm ${filter === 'all' ? 'bg-black text-white' : 'hover:bg-gray-50'}`}>
-            All
-          </button>
-          <button type="button" onClick={() => setFilter('new')} className={`rounded-xl border px-3 py-2 text-sm ${filter === 'new' ? 'bg-black text-white' : 'hover:bg-gray-50'}`}>
-            New
-          </button>
-          <button type="button" onClick={() => setFilter('read')} className={`rounded-xl border px-3 py-2 text-sm ${filter === 'read' ? 'bg-black text-white' : 'hover:bg-gray-50'}`}>
-            Read
-          </button>
-          <button type="button" onClick={() => setFilter('archived')} className={`rounded-xl border px-3 py-2 text-sm ${filter === 'archived' ? 'bg-black text-white' : 'hover:bg-gray-50'}`}>
-            Archived
-          </button>
-        </div>
-      </div>
+        {pageError ? <div className={`mt-6 rounded-2xl ${t.surface} ${t.border} border-red-200 bg-red-50/80 backdrop-blur p-4 text-sm text-red-700`}>{pageError}</div> : null}
 
-      {pageError ? <div className="mt-6 rounded-2xl border border-red-200 bg-red-50 p-4 text-sm text-red-700">{pageError}</div> : null}
-
-      {loading ? (
-        <div className="mt-6 rounded-2xl border p-6">
-          <p className="text-sm text-gray-600">Loading inquiries…</p>
-        </div>
-      ) : filtered.length === 0 ? (
-        <div className="mt-6 rounded-2xl border p-6">
-          <p className="text-sm text-gray-600">No inquiries here yet.</p>
-        </div>
-      ) : (
-        <div className="mt-6 space-y-3">
-          {filtered.map((r) => {
-            const busy = busyId === r.id;
-            return (
-              <article key={r.id} className="rounded-2xl border bg-white p-5 shadow-sm">
-                <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
-                  <div>
-                    <div className="flex flex-wrap items-center gap-2">
-                      <div className="text-sm font-semibold text-gray-900">{r.name}</div>
-                      <Pill>{r.status}</Pill>
-                      <span className="text-xs text-gray-500">{formatDate(r.createdAt)}</span>
-                    </div>
-
-                    <div className="mt-2 text-sm text-gray-700">
+        {loading ? (
+          <div className={`mt-6 rounded-2xl ${t.surface} ${t.border} p-6 backdrop-blur`}>
+            <p className={`text-sm ${t.mutedText}`}>Loading inquiries…</p>
+          </div>
+        ) : filtered.length === 0 ? (
+          <div className={`mt-6 rounded-2xl ${t.surface} ${t.border} p-6 backdrop-blur`}>
+            <p className={`text-sm ${t.mutedText}`}>No inquiries here yet.</p>
+          </div>
+        ) : (
+          <div className="mt-6 space-y-3">
+            {filtered.map((r) => {
+              const busy = busyId === r.id;
+              return (
+                <article key={r.id} className={`rounded-2xl ${t.card} ${t.cardHover} backdrop-blur`}>
+                  <div className="p-5">
+                    <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
                       <div>
-                        <span className="text-gray-500">Email:</span> {r.email}
-                      </div>
-                      {r.phone ? (
-                        <div>
-                          <span className="text-gray-500">Phone:</span> {r.phone}
+                        <div className="flex flex-wrap items-center gap-2">
+                          <div className="text-sm font-semibold text-slate-900">{r.name}</div>
+                          <Pill status={r.status}>{r.status}</Pill>
+                          <span className={`text-xs ${t.mutedText}`}>{formatDate(r.createdAt)}</span>
                         </div>
-                      ) : null}
+
+                        <div className="mt-2 text-sm text-slate-700">
+                          <div>
+                            <span className={t.mutedText}>Email:</span> {r.email}
+                          </div>
+                          {r.phone ? (
+                            <div>
+                              <span className={t.mutedText}>Phone:</span> {r.phone}
+                            </div>
+                          ) : null}
+                        </div>
+                      </div>
+
+                      <div className="flex flex-wrap gap-2">
+                        {r.status === 'NEW' ? (
+                          <button
+                            type="button"
+                            disabled={busy}
+                            onClick={() => setStatus(r.id, 'READ')}
+                            className={`rounded-xl border px-3 py-2 text-sm font-medium transition ${busy ? 'opacity-60 cursor-not-allowed' : `${t.secondaryBtn} hover:bg-white/90`}`}
+                          >
+                            Mark read
+                          </button>
+                        ) : null}
+
+                        {r.status !== 'ARCHIVED' ? (
+                          <button
+                            type="button"
+                            disabled={busy}
+                            onClick={() => setStatus(r.id, 'ARCHIVED')}
+                            className={`rounded-xl border px-3 py-2 text-sm font-medium transition ${busy ? 'opacity-60 cursor-not-allowed' : `${t.secondaryBtn} hover:bg-white/90`}`}
+                          >
+                            Archive
+                          </button>
+                        ) : null}
+                      </div>
                     </div>
+
+                    <div className="mt-4 whitespace-pre-wrap rounded-xl border bg-slate-50/80 backdrop-blur p-3 text-sm text-slate-800">{r.message}</div>
                   </div>
-
-                  <div className="flex flex-wrap gap-2">
-                    {r.status === 'NEW' ? (
-                      <button
-                        type="button"
-                        disabled={busy}
-                        onClick={() => setStatus(r.id, 'READ')}
-                        className={`rounded-xl border px-3 py-2 text-sm font-medium hover:bg-gray-50 ${busy ? 'opacity-60' : ''}`}
-                      >
-                        Mark read
-                      </button>
-                    ) : null}
-
-                    {r.status !== 'ARCHIVED' ? (
-                      <button
-                        type="button"
-                        disabled={busy}
-                        onClick={() => setStatus(r.id, 'ARCHIVED')}
-                        className={`rounded-xl border px-3 py-2 text-sm font-medium hover:bg-gray-50 ${busy ? 'opacity-60' : ''}`}
-                      >
-                        Archive
-                      </button>
-                    ) : null}
-                  </div>
-                </div>
-
-                <div className="mt-4 whitespace-pre-wrap rounded-xl border bg-gray-50 p-3 text-sm text-gray-800">{r.message}</div>
-              </article>
-            );
-          })}
-        </div>
-      )}
+                </article>
+              );
+            })}
+          </div>
+        )}
+      </div>
     </main>
   );
 }
