@@ -3,6 +3,7 @@
 import { useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import Link from 'next/link';
+import { useMarketLinkTheme } from '../../components/ThemeToggle';
 
 const API_BASE = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:4000';
 
@@ -24,16 +25,17 @@ type InquiryRow = {
   createdAt: string;
 };
 
-function Pill({ children }: { children: React.ReactNode }) {
-  return <span className="inline-flex items-center rounded-full border bg-white px-2 py-0.5 text-xs font-medium text-gray-700">{children}</span>;
-}
-
-function SectionTitle({ children }: { children: React.ReactNode }) {
-  return <h2 className="text-sm font-semibold text-gray-900">{children}</h2>;
-}
-
 export default function DashboardPage() {
   const router = useRouter();
+  const { t } = useMarketLinkTheme();
+
+  function Pill({ children }: { children: React.ReactNode }) {
+    return <span className={`inline-flex items-center rounded-full ${t.border} border ${t.surface} px-2 py-0.5 text-xs font-medium text-slate-700`}>{children}</span>;
+  }
+
+  function SectionTitle({ children }: { children: React.ReactNode }) {
+    return <h2 className={`text-sm font-semibold text-slate-900`}>{children}</h2>;
+  }
 
   const [user, setUser] = useState<User | null>(null);
   const [provider, setProvider] = useState<ProviderSummary>(null);
@@ -97,7 +99,7 @@ export default function DashboardPage() {
         const rows = Array.isArray(body?.data) ? body.data : [];
 
         setInquiryCount(rows.length);
-        setNewInquiryCount(rows.filter((r) => r.status === 'NEW').length);
+        setNewInquiryCount(rows.filter((r: InquiryRow) => r.status === 'NEW').length);
       } catch {
         // ignore
       }
@@ -106,9 +108,11 @@ export default function DashboardPage() {
 
   if (loading) {
     return (
-      <main className="mx-auto max-w-6xl px-4 py-10">
-        <div className="rounded-2xl border p-6">
-          <p className="text-sm text-gray-600">Loading dashboard…</p>
+      <main className={`${t.pageBg} min-h-[calc(100vh-72px)]`}>
+        <div className="mx-auto max-w-6xl px-4 py-10">
+          <div className={`rounded-2xl ${t.surface} ${t.border} border p-6 shadow-[0_14px_45px_rgba(2,6,23,0.08)] backdrop-blur`}>
+            <p className={`text-sm ${t.mutedText}`}>Loading dashboard…</p>
+          </div>
         </div>
       </main>
     );
@@ -116,9 +120,11 @@ export default function DashboardPage() {
 
   if (error) {
     return (
-      <main className="mx-auto max-w-6xl px-4 py-10">
-        <div className="rounded-2xl border border-red-200 bg-red-50 p-6">
-          <p className="text-sm text-red-700">Error: {error}</p>
+      <main className={`${t.pageBg} min-h-[calc(100vh-72px)]`}>
+        <div className="mx-auto max-w-6xl px-4 py-10">
+          <div className={`rounded-2xl ${t.surfaceMuted} ${t.border} border p-6 shadow-[0_14px_45px_rgba(2,6,23,0.08)] backdrop-blur`}>
+            <p className="text-sm text-red-700">Error: {error}</p>
+          </div>
         </div>
       </main>
     );
@@ -127,109 +133,119 @@ export default function DashboardPage() {
   if (!user) return null;
 
   return (
-    <main className="mx-auto max-w-6xl px-4 py-10">
-      {/* Top bar */}
-      <div className="flex flex-col gap-3 sm:flex-row sm:items-end sm:justify-between">
-        <div>
-          <h1 className="text-2xl font-semibold">Dashboard</h1>
-          <div className="mt-2 flex flex-wrap items-center gap-2 text-sm text-gray-600">
-            <span className="font-medium text-gray-900">{user.email}</span>
-            <Pill>{user.role}</Pill>
+    <main className={`${t.pageBg} min-h-[calc(100vh-72px)]`}>
+      <div className="mx-auto max-w-6xl px-4 py-10">
+        {/* Top bar */}
+        <div className={`rounded-2xl ${t.surface} ${t.border} border p-6 shadow-[0_14px_45px_rgba(2,6,23,0.08)] backdrop-blur mb-8`}>
+          <div className="flex flex-col gap-3 sm:flex-row sm:items-end sm:justify-between">
+            <div>
+              <h1 className="text-2xl font-semibold text-slate-900">Dashboard</h1>
+              <div className="mt-2 flex flex-wrap items-center gap-2 text-sm">
+                <span className="font-medium text-slate-900">{user.email}</span>
+                <Pill>{user.role}</Pill>
+              </div>
+            </div>
+
+            <div className={`text-sm ${t.mutedText}`}>{provider ? `${provider.businessName} · ${provider.city}, ${provider.state}` : 'Create your profile to get listed.'}</div>
           </div>
         </div>
 
-        <div className="text-sm text-gray-600">{provider ? `${provider.businessName} · ${provider.city}, ${provider.state}` : 'Create your profile to get listed.'}</div>
-      </div>
-
-      {/* Layout */}
-      <div className="mt-8 grid gap-4 lg:grid-cols-3">
-        {/* Primary column */}
-        <div className="space-y-4 lg:col-span-2">
-          {/* Primary hero card */}
-          <section className="rounded-2xl border bg-white p-6 shadow-sm">
+        {/* Layout */}
+        <div className="mt-8 grid gap-4 lg:grid-cols-3">
+          {/* Primary column */}
+          <div className="space-y-4 lg:col-span-2">
+            {/* Primary hero card */}
             {!provider ? (
-              <>
-                <div className="flex items-start justify-between gap-4">
-                  <div>
-                    <h2 className="text-lg font-semibold">Set up your provider profile</h2>
-                    <p className="mt-1 text-sm text-gray-600">Finish setup to appear in search and start getting inquiries.</p>
+              <section className={`rounded-2xl ${t.surface} ${t.border} border p-6 shadow-[0_14px_45px_rgba(2,6,23,0.08)] backdrop-blur`}>
+                <div>
+                  <div className="flex items-start justify-between gap-4">
+                    <div>
+                      <h2 className="text-lg font-semibold text-slate-900">Set up your provider profile</h2>
+                      <p className={`mt-1 text-sm ${t.mutedText}`}>Finish setup to appear in search and start getting inquiries.</p>
+                    </div>
+                    <Pill>Setup</Pill>
                   </div>
-                  <Pill>Setup</Pill>
-                </div>
 
-                <div className="mt-5 grid gap-3 sm:grid-cols-3">
-                  <div className="rounded-2xl border p-4">
-                    <SectionTitle>Business</SectionTitle>
-                    <p className="mt-1 text-sm text-gray-600">Name, city, state</p>
+                  <div className="mt-5 grid gap-3 sm:grid-cols-3">
+                    <div className={`rounded-2xl ${t.surfaceMuted} ${t.border} border p-4`}>
+                      <SectionTitle>Business</SectionTitle>
+                      <p className={`mt-1 text-sm ${t.mutedText}`}>Name, city, state</p>
+                    </div>
+                    <div className={`rounded-2xl ${t.surfaceMuted} ${t.border} border p-4`}>
+                      <SectionTitle>Services</SectionTitle>
+                      <p className={`mt-1 text-sm ${t.mutedText}`}>SEO, ads, social</p>
+                    </div>
+                    <div className={`rounded-2xl ${t.surfaceMuted} ${t.border} border p-4`}>
+                      <SectionTitle>Polish</SectionTitle>
+                      <p className={`mt-1 text-sm ${t.mutedText}`}>Logo, tagline</p>
+                    </div>
                   </div>
-                  <div className="rounded-2xl border p-4">
-                    <SectionTitle>Services</SectionTitle>
-                    <p className="mt-1 text-sm text-gray-600">SEO, ads, social</p>
-                  </div>
-                  <div className="rounded-2xl border p-4">
-                    <SectionTitle>Polish</SectionTitle>
-                    <p className="mt-1 text-sm text-gray-600">Logo, tagline</p>
-                  </div>
-                </div>
 
-                <div className="mt-6 flex flex-wrap items-center gap-2">
-                  <Link href="/dashboard/onboarding" className="rounded-xl bg-black px-4 py-2 text-sm font-medium text-white hover:opacity-90">
-                    Create profile
-                  </Link>
-                  <span className="text-xs text-gray-500">Takes about 2–3 minutes.</span>
+                  <div className="mt-6 flex flex-wrap items-center gap-2">
+                    <Link href="/dashboard/onboarding" className={`rounded-xl px-4 py-2 text-sm font-medium text-white shadow-sm transition ${t.primaryBtn} hover:opacity-95`}>
+                      Create profile
+                    </Link>
+                    <span className={`text-xs ${t.mutedText}`}>Takes about 2–3 minutes.</span>
+                  </div>
                 </div>
-              </>
+              </section>
             ) : (
-              <>
-                <div className="flex items-start justify-between gap-4">
-                  <div>
-                    <h2 className="text-lg font-semibold">{provider.businessName}</h2>
-                    <p className="mt-1 text-sm text-gray-600">
-                      {provider.city}, {provider.state}
-                    </p>
+              <section className={`rounded-2xl ${t.surface} ${t.border} border p-6 shadow-[0_14px_45px_rgba(2,6,23,0.08)] backdrop-blur`}>
+                <div>
+                  <div className="flex items-start justify-between gap-4">
+                    <div>
+                      <h2 className="text-lg font-semibold text-slate-900">{provider.businessName}</h2>
+                      <p className={`mt-1 text-sm ${t.mutedText}`}>
+                        {provider.city}, {provider.state}
+                      </p>
+                    </div>
+                    <Pill>{provider.status}</Pill>
                   </div>
-                  <Pill>{provider.status}</Pill>
-                </div>
 
-                <div className="mt-6 flex flex-wrap gap-2">
-                  <Link href="/dashboard/profile" className="rounded-xl bg-black px-4 py-2 text-sm font-medium text-white hover:opacity-90">
-                    Edit profile
-                  </Link>
+                  <div className="mt-6 flex flex-wrap gap-2">
+                    <Link href="/dashboard/profile" className={`rounded-xl px-4 py-2 text-sm font-medium text-white shadow-sm transition ${t.primaryBtn} hover:opacity-95`}>
+                      Edit profile
+                    </Link>
 
-                  <Link href="/dashboard/inquiries" className="rounded-xl border px-4 py-2 text-sm font-medium hover:bg-gray-50">
-                    Inquiries
-                    {newInquiryCount !== null && newInquiryCount > 0 ? <span className="ml-2 rounded-full border bg-white px-2 py-0.5 text-xs">{newInquiryCount} new</span> : null}
-                  </Link>
-                </div>
+                    <Link href="/dashboard/inquiries" className={`rounded-xl ${t.border} border px-4 py-2 text-sm font-medium ${t.secondaryBtn} hover:opacity-95`}>
+                      Inquiries
+                      {newInquiryCount !== null && newInquiryCount > 0 ? <span className={`ml-2 rounded-full ${t.border} border ${t.surface} px-2 py-0.5 text-xs`}>{newInquiryCount} new</span> : null}
+                    </Link>
+                  </div>
 
-                <div className="mt-6 rounded-2xl border bg-gray-50 p-4">
-                  <SectionTitle>Next steps</SectionTitle>
-                  <ul className="mt-2 list-disc space-y-1 pl-5 text-sm text-gray-600">
-                    <li>Check your inquiries and reply fast</li>
-                    <li>Add more services so you show up in more searches</li>
-                    <li>Upload a logo and tighten your tagline</li>
-                  </ul>
+                  <div className={`mt-6 rounded-2xl ${t.surfaceMuted} ${t.border} border p-4`}>
+                    <SectionTitle>Next steps</SectionTitle>
+                    <ul className={`mt-2 list-disc space-y-1 pl-5 text-sm ${t.mutedText}`}>
+                      <li>Check your inquiries and reply fast</li>
+                      <li>Add more services so you show up in more searches</li>
+                      <li>Upload a logo and tighten your tagline</li>
+                    </ul>
+                  </div>
                 </div>
-              </>
+              </section>
             )}
-          </section>
+          </div>
 
           {/* Secondary card */}
-          <section className="rounded-2xl border bg-white p-6 shadow-sm">
+          <section className={`rounded-2xl ${t.surface} ${t.border} border p-6 shadow-[0_14px_45px_rgba(2,6,23,0.08)] backdrop-blur`}>
             <div className="flex items-start justify-between gap-4">
               <SectionTitle>Quick actions</SectionTitle>
               {provider ? <Pill>{inquiryCount === null ? 'Loading…' : `${inquiryCount} total`}</Pill> : <Pill>Setup first</Pill>}
             </div>
 
             <div className="mt-4 grid gap-3 sm:grid-cols-2">
-              <Link href={provider ? '/dashboard/inquiries' : '/dashboard/onboarding'} className="rounded-2xl border p-4 hover:bg-gray-50" aria-disabled={!provider}>
-                <div className="text-sm font-semibold">Inquiries</div>
-                <p className="mt-1 text-sm text-gray-600">{provider ? 'View and respond to leads.' : 'Create a profile first to receive leads.'}</p>
+              <Link
+                href={provider ? '/dashboard/inquiries' : '/dashboard/onboarding'}
+                className={`rounded-2xl ${t.surfaceMuted} ${t.border} border p-4 transition ${t.cardHover}`}
+                aria-disabled={!provider}
+              >
+                <div className="text-sm font-semibold text-slate-900">Inquiries</div>
+                <p className={`mt-1 text-sm ${t.mutedText}`}>{provider ? 'View and respond to leads.' : 'Create a profile first to receive leads.'}</p>
               </Link>
 
-              <div className="rounded-2xl border p-4">
-                <div className="text-sm font-semibold">Verification</div>
-                <p className="mt-1 text-sm text-gray-600">Get verified to rank higher.</p>
+              <div className={`rounded-2xl ${t.surfaceMuted} ${t.border} border p-4`}>
+                <div className="text-sm font-semibold text-slate-900">Verification</div>
+                <p className={`mt-1 text-sm ${t.mutedText}`}>Get verified to rank higher.</p>
               </div>
             </div>
           </section>
@@ -237,24 +253,24 @@ export default function DashboardPage() {
 
         {/* Right column */}
         <div className="space-y-4">
-          <section className="rounded-2xl border bg-white p-6 shadow-sm">
+          <section className={`rounded-2xl ${t.surface} ${t.border} border p-6 shadow-[0_14px_45px_rgba(2,6,23,0.08)] backdrop-blur`}>
             <SectionTitle>Account</SectionTitle>
             <div className="mt-4 space-y-3 text-sm">
               <div>
-                <div className="text-xs text-gray-500">Email</div>
-                <div className="font-mono text-gray-900">{user.email}</div>
+                <div className={`text-xs ${t.mutedText}`}>Email</div>
+                <div className="font-mono text-slate-900">{user.email}</div>
               </div>
               <div>
-                <div className="text-xs text-gray-500">Role</div>
-                <div className="text-gray-900">{user.role}</div>
+                <div className={`text-xs ${t.mutedText}`}>Role</div>
+                <div className="text-slate-900">{user.role}</div>
               </div>
             </div>
           </section>
 
-          <section className="rounded-2xl border bg-gray-50 p-6">
+          <section className={`rounded-2xl ${t.surfaceMuted} ${t.border} border p-6 shadow-[0_14px_45px_rgba(2,6,23,0.08)] backdrop-blur`}>
             <SectionTitle>Status</SectionTitle>
 
-            <p className="mt-2 text-sm text-gray-600">
+            <p className={`mt-2 text-sm ${t.mutedText}`}>
               {!provider
                 ? 'You are not listed yet. Complete setup to get discovered.'
                 : provider.status === 'active'
@@ -266,7 +282,7 @@ export default function DashboardPage() {
                 : 'Your profile status is unknown.'}
             </p>
 
-            {provider?.status === 'pending' ? <p className="mt-3 text-xs text-gray-500">Tip: make sure your services and city are accurate.</p> : null}
+            {provider?.status === 'pending' && <p className={`mt-3 text-xs ${t.mutedText}`}>Tip: make sure your services and city are accurate.</p>}
           </section>
         </div>
       </div>

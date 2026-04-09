@@ -20,6 +20,61 @@ type Provider = {
   createdAt: string;
 };
 
+// Client component for themed provider cards
+function ProviderCard({ provider }: { provider: Provider }) {
+  const p = provider;
+
+  const topServices = (p.services ?? []).slice(0, 3);
+  const overflow = Math.max(0, (p.services?.length ?? 0) - topServices.length);
+
+  return (
+    <li className="rounded-2xl border border-slate-200/80 bg-white/70 p-5 shadow-[0_18px_50px_rgba(2,6,23,0.10)] backdrop-blur hover:bg-white/85 hover:shadow-[0_24px_70px_rgba(2,6,23,0.12)] transition hover:-translate-y-0.5">
+      <Link href={`/providers/${p.slug}`} className="block">
+        <div className="flex items-center gap-3">
+          <div className="h-12 w-12 rounded bg-gray-100 overflow-hidden">
+            {p.logo ? (
+              // eslint-disable-next-line @next/next/no-img-element
+              <img src={p.logo} alt={p.businessName} className="h-full w-full object-cover" />
+            ) : (
+              <div className="h-full w-full grid place-items-center text-xs text-gray-500">Logo</div>
+            )}
+          </div>
+          <div className="min-w-0">
+            <div className="flex items-center gap-2">
+              <h3 className="font-semibold truncate">{p.businessName}</h3>
+              {p.verified ? <span className="text-[10px] rounded bg-green-100 text-green-700 px-1.5 py-0.5">Verified</span> : null}
+            </div>
+            <p className="text-xs text-gray-500">
+              {p.city}, {p.state}
+            </p>
+          </div>
+        </div>
+
+        {/* Tagline */}
+        {p.tagline ? <p className="mt-3 text-sm text-gray-700 line-clamp-2">{p.tagline}</p> : null}
+
+        {/* Services chips */}
+        {topServices.length > 0 ? (
+          <div className="mt-3 flex flex-wrap gap-1" title={p.services?.join(', ')}>
+            {topServices.map((s) => (
+              <span key={s} className="text-[10px] uppercase tracking-wide rounded-full border px-2 py-0.5 text-gray-700 bg-gray-50">
+                {s}
+              </span>
+            ))}
+            {overflow > 0 ? <span className="text-[10px] rounded-full border px-2 py-0.5 text-gray-500 bg-white">+{overflow} more</span> : null}
+          </div>
+        ) : null}
+
+        {/* Footer: rating + createdAt */}
+        <div className="mt-3 flex items-center justify-between text-sm">
+          <span className="text-gray-600">⭐ {p.rating?.toFixed?.(1) ?? '0.0'}</span>
+          <span className="text-xs text-gray-400">{new Date(p.createdAt).toLocaleDateString()}</span>
+        </div>
+      </Link>
+    </li>
+  );
+}
+
 type ProvidersResponse = {
   meta: {
     total: number;
@@ -129,104 +184,121 @@ export default async function ProvidersPage({ searchParams }: { searchParams: Re
   const linkWith = (extra: Record<string, string | undefined>) => `/providers?${toQS({ ...baseParams, page: String(page), ...extra })}`;
 
   return (
-    <main className="mx-auto max-w-6xl px-4 py-8">
-      {/* Header */}
-      <div className="flex flex-col md:flex-row md:items-end md:justify-between gap-4 mb-6">
-        <div>
-          <h1 className="text-2xl font-semibold">Providers</h1>
-          <p className="text-sm text-gray-500">
-            {total} result{total === 1 ? '' : 's'} · Page {meta.page} of {meta.totalPages}
-          </p>
+    <main className="min-h-screen bg-[radial-gradient(900px_circle_at_20%_-10%,rgba(79,70,229,0.22),transparent_55%),radial-gradient(700px_circle_at_90%_10%,rgba(14,165,233,0.14),transparent_50%),radial-gradient(700px_circle_at_50%_110%,rgba(236,72,153,0.10),transparent_55%),linear-gradient(to_bottom,#f8fafc,#ffffff)]">
+      <div className="mx-auto max-w-6xl px-4 py-8">
+        {/* Header */}
+        <div className="flex flex-col md:flex-row md:items-end md:justify-between gap-4 mb-6">
+          <div>
+            <h1 className="text-2xl font-semibold">Providers</h1>
+            <p className="text-sm text-gray-500">
+              {total} result{total === 1 ? '' : 's'} · Page {meta.page} of {meta.totalPages}
+            </p>
+          </div>
+
+          {/* Sorting bar (GET) */}
+          <form method="GET" className="flex flex-wrap items-end gap-3">
+            {/* Preserve current filters */}
+            {name ? <input type="hidden" name="name" value={name} /> : null}
+            {city ? <input type="hidden" name="city" value={city} /> : null}
+            {service ? <input type="hidden" name="service" value={service} /> : null}
+            <input type="hidden" name="match" value={match} />
+            {minRating ? <input type="hidden" name="minRating" value={minRating} /> : null}
+            {verified ? <input type="hidden" name="verified" value={verified} /> : null}
+            <input type="hidden" name="page" value="1" />
+            <label className="text-sm font-medium">
+              Page size
+              <select
+                name="limit"
+                defaultValue={String(limit)}
+                className="ml-2 rounded-xl border border-slate-200/80 bg-white/70 px-3 py-2 text-sm focus:outline-none focus:ring-4 focus:ring-indigo-200"
+              >
+                <option value="12">12</option>
+                <option value="20">20</option>
+                <option value="30">30</option>
+                <option value="50">50</option>
+              </select>
+            </label>
+
+            <label className="text-sm font-medium">
+              Sort
+              <select name="sort" defaultValue={sort} className="ml-2 rounded-xl border border-slate-200/80 bg-white/70 px-3 py-2 text-sm focus:outline-none focus:ring-4 focus:ring-indigo-200">
+                <option value="newest">Newest</option>
+                <option value="name">Name</option>
+                <option value="rating">Rating</option>
+                <option value="verified">Verified</option>
+              </select>
+            </label>
+
+            <label className="text-sm font-medium">
+              Order
+              <select
+                name="order"
+                defaultValue={order ?? (sort === 'name' ? 'asc' : 'desc')}
+                className="ml-2 rounded-xl border border-slate-200/80 bg-white/70 px-3 py-2 text-sm focus:outline-none focus:ring-4 focus:ring-indigo-200"
+              >
+                <option value="asc">Asc</option>
+                <option value="desc">Desc</option>
+              </select>
+            </label>
+
+            <button
+              type="submit"
+              className="rounded-xl bg-gradient-to-r from-indigo-600 to-indigo-700 text-white px-4 py-2 font-medium shadow-sm hover:opacity-95 focus:outline-none focus:ring-4 focus:ring-indigo-200"
+            >
+              Apply
+            </button>
+          </form>
         </div>
 
-        {/* Sorting bar (GET) */}
-        <form method="GET" className="flex flex-wrap items-end gap-3">
-          {/* Preserve current filters */}
+        {/* Filters bar */}
+        <form method="GET" className="flex flex-wrap items-end gap-3 rounded-2xl border border-slate-200/80 bg-white/70 p-4 mb-4 shadow-[0_14px_45px_rgba(2,6,23,0.08)] backdrop-blur">
+          {/* Preserve sorting/pagination when changing filters */}
+          <input type="hidden" name="sort" value={sort} />
+          <input type="hidden" name="order" value={order ?? (sort === 'name' ? 'asc' : 'desc')} />
+          <input type="hidden" name="limit" value={String(limit)} />
+          <input type="hidden" name="page" value="1" />
+
+          {/* Existing filters that might be set elsewhere */}
           {name ? <input type="hidden" name="name" value={name} /> : null}
           {city ? <input type="hidden" name="city" value={city} /> : null}
-          {service ? <input type="hidden" name="service" value={service} /> : null}
-          <input type="hidden" name="match" value={match} />
-          {minRating ? <input type="hidden" name="minRating" value={minRating} /> : null}
-          {verified ? <input type="hidden" name="verified" value={verified} /> : null}
-          <input type="hidden" name="page" value="1" />
+
+          {/* Services + match */}
           <label className="text-sm font-medium">
-            Page size
-            <select name="limit" defaultValue={String(limit)} className="ml-2 rounded border px-2 py-1 text-sm">
-              <option value="12">12</option>
-              <option value="20">20</option>
-              <option value="30">30</option>
-              <option value="50">50</option>
-            </select>
+            Services
+            <input
+              type="text"
+              name="service"
+              defaultValue={service ?? ''}
+              placeholder="e.g. seo,ads,social"
+              className="ml-2 rounded-xl border border-slate-200/80 bg-white/70 px-3 py-2 text-sm w-64 focus:outline-none focus:ring-4 focus:ring-indigo-200"
+            />
           </label>
 
           <label className="text-sm font-medium">
-            Sort
-            <select name="sort" defaultValue={sort} className="ml-2 rounded border px-2 py-1 text-sm">
-              <option value="newest">Newest</option>
-              <option value="name">Name</option>
-              <option value="rating">Rating</option>
-              <option value="verified">Verified</option>
+            Match
+            <select name="match" defaultValue={match} className="ml-2 rounded-xl border border-slate-200/80 bg-white/70 px-3 py-2 text-sm focus:outline-none focus:ring-4 focus:ring-indigo-200">
+              <option value="any">Any</option>
+              <option value="all">All</option>
             </select>
           </label>
 
-          <label className="text-sm font-medium">
-            Order
-            <select name="order" defaultValue={order ?? (sort === 'name' ? 'asc' : 'desc')} className="ml-2 rounded border px-2 py-1 text-sm">
-              <option value="asc">Asc</option>
-              <option value="desc">Desc</option>
-            </select>
+          {/* Verified-only toggle */}
+          <label className="text-sm font-medium flex items-center gap-2">
+            <input type="checkbox" name="verified" value="1" defaultChecked={verified === '1' || (verified ?? '').toLowerCase() === 'true'} className="rounded border-slate-200/80" />
+            Verified only
           </label>
 
-          <button type="submit" className="rounded bg-black text-white text-sm px-3 py-1">
-            Apply
-          </button>
-        </form>
-      </div>
-
-      {/* Filters bar */}
-      <form method="GET" className="flex flex-wrap items-end gap-3 rounded border p-3 mb-4">
-        {/* Preserve sorting/pagination when changing filters */}
-        <input type="hidden" name="sort" value={sort} />
-        <input type="hidden" name="order" value={order ?? (sort === 'name' ? 'asc' : 'desc')} />
-        <input type="hidden" name="limit" value={String(limit)} />
-        <input type="hidden" name="page" value="1" />
-
-        {/* Existing filters that might be set elsewhere */}
-        {name ? <input type="hidden" name="name" value={name} /> : null}
-        {city ? <input type="hidden" name="city" value={city} /> : null}
-
-        {/* Services + match */}
-        <label className="text-sm font-medium">
-          Services
-          <input type="text" name="service" defaultValue={service ?? ''} placeholder="e.g. seo,ads,social" className="ml-2 rounded border px-2 py-1 text-sm w-64" />
-        </label>
-
-        <label className="text-sm font-medium">
-          Match
-          <select name="match" defaultValue={match} className="ml-2 rounded border px-2 py-1 text-sm">
-            <option value="any">Any</option>
-            <option value="all">All</option>
-          </select>
-        </label>
-
-        {/* Verified-only toggle */}
-        <label className="text-sm font-medium flex items-center gap-2">
-          <input type="checkbox" name="verified" value="1" defaultChecked={verified === '1' || (verified ?? '').toLowerCase() === 'true'} />
-          Verified only
-        </label>
-
-        {/* Min rating quick presets */}
-        <div className="ml-auto flex items-center gap-2">
-          <span className="text-sm text-gray-500">Min rating:</span>
-          {[
-            { label: 'None', value: '' },
-            { label: '3.0★', value: '3.0' },
-            { label: '4.0★', value: '4.0' },
-            { label: '4.5★', value: '4.5' },
-          ].map((opt) => {
-            const isActive = (!minRating && opt.value === '') || (minRating && opt.value === minRating);
-            const href = `/providers?${toQS({
-              ...{
+          {/* Min rating quick presets */}
+          <div className="ml-auto flex items-center gap-2">
+            <span className="text-sm text-gray-600">Min rating:</span>
+            {[
+              { label: 'None', value: '' },
+              { label: '3.0★', value: '3.0' },
+              { label: '4.0★', value: '4.0' },
+              { label: '4.5★', value: '4.5' },
+            ].map((opt) => {
+              const isActive = (!minRating && opt.value === '') || (minRating && opt.value === minRating);
+              const href = `/providers?${toQS({
                 name,
                 city,
                 service,
@@ -236,113 +308,72 @@ export default async function ProvidersPage({ searchParams }: { searchParams: Re
                 order,
                 limit: String(limit),
                 page: '1',
-              },
-              minRating: opt.value || undefined,
-            })}`;
-            return (
-              <Link key={opt.label} href={href} className={`rounded border px-2 py-1 text-xs ${isActive ? 'bg-black text-white border-black' : 'hover:bg-gray-50'}`}>
-                {opt.label}
-              </Link>
-            );
-          })}
-        </div>
-
-        <button type="submit" className="rounded bg-black text-white text-sm px-3 py-1">
-          Filter
-        </button>
-      </form>
-
-      {/* Results grid */}
-      {data.length === 0 ? (
-        <div className="rounded border p-6 text-center text-gray-600">No providers found. Try adjusting filters.</div>
-      ) : (
-        <ul className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
-          {data.map((p) => {
-            const topServices = (p.services ?? []).slice(0, 3);
-            const overflow = Math.max(0, (p.services?.length ?? 0) - topServices.length);
-            return (
-              <li key={p.id} className="rounded-xl border p-4 hover:shadow-sm transition">
-                <Link href={`/providers/${p.slug}`} className="block">
-                  <div className="flex items-center gap-3">
-                    <div className="h-12 w-12 rounded bg-gray-100 overflow-hidden">
-                      {p.logo ? (
-                        // eslint-disable-next-line @next/next/no-img-element
-                        <img src={p.logo} alt={p.businessName} className="h-full w-full object-cover" />
-                      ) : (
-                        <div className="h-full w-full grid place-items-center text-xs text-gray-500">Logo</div>
-                      )}
-                    </div>
-                    <div className="min-w-0">
-                      <div className="flex items-center gap-2">
-                        <h3 className="font-semibold truncate">{p.businessName}</h3>
-                        {p.verified ? <span className="text-[10px] rounded bg-green-100 text-green-700 px-1.5 py-0.5">Verified</span> : null}
-                      </div>
-                      <p className="text-xs text-gray-500">
-                        {p.city}, {p.state}
-                      </p>
-                    </div>
-                  </div>
-
-                  {/* Tagline */}
-                  {p.tagline ? <p className="mt-3 text-sm text-gray-700 line-clamp-2">{p.tagline}</p> : null}
-
-                  {/* Services chips */}
-                  {topServices.length > 0 ? (
-                    <div className="mt-3 flex flex-wrap gap-1" title={p.services?.join(', ')}>
-                      {topServices.map((s) => (
-                        <span key={s} className="text-[10px] uppercase tracking-wide rounded-full border px-2 py-0.5 text-gray-700 bg-gray-50">
-                          {s}
-                        </span>
-                      ))}
-                      {overflow > 0 ? <span className="text-[10px] rounded-full border px-2 py-0.5 text-gray-500 bg-white">+{overflow} more</span> : null}
-                    </div>
-                  ) : null}
-
-                  {/* Footer: rating + createdAt */}
-                  <div className="mt-3 flex items-center justify-between text-sm">
-                    <span className="text-gray-600">⭐ {p.rating?.toFixed?.(1) ?? '0.0'}</span>
-                    <span className="text-xs text-gray-400">{new Date(p.createdAt).toLocaleDateString()}</span>
-                  </div>
+                minRating: opt.value || undefined,
+              })}`;
+              return (
+                <Link
+                  key={opt.label}
+                  href={href}
+                  className={`rounded-xl border px-3 py-2 text-xs font-medium transition ${
+                    isActive ? 'bg-gradient-to-r from-indigo-600 to-indigo-700 text-white border-indigo-600 shadow-sm' : 'border-slate-200/80 bg-white/70 hover:bg-white/90 hover:shadow-sm'
+                  }`}
+                >
+                  {opt.label}
                 </Link>
-              </li>
-            );
-          })}
-        </ul>
-      )}
+              );
+            })}
+          </div>
 
-      {/* Pagination */}
-      <div className="mt-8 flex items-center justify-between">
-        <div className="text-sm text-gray-600">
-          Showing {(meta.page - 1) * meta.limit + 1}–{Math.min(meta.page * meta.limit, meta.total)} of {meta.total}
-        </div>
-        <div className="flex items-center gap-1">
-          <Link aria-disabled={page <= 1} className={`px-3 py-1 rounded border text-sm ${page <= 1 ? 'pointer-events-none opacity-50' : 'hover:bg-gray-50'}`} href={`/providers?${prevParams}`}>
-            ← Prev
-          </Link>
+          <button type="submit" className="rounded bg-black text-white text-sm px-3 py-1">
+            Filter
+          </button>
+        </form>
 
-          {pageWindow.map((p, i) =>
-            typeof p === 'number' ? (
-              <Link
-                key={`${p}-${i}`}
-                href={`/providers?${toQS({ ...baseParams, page: String(p) })}`}
-                className={`px-3 py-1 rounded border text-sm ${p === page ? 'bg-black text-white border-black' : 'hover:bg-gray-50'}`}
-              >
-                {p}
-              </Link>
-            ) : (
-              <span key={`dots-${i}`} className="px-2 text-sm text-gray-400">
-                {p}
-              </span>
-            ),
-          )}
+        {/* Results grid */}
+        {data.length === 0 ? (
+          <div className="rounded border p-6 text-center text-gray-600">No providers found. Try adjusting filters.</div>
+        ) : (
+          <ul className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+            {data.map((p) => (
+              <ProviderCard key={p.id} provider={p} />
+            ))}
+          </ul>
+        )}
 
-          <Link
-            aria-disabled={page >= totalPages}
-            className={`px-3 py-1 rounded border text-sm ${page >= totalPages ? 'pointer-events-none opacity-50' : 'hover:bg-gray-50'}`}
-            href={`/providers?${nextParams}`}
-          >
-            Next →
-          </Link>
+        {/* Pagination */}
+        <div className="mt-8 flex items-center justify-between">
+          <div className="text-sm text-gray-600">
+            Showing {(meta.page - 1) * meta.limit + 1}–{Math.min(meta.page * meta.limit, meta.total)} of {meta.total}
+          </div>
+          <div className="flex items-center gap-1">
+            <Link aria-disabled={page <= 1} className={`px-3 py-1 rounded border text-sm ${page <= 1 ? 'pointer-events-none opacity-50' : 'hover:bg-gray-50'}`} href={`/providers?${prevParams}`}>
+              ← Prev
+            </Link>
+
+            {pageWindow.map((p, i) =>
+              typeof p === 'number' ? (
+                <Link
+                  key={`${p}-${i}`}
+                  href={`/providers?${toQS({ ...baseParams, page: String(p) })}`}
+                  className={`px-3 py-1 rounded border text-sm ${p === page ? 'bg-black text-white border-black' : 'hover:bg-gray-50'}`}
+                >
+                  {p}
+                </Link>
+              ) : (
+                <span key={`dots-${p}-${i}`} className="px-2 text-sm text-gray-400">
+                  {p}
+                </span>
+              ),
+            )}
+
+            <Link
+              aria-disabled={page >= totalPages}
+              className={`px-3 py-1 rounded border text-sm ${page >= totalPages ? 'pointer-events-none opacity-50' : 'hover:bg-gray-50'}`}
+              href={`/providers?${nextParams}`}
+            >
+              Next →
+            </Link>
+          </div>
         </div>
       </div>
     </main>
