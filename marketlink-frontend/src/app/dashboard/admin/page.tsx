@@ -237,6 +237,9 @@ export default async function AdminOverviewPage({ searchParams }: { searchParams
           <h1 className="text-xl font-semibold">Admin Overview</h1>
           <p className="text-sm text-gray-500">Moderate providers and manage listings.</p>
         </div>
+        <Link href="/dashboard/admin/invite" className="rounded border px-3 py-1.5 text-sm hover:bg-gray-50">
+          Invite user
+        </Link>
       </div>
 
       {/* Clickable Stats / Quick Filters */}

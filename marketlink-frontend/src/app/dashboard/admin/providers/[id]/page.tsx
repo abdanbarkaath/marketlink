@@ -2,6 +2,7 @@ import Link from 'next/link';
 import { headers } from 'next/headers';
 import { redirect } from 'next/navigation';
 import { revalidatePath } from 'next/cache';
+import ResetPasswordPanel from '@/components/admin/ResetPasswordPanel';
 
 export const dynamic = 'force-dynamic';
 
@@ -300,6 +301,11 @@ export default async function AdminProviderEditPage({ params }: { params: { id: 
                 <option value="false">false</option>
               </select>
             </Field>
+          </div>
+
+          <div className="rounded-2xl border bg-white p-5 shadow-sm space-y-4">
+            <SectionTitle title="Access" subtitle="Reset the provider's password." />
+            <ResetPasswordPanel providerId={p.id} providerEmail={p.email} />
           </div>
 
           <div className="rounded-2xl border bg-white p-5 shadow-sm space-y-4">

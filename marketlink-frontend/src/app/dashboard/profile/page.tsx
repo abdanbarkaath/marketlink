@@ -41,6 +41,12 @@ export default function ProfileEditorPage() {
   const [dirty, setDirty] = useState(false);
 
   const [data, setData] = useState<Provider | null>(null);
+  const [pwCurrent, setPwCurrent] = useState('');
+  const [pwNext, setPwNext] = useState('');
+  const [pwConfirm, setPwConfirm] = useState('');
+  const [pwSaving, setPwSaving] = useState(false);
+  const [pwMessage, setPwMessage] = useState<string | null>(null);
+  const [pwOpen, setPwOpen] = useState(false);
 
   // Load current user's provider from /me/summary (works for active/pending/disabled)
   useEffect(() => {
@@ -155,6 +161,55 @@ export default function ProfileEditorPage() {
     }
   }
 
+  function resetPwForm() {
+    setPwCurrent('');
+    setPwNext('');
+    setPwConfirm('');
+    setPwMessage(null);
+  }
+
+  async function handleChangePassword(e: React.FormEvent) {
+    e.preventDefault();
+    setPwMessage(null);
+
+    if (!pwCurrent || !pwNext) {
+      setPwMessage('Enter your current password and a new password.');
+      return;
+    }
+    if (pwNext.length < 8) {
+      setPwMessage('New password must be at least 8 characters.');
+      return;
+    }
+    if (pwNext !== pwConfirm) {
+      setPwMessage('New password and confirmation do not match.');
+      return;
+    }
+
+    setPwSaving(true);
+    try {
+      const res = await fetch(`${API_BASE}/auth/change-password`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        credentials: 'include',
+        body: JSON.stringify({ currentPassword: pwCurrent, newPassword: pwNext }),
+      });
+
+      const body = await res.json().catch(() => ({}));
+      if (!res.ok) {
+        throw new Error(body?.message || 'Failed to change password.');
+      }
+
+      setPwCurrent('');
+      setPwNext('');
+      setPwConfirm('');
+      setPwMessage('Password updated.');
+    } catch (e: any) {
+      setPwMessage(e?.message || 'Failed to change password.');
+    } finally {
+      setPwSaving(false);
+    }
+  }
+
   // ----- keep hooks before early returns -----
   const known = useMemo(() => new Set(SERVICE_OPTIONS.map((s) => s.value)), []);
   const extraServices = useMemo(() => (data?.services || []).filter((s) => !known.has(s)), [data?.services, known]);
@@ -182,8 +237,20 @@ export default function ProfileEditorPage() {
 
   return (
     <main className="mx-auto max-w-2xl px-4 py-10">
-      <h1 className="text-2xl font-semibold">Edit profile</h1>
-      <p className="mt-2 text-gray-600">Update your provider details.</p>
+      <div className="flex items-start justify-between gap-4">
+        <div>
+          <h1 className="text-2xl font-semibold">Edit profile</h1>
+          <p className="mt-2 text-gray-600">Update your provider details.</p>
+        </div>
+        <div className="flex items-center gap-2">
+          <button type="button" onClick={() => setPwOpen(true)} className="rounded-xl border px-4 py-2.5 text-sm font-medium hover:bg-gray-50">
+            Change password
+          </button>
+          <button type="button" onClick={() => router.replace('/dashboard')} className="rounded-xl border px-4 py-2.5 text-sm font-medium hover:bg-gray-50">
+            Back to dashboard
+          </button>
+        </div>
+      </div>
 
       {/* Admin-only moderation controls */}
       {role === 'admin' ? (
@@ -282,22 +349,66 @@ export default function ProfileEditorPage() {
 
         <div className="flex flex-wrap gap-3">
           <button type="submit" disabled={disableSave} className={`rounded-xl border px-4 py-3 font-medium ${disableSave ? 'cursor-not-allowed opacity-60' : 'hover:bg-gray-50'}`}>
-            {saving ? 'Saving…' : 'Save changes'}
+            {saving ? 'Saving...' : 'Save changes'}
           </button>
-
-          <button type="button" onClick={() => router.replace('/dashboard')} className="rounded-xl border px-4 py-3 font-medium hover:bg-gray-50">
-            Back to dashboard
-          </button>
-
-          {data.status === 'active' ? (
-            <button type="button" onClick={() => router.replace(`/providers/${data.slug}`)} className="rounded-xl border px-4 py-3 font-medium hover:bg-gray-50">
-              View public page
-            </button>
-          ) : null}
         </div>
 
         <p className="text-xs text-gray-500">* required</p>
       </form>
+
+
+      {pwOpen ? (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 px-4">
+          <div className="w-full max-w-md rounded-2xl bg-white p-5 shadow-lg">
+            <div className="flex items-center justify-between">
+              <h2 className="text-sm font-semibold">Change password</h2>
+              <button
+                type="button"
+                onClick={() => {
+                  setPwOpen(false);
+                  resetPwForm();
+                }}
+                className="rounded border px-2 py-1 text-xs hover:bg-gray-50"
+              >
+                Close
+              </button>
+            </div>
+
+            <form onSubmit={handleChangePassword} className="mt-4 grid gap-4">
+              <div>
+                <label className="mb-1 block text-sm">Current password</label>
+                <input type="password" autoComplete="current-password" className="w-full rounded-xl border px-4 py-3" value={pwCurrent} onChange={(e) => setPwCurrent(e.target.value)} />
+              </div>
+              <div>
+                <label className="mb-1 block text-sm">New password</label>
+                <input type="password" autoComplete="new-password" className="w-full rounded-xl border px-4 py-3" value={pwNext} onChange={(e) => setPwNext(e.target.value)} />
+              </div>
+              <div>
+                <label className="mb-1 block text-sm">Confirm new password</label>
+                <input type="password" autoComplete="new-password" className="w-full rounded-xl border px-4 py-3" value={pwConfirm} onChange={(e) => setPwConfirm(e.target.value)} />
+              </div>
+
+              <div className="flex items-center justify-between">
+                <button type="submit" disabled={pwSaving} className={`rounded-xl border px-4 py-2.5 text-sm font-medium ${pwSaving ? 'cursor-not-allowed opacity-60' : 'hover:bg-gray-50'}`}>
+                  {pwSaving ? 'Updating...' : 'Update password'}
+                </button>
+                <button
+                  type="button"
+                  onClick={() => {
+                    setPwOpen(false);
+                    resetPwForm();
+                  }}
+                  className="rounded-xl border px-4 py-2.5 text-sm font-medium hover:bg-gray-50"
+                >
+                  Cancel
+                </button>
+              </div>
+
+              {pwMessage ? <p className="text-sm text-gray-600">{pwMessage}</p> : null}
+            </form>
+          </div>
+        </div>
+      ) : null}
     </main>
   );
 }
