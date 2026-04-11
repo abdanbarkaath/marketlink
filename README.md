@@ -19,6 +19,7 @@ Backend (Fastify)
    DATABASE_URL=postgresql://...
    COOKIE_SECRET=dev_secret_key
    SESSION_TTL_DAYS=7
+   AUTH_MODE=invite # or selfserve (dev)
    WEB_URL=http://localhost:3000
 
 3. Prisma setup (first time or after schema changes)
@@ -58,163 +59,6 @@ External backend notes
 - In production (Vercel), set NEXT_PUBLIC_API_URL in Vercel env vars to the external backend URL.
 - Make sure the backend WEB_URL matches the frontend URL in that environment.
 
-## Creating Users & Providers (Dev Guide)
-
-### 🥇 Recommended (App Flow)
-
-Use this for real usage:
-
-1. Go to:
-
-```
-http://localhost:3000/login
-```
-
-2. Log in (email + password)
-
-3. Complete onboarding:
-
-```
-http://localhost:3000/dashboard/onboarding
-```
-
-4. Submit form → backend automatically:
-
-- Creates `Provider`
-- Links `userId`
-- Generates `slug`
-- Sets defaults (`status`, `services`)
-
----
-
-### 🥈 Manual (Neon / Dev Testing)
-
-Use this when:
-
-- Testing admin panel
-- Creating pending providers
-- Seeding quick data
-
----
-
-### Step 1 — Create User
-
-First generate a bcrypt hash (required for password login):
-
-```bash
-cd marketlink-backend
-node -e "require('bcryptjs').hash('TempAdmin123!', 10).then(console.log)"
-```
-
-Then insert into Neon:
-
-```sql
-INSERT INTO "User" (
-  id,
-  email,
-  role,
-  "passwordHash",
-  "mustChangePassword",
-  "isDisabled",
-  "createdAt",
-  "updatedAt"
-)
-VALUES (
-  gen_random_uuid()::text,
-  'dj.abdan+1@gmail.com',
-  'provider',
-  '$2b$10$PASTE_HASH_HERE',
-  false,
-  false,
-  NOW(),
-  NOW()
-)
-RETURNING id;
-```
-
-👉 Copy the returned `id` (this is `userId`)
-
----
-
-### Step 2 — Create Provider
-
-```sql
-INSERT INTO "Provider" (
-  id,
-  "userId",
-  email,
-  "businessName",
-  slug,
-  city,
-  state,
-  services,
-  rating,
-  verified,
-  status,
-  "createdAt",
-  "updatedAt"
-)
-VALUES (
-  gen_random_uuid()::text,
-  'PASTE_USER_ID_HERE',
-  'dj.abdan+1@gmail.com',
-  'Abdan DJ Services',
-  'abdan-dj-services',
-  'Westmont',
-  'IL',
-  ARRAY['video', 'social'],
-  0,
-  false,
-  'active',
-  NOW(),
-  NOW()
-);
-```
-
----
-
-### 🔐 Login Credentials
-
-```
-Email: dj.abdan+1@gmail.com
-Password: TempAdmin123!
-```
-
----
-
-### ⚠️ Notes
-
-- `passwordHash` must be bcrypt (not plain text)
-- `slug` must be unique
-- `services` must match your frontend tokens:
-  ```
-  seo, ads, social, video, print
-  ```
-- `status` options:
-  ```
-  pending | active | disabled
-  ```
-
----
-
-### 🧪 Quick Test
-
-Visit:
-
-```
-http://localhost:3000/admin/providers?status=active
-```
-
-You should see your newly created provider.
-
----
-
-### 🧠 Summary
-
-- Use onboarding UI for real providers
-- Use Neon SQL for testing/admin data
-- Both methods are valid depending on use case
-
 Key paths (Frontend Routes)
 Public
 
@@ -224,7 +68,7 @@ Public
 
 Auth
 
-- /login Password login page
+- /login Magic link login request page
 
 Provider Dashboard (Protected)
 
@@ -250,11 +94,10 @@ Marketplace Providers (Public)
 - GET /providers List providers with filters (name/city/service/minRating/verified)
 - GET /providers/:slug Provider detail by slug
 
-Auth (Password)
+Auth (Magic link)
 
-- POST /auth/login Login with email + password
-- GET /auth/me Get current user
-- POST /auth/logout Logout
+- POST /api/auth/magic-link Request magic link (mode depends on AUTH_MODE)
+- POST /api/auth/verify Verify magic token -> session cookie
 - POST /api/auth/logout Logout (invalidate session)
 
 Providers (Owner / Protected)
@@ -284,7 +127,9 @@ Roles & Access
 
 Auth & Sessions
 
-- Password-based login with bcrypt hashing.
+- Auth mode:
+  - AUTH_MODE=invite (prod): only existing users can request a magic link.
+  - AUTH_MODE=selfserve (dev): upsert user on magic link request.
 - Sessions are DB-backed (Session model). Login survives server restarts.
 - Frontend forwards the session cookie server-side when calling the backend.
 
@@ -330,7 +175,7 @@ Testing Checklist (Local)
 
 1. Start backend on http://localhost:4000
 2. Start frontend on http://localhost:3000
-3. Log in as admin (email + password) and visit /admin.
+3. Log in as admin (magic link) and visit /admin.
 4. Use /admin/providers to:
    - Approve a pending provider -> becomes active.
    - Disable an active provider with a reason -> becomes disabled.
@@ -348,6 +193,7 @@ Backend .env essentials
 DATABASE_URL=postgresql://...
 COOKIE_SECRET=dev_secret_key
 SESSION_TTL_DAYS=7
+AUTH_MODE=invite # or selfserve (dev)
 WEB_URL=http://localhost:3000
 
 Frontend .env.local
@@ -355,5 +201,5 @@ NEXT_PUBLIC_API_URL=http://localhost:4000
 
 Notes
 
-- Passwords are hashed with bcrypt; mustChangePassword forces change on first login.
+- Magic tokens are in-memory; request a new link if the server restarted before verify.
 - Sessions are persistent in DB; logout invalidates only the current session token.
