@@ -1,7 +1,10 @@
 import type { FastifyPluginAsync } from 'fastify';
 import type { Prisma } from '@prisma/client';
+import crypto from 'node:crypto';
+import bcrypt from 'bcryptjs';
 import { prisma } from '../lib/prisma';
 import { getUserFromRequest } from '../lib/session';
+import { sendInviteEmail } from '../lib/mailer';
 import { ProviderStatus, InquiryStatus } from '@prisma/client';
 
 const requireAdmin = async (fastify: any, req: any) => {
@@ -38,6 +41,21 @@ const normalizeSlug = (raw: string) =>
     .replace(/^-|-$/g, '');
 
 const isValidEmail = (email: string) => /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email);
+
+const TEMP_PASSWORD_ALPHABET = 'ABCDEFGHJKLMNPQRSTUVWXYZabcdefghijkmnopqrstuvwxyz23456789!@#$';
+const generateTempPassword = (length = 12) => {
+  const bytes = crypto.randomBytes(length);
+  let out = '';
+  for (let i = 0; i < bytes.length; i += 1) {
+    out += TEMP_PASSWORD_ALPHABET[bytes[i] % TEMP_PASSWORD_ALPHABET.length];
+  }
+  return out;
+};
+
+const getLoginUrl = () => {
+  const base = process.env.WEB_URL || 'http://localhost:3000';
+  return `${base.replace(/\/$/, '')}/login`;
+};
 
 const normalizeServices = (services: unknown): string[] | undefined => {
   if (typeof services === 'undefined') return undefined;
@@ -189,6 +207,108 @@ const adminRoutes: FastifyPluginAsync = async (fastify) => {
     if (!provider) return reply.code(404).send({ error: 'Provider not found' });
 
     return reply.send({ ok: true, provider });
+  });
+
+  /**
+   * POST /admin/users/invite
+   * Body: { email, role? }
+   * - Creates a user with a temp password and sends email invite.
+   */
+  fastify.post('/admin/users/invite', async (req, reply) => {
+    const gate = await requireAdmin(fastify, req);
+    if (!gate.ok) return reply.code(gate.code).send({ error: gate.error });
+
+    const body = (req.body || {}) as { email?: string; role?: 'provider' | 'admin' };
+    const email = String(body.email || '')
+      .trim()
+      .toLowerCase();
+    const role = body.role === 'admin' ? 'admin' : 'provider';
+
+    if (!isValidEmail(email)) return reply.code(400).send({ error: 'Invalid email.' });
+
+    const existing = await prisma.user.findUnique({ where: { email }, select: { id: true } });
+    if (existing) return reply.code(409).send({ error: 'User already exists.' });
+
+    const tempPassword = generateTempPassword();
+    const passwordHash = await bcrypt.hash(tempPassword, 10);
+
+    const user = await prisma.user.create({
+      data: {
+        email,
+        role,
+        passwordHash,
+        mustChangePassword: true,
+        isDisabled: false,
+      },
+      select: { id: true, email: true, role: true },
+    });
+
+    const emailRes = await sendInviteEmail(email, tempPassword, getLoginUrl(), role);
+
+    return reply.send({
+      ok: true,
+      user,
+      tempPassword,
+      emailSent: emailRes.ok,
+    });
+  });
+
+  /**
+   * POST /admin/providers/:id/reset-password
+   * - Ensures provider has a user, sets temp password, sends email.
+   */
+  fastify.post('/admin/providers/:id/reset-password', async (req, reply) => {
+    const gate = await requireAdmin(fastify, req);
+    if (!gate.ok) return reply.code(gate.code).send({ error: gate.error });
+
+    const { id } = req.params as { id: string };
+    const provider = await prisma.provider.findUnique({
+      where: { id },
+      select: { id: true, email: true, userId: true },
+    });
+    if (!provider) return reply.code(404).send({ error: 'Provider not found' });
+
+    const email = String(provider.email || '')
+      .trim()
+      .toLowerCase();
+    if (!isValidEmail(email)) return reply.code(400).send({ error: 'Invalid provider email.' });
+
+    let userId = provider.userId || null;
+    if (!userId) {
+      const existing = await prisma.user.findUnique({ where: { email }, select: { id: true } });
+      if (existing) {
+        userId = existing.id;
+      } else {
+        const created = await prisma.user.create({
+          data: { email, role: 'provider', mustChangePassword: true, isDisabled: false },
+          select: { id: true },
+        });
+        userId = created.id;
+      }
+
+      await prisma.provider.update({
+        where: { id: provider.id },
+        data: { userId },
+      });
+    }
+
+    const tempPassword = generateTempPassword();
+    const passwordHash = await bcrypt.hash(tempPassword, 10);
+
+    await prisma.user.update({
+      where: { id: userId },
+      data: { passwordHash, mustChangePassword: true, isDisabled: false },
+    });
+
+    const emailRes = await sendInviteEmail(email, tempPassword, getLoginUrl(), 'provider');
+
+    return reply.send({
+      ok: true,
+      providerId: provider.id,
+      userId,
+      tempPassword,
+      emailSent: emailRes.ok,
+    });
   });
 
   /**

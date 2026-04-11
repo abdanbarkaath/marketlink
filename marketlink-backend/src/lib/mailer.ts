@@ -67,3 +67,75 @@ export async function sendMagicLinkEmail(to: string, verifyUrl: string): Promise
     return { ok: false, error: 'network' };
   }
 }
+
+export async function sendInviteEmail(to: string, tempPassword: string, loginUrl: string, role: 'provider' | 'admin'): Promise<SendResult> {
+  if (!RESEND_API_KEY || !MAIL_FROM) {
+    console.log('[mailer] Missing RESEND_API_KEY or MAIL_FROM; logging invite instead:', {
+      to,
+      tempPassword,
+      loginUrl,
+      role,
+    });
+    return { ok: false, error: 'missing-config' };
+  }
+
+  const subject = `${APP_NAME} - Your account access`;
+  const text = [
+    `Hi,`,
+    ``,
+    `An admin created a ${role} account for you.`,
+    `Email: ${to}`,
+    `Temporary password: ${tempPassword}`,
+    ``,
+    `Sign in here: ${loginUrl}`,
+    ``,
+    `You will be asked to change your password after login.`,
+    ``,
+    `- ${APP_NAME}`,
+  ].join('\n');
+
+  const html = `
+    <div style="font-family:ui-sans-serif,-apple-system,BlinkMacSystemFont,Segoe UI,Roboto,Helvetica,Arial;">
+      <p>Hi,</p>
+      <p>An admin created a <strong>${role}</strong> account for you.</p>
+      <p><strong>Email:</strong> ${to}</p>
+      <p><strong>Temporary password:</strong> ${tempPassword}</p>
+      <p>
+        <a href="${loginUrl}"
+           style="display:inline-block;padding:10px 16px;border-radius:8px;border:1px solid #e5e7eb;text-decoration:none;">
+          Sign in to ${APP_NAME}
+        </a>
+      </p>
+      <p>You will be asked to change your password after login.</p>
+      <p>- ${APP_NAME}</p>
+    </div>
+  `.trim();
+
+  try {
+    const res = await fetch('https://api.resend.com/emails', {
+      method: 'POST',
+      headers: {
+        Authorization: `Bearer ${RESEND_API_KEY}`,
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({
+        from: MAIL_FROM,
+        to,
+        subject,
+        text,
+        html,
+      }),
+    });
+
+    if (!res.ok) {
+      const body = await res.text().catch(() => '');
+      console.error('[mailer] Resend error', res.status, body);
+      return { ok: false, error: `resend-${res.status}` };
+    }
+
+    return { ok: true };
+  } catch (err: any) {
+    console.error('[mailer] Network/unknown error', err?.message || err);
+    return { ok: false, error: 'network' };
+  }
+}

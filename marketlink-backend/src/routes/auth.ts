@@ -91,6 +91,56 @@ const authRoutes: FastifyPluginAsync = async (fastify) => {
     await deleteCurrentSession(fastify, req, reply);
     return reply.send({ ok: true });
   });
+
+  /**
+   * POST /auth/change-password
+   * Body: { currentPassword, newPassword }
+   * - Requires auth, verifies current password, sets new hash, clears mustChangePassword.
+   */
+  fastify.post('/auth/change-password', async (req, reply) => {
+    const user = await getUserFromRequest(fastify, req);
+    if (!user) return reply.code(401).send({ ok: false, message: 'Not authenticated.' });
+
+    const { currentPassword, newPassword } = (req.body || {}) as {
+      currentPassword?: string;
+      newPassword?: string;
+    };
+
+    const current = String(currentPassword || '');
+    const next = String(newPassword || '');
+
+    if (!current || !next) {
+      return reply.code(400).send({ ok: false, message: 'Current and new password are required.' });
+    }
+    if (next.length < 8) {
+      return reply.code(400).send({ ok: false, message: 'New password must be at least 8 characters.' });
+    }
+
+    const full = await prisma.user.findUnique({
+      where: { id: user.id },
+      select: { id: true, passwordHash: true, isDisabled: true },
+    });
+
+    if (!full || full.isDisabled) {
+      return reply.code(403).send({ ok: false, message: 'Account disabled.' });
+    }
+    if (!full.passwordHash) {
+      return reply.code(400).send({ ok: false, message: 'Password not set for this account.' });
+    }
+
+    const ok = await bcrypt.compare(current, full.passwordHash);
+    if (!ok) {
+      return reply.code(401).send({ ok: false, message: 'Current password is incorrect.' });
+    }
+
+    const passwordHash = await bcrypt.hash(next, 10);
+    await prisma.user.update({
+      where: { id: user.id },
+      data: { passwordHash, mustChangePassword: false },
+    });
+
+    return reply.send({ ok: true });
+  });
 };
 
 export default authRoutes;
