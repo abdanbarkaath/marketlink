@@ -539,33 +539,54 @@ const providersRoutes: FastifyPluginAsync = async (fastify) => {
     }
     if (typeof body.currencyCode === 'string') {
       const v = body.currencyCode.trim().toUpperCase();
+      if (v && !/^[A-Z]{3}$/.test(v)) return reply.code(400).send({ error: 'currencyCode must be a 3-letter code (e.g. USD).' });
       (data as any).currencyCode = v || 'USD';
     }
 
     const foundedYear = parseOptionalInt(body.foundedYear);
     if (typeof foundedYear !== 'undefined') {
       if (Number.isNaN(foundedYear)) return reply.code(400).send({ error: 'foundedYear must be a number.' });
+      if (foundedYear !== null) {
+        const currentYear = new Date().getFullYear();
+        if (foundedYear < 1900 || foundedYear > currentYear + 1) {
+          return reply.code(400).send({ error: 'foundedYear must be a reasonable year.' });
+        }
+      }
       (data as any).foundedYear = foundedYear;
     }
     const hourlyRateMin = parseOptionalInt(body.hourlyRateMin);
     if (typeof hourlyRateMin !== 'undefined') {
       if (Number.isNaN(hourlyRateMin)) return reply.code(400).send({ error: 'hourlyRateMin must be a number.' });
+      if (hourlyRateMin !== null && hourlyRateMin < 0) return reply.code(400).send({ error: 'hourlyRateMin cannot be negative.' });
       (data as any).hourlyRateMin = hourlyRateMin;
     }
     const hourlyRateMax = parseOptionalInt(body.hourlyRateMax);
     if (typeof hourlyRateMax !== 'undefined') {
       if (Number.isNaN(hourlyRateMax)) return reply.code(400).send({ error: 'hourlyRateMax must be a number.' });
+      if (hourlyRateMax !== null && hourlyRateMax < 0) return reply.code(400).send({ error: 'hourlyRateMax cannot be negative.' });
       (data as any).hourlyRateMax = hourlyRateMax;
     }
     const minProjectBudget = parseOptionalInt(body.minProjectBudget);
     if (typeof minProjectBudget !== 'undefined') {
       if (Number.isNaN(minProjectBudget)) return reply.code(400).send({ error: 'minProjectBudget must be a number.' });
+      if (minProjectBudget !== null && minProjectBudget < 0) return reply.code(400).send({ error: 'minProjectBudget cannot be negative.' });
       (data as any).minProjectBudget = minProjectBudget;
     }
     const responseTimeHours = parseOptionalInt(body.responseTimeHours);
     if (typeof responseTimeHours !== 'undefined') {
       if (Number.isNaN(responseTimeHours)) return reply.code(400).send({ error: 'responseTimeHours must be a number.' });
+      if (responseTimeHours !== null && responseTimeHours < 0) return reply.code(400).send({ error: 'responseTimeHours cannot be negative.' });
       (data as any).responseTimeHours = responseTimeHours;
+    }
+
+    if (
+      typeof hourlyRateMin !== 'undefined' &&
+      typeof hourlyRateMax !== 'undefined' &&
+      hourlyRateMin !== null &&
+      hourlyRateMax !== null &&
+      hourlyRateMin > hourlyRateMax
+    ) {
+      return reply.code(400).send({ error: 'hourlyRateMin must be less than or equal to hourlyRateMax.' });
     }
 
     const languages = normalizeTokenArray(body.languages);
