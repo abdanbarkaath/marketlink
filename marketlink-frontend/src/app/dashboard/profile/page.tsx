@@ -9,6 +9,41 @@ type Role = 'provider' | 'admin';
 
 type ProviderStatus = 'active' | 'pending' | 'disabled';
 
+type MediaType = 'logo' | 'cover' | 'gallery' | 'video';
+
+type ProviderProject = {
+  id?: string;
+  title: string;
+  summary?: string | null;
+  challenge?: string | null;
+  solution?: string | null;
+  results?: string | null;
+  services: string[];
+  projectBudget?: number | string | null;
+  startedAt?: string | null;
+  completedAt?: string | null;
+  isFeatured?: boolean;
+  coverImageUrl?: string | null;
+  sortOrder?: number;
+};
+
+type ProviderClient = {
+  id?: string;
+  name: string;
+  logoUrl?: string | null;
+  websiteUrl?: string | null;
+  isFeatured?: boolean;
+  sortOrder?: number;
+};
+
+type ProviderMedia = {
+  id?: string;
+  type: MediaType;
+  url: string;
+  altText?: string | null;
+  sortOrder?: number;
+};
+
 type Provider = {
   slug: string;
   businessName: string;
@@ -37,8 +72,20 @@ type Provider = {
   tagline?: string | null;
   logo?: string | null;
   services: string[];
+  projects: ProviderProject[];
+  clients: ProviderClient[];
+  media: ProviderMedia[];
   status?: ProviderStatus; // admin only
   disabledReason?: string | null; // admin only
+};
+
+type MeSummaryResponse = {
+  user?: { role?: Role };
+  provider?: Partial<Provider> & {
+    projects?: Array<Partial<ProviderProject>>;
+    clients?: Array<Partial<ProviderClient>>;
+    media?: Array<Partial<ProviderMedia>>;
+  };
 };
 
 const SERVICE_OPTIONS = [
@@ -47,6 +94,13 @@ const SERVICE_OPTIONS = [
   { value: 'social', label: 'Social' },
   { value: 'video', label: 'Video' },
   { value: 'print', label: 'Print' },
+];
+
+const MEDIA_TYPE_OPTIONS: Array<{ value: MediaType; label: string }> = [
+  { value: 'cover', label: 'Cover' },
+  { value: 'gallery', label: 'Gallery' },
+  { value: 'video', label: 'Video' },
+  { value: 'logo', label: 'Logo' },
 ];
 
 export default function ProfileEditorPage() {
@@ -77,7 +131,7 @@ export default function ProfileEditorPage() {
         });
         if (meRes.status === 401) return router.replace('/login');
 
-        const me = await meRes.json();
+        const me = (await meRes.json()) as MeSummaryResponse;
         const meRole = (me?.user?.role || 'provider') as Role;
         setRole(meRole);
 
@@ -86,7 +140,7 @@ export default function ProfileEditorPage() {
         const p = me.provider;
 
         setData({
-          slug: p.slug,
+          slug: p.slug ?? '',
           businessName: p.businessName ?? '',
           shortDescription: p.shortDescription ?? '',
           overview: p.overview ?? '',
@@ -113,11 +167,47 @@ export default function ProfileEditorPage() {
           tagline: p.tagline ?? '',
           logo: p.logo ?? '',
           services: Array.isArray(p.services) ? p.services : [],
+          projects: Array.isArray(p.projects)
+            ? p.projects.map((project, index: number) => ({
+                id: project.id,
+                title: project.title ?? '',
+                summary: project.summary ?? '',
+                challenge: project.challenge ?? '',
+                solution: project.solution ?? '',
+                results: project.results ?? '',
+                services: Array.isArray(project.services) ? project.services : [],
+                projectBudget: project.projectBudget ?? '',
+                startedAt: project.startedAt ? String(project.startedAt).slice(0, 10) : '',
+                completedAt: project.completedAt ? String(project.completedAt).slice(0, 10) : '',
+                isFeatured: Boolean(project.isFeatured),
+                coverImageUrl: project.coverImageUrl ?? '',
+                sortOrder: typeof project.sortOrder === 'number' ? project.sortOrder : index,
+              }))
+            : [],
+          clients: Array.isArray(p.clients)
+            ? p.clients.map((client, index: number) => ({
+                id: client.id,
+                name: client.name ?? '',
+                logoUrl: client.logoUrl ?? '',
+                websiteUrl: client.websiteUrl ?? '',
+                isFeatured: Boolean(client.isFeatured),
+                sortOrder: typeof client.sortOrder === 'number' ? client.sortOrder : index,
+              }))
+            : [],
+          media: Array.isArray(p.media)
+            ? p.media.map((item, index: number) => ({
+                id: item.id,
+                type: (item.type || 'gallery') as MediaType,
+                url: item.url ?? '',
+                altText: item.altText ?? '',
+                sortOrder: typeof item.sortOrder === 'number' ? item.sortOrder : index,
+              }))
+            : [],
           status: p.status as ProviderStatus | undefined,
           disabledReason: p.disabledReason ?? '',
         });
-      } catch (e: any) {
-        setError(e?.message || 'Failed to load profile');
+      } catch (e: unknown) {
+        setError(e instanceof Error ? e.message : 'Failed to load profile');
       } finally {
         setLoading(false);
       }
@@ -159,6 +249,117 @@ export default function ProfileEditorPage() {
     );
   }
 
+  function setProjectField(index: number, key: keyof ProviderProject, value: ProviderProject[keyof ProviderProject]) {
+    if (!data) return;
+    setDirty(true);
+    const projects = [...data.projects];
+    projects[index] = { ...projects[index], [key]: value };
+    setData({ ...data, projects });
+  }
+
+  function addProject() {
+    if (!data) return;
+    setDirty(true);
+    setData({
+      ...data,
+      projects: [
+        ...data.projects,
+        {
+          title: '',
+          summary: '',
+          challenge: '',
+          solution: '',
+          results: '',
+          services: [],
+          projectBudget: '',
+          startedAt: '',
+          completedAt: '',
+          isFeatured: false,
+          coverImageUrl: '',
+          sortOrder: data.projects.length,
+        },
+      ],
+    });
+  }
+
+  function removeProject(index: number) {
+    if (!data) return;
+    setDirty(true);
+    setData({
+      ...data,
+      projects: data.projects.filter((_, itemIndex) => itemIndex !== index).map((item, itemIndex) => ({ ...item, sortOrder: itemIndex })),
+    });
+  }
+
+  function setClientField(index: number, key: keyof ProviderClient, value: ProviderClient[keyof ProviderClient]) {
+    if (!data) return;
+    setDirty(true);
+    const clients = [...data.clients];
+    clients[index] = { ...clients[index], [key]: value };
+    setData({ ...data, clients });
+  }
+
+  function addClient() {
+    if (!data) return;
+    setDirty(true);
+    setData({
+      ...data,
+      clients: [
+        ...data.clients,
+        {
+          name: '',
+          logoUrl: '',
+          websiteUrl: '',
+          isFeatured: false,
+          sortOrder: data.clients.length,
+        },
+      ],
+    });
+  }
+
+  function removeClient(index: number) {
+    if (!data) return;
+    setDirty(true);
+    setData({
+      ...data,
+      clients: data.clients.filter((_, itemIndex) => itemIndex !== index).map((item, itemIndex) => ({ ...item, sortOrder: itemIndex })),
+    });
+  }
+
+  function setMediaField(index: number, key: keyof ProviderMedia, value: ProviderMedia[keyof ProviderMedia]) {
+    if (!data) return;
+    setDirty(true);
+    const media = [...data.media];
+    media[index] = { ...media[index], [key]: value };
+    setData({ ...data, media });
+  }
+
+  function addMedia() {
+    if (!data) return;
+    setDirty(true);
+    setData({
+      ...data,
+      media: [
+        ...data.media,
+        {
+          type: 'gallery',
+          url: '',
+          altText: '',
+          sortOrder: data.media.length,
+        },
+      ],
+    });
+  }
+
+  function removeMedia(index: number) {
+    if (!data) return;
+    setDirty(true);
+    setData({
+      ...data,
+      media: data.media.filter((_, itemIndex) => itemIndex !== index).map((item, itemIndex) => ({ ...item, sortOrder: itemIndex })),
+    });
+  }
+
   async function handleSave(e: React.FormEvent) {
     e.preventDefault();
     if (!data) return;
@@ -166,7 +367,7 @@ export default function ProfileEditorPage() {
     setError(null);
 
     try {
-      const basePayload: any = {
+      const basePayload: Record<string, unknown> = {
         businessName: data.businessName.trim(),
         city: data.city.trim(),
         state: data.state.trim().toUpperCase(),
@@ -193,6 +394,33 @@ export default function ProfileEditorPage() {
         remoteFriendly: Boolean(data.remoteFriendly),
         servesNationwide: Boolean(data.servesNationwide),
         responseTimeHours: data.responseTimeHours ?? '',
+        projects: data.projects.map((project, index) => ({
+          title: project.title.trim(),
+          summary: (project.summary || '').trim(),
+          challenge: (project.challenge || '').trim(),
+          solution: (project.solution || '').trim(),
+          results: (project.results || '').trim(),
+          services: Array.from(new Set((project.services || []).map((s) => s.trim().toLowerCase()).filter(Boolean))),
+          projectBudget: project.projectBudget ?? '',
+          startedAt: project.startedAt || '',
+          completedAt: project.completedAt || '',
+          isFeatured: Boolean(project.isFeatured),
+          coverImageUrl: (project.coverImageUrl || '').trim(),
+          sortOrder: index,
+        })),
+        clients: data.clients.map((client, index) => ({
+          name: client.name.trim(),
+          logoUrl: (client.logoUrl || '').trim(),
+          websiteUrl: (client.websiteUrl || '').trim(),
+          isFeatured: Boolean(client.isFeatured),
+          sortOrder: index,
+        })),
+        media: data.media.map((item, index) => ({
+          type: item.type,
+          url: item.url.trim(),
+          altText: (item.altText || '').trim(),
+          sortOrder: index,
+        })),
       };
 
       // Admin-only fields
@@ -217,13 +445,13 @@ export default function ProfileEditorPage() {
         throw new Error(msg);
       }
 
-      const updated = await res.json(); // should include { slug }
+      await res.json();
       setDirty(false);
 
       // For pending/disabled, going to public page might 404, so go back to dashboard.
       router.replace('/dashboard');
-    } catch (e: any) {
-      setError(e?.message || 'Failed to save changes');
+    } catch (e: unknown) {
+      setError(e instanceof Error ? e.message : 'Failed to save changes');
     } finally {
       setSaving(false);
     }
@@ -262,7 +490,7 @@ export default function ProfileEditorPage() {
         body: JSON.stringify({ currentPassword: pwCurrent, newPassword: pwNext }),
       });
 
-      const body = await res.json().catch(() => ({}));
+      const body = (await res.json().catch(() => ({}))) as { message?: string };
       if (!res.ok) {
         throw new Error(body?.message || 'Failed to change password.');
       }
@@ -271,8 +499,8 @@ export default function ProfileEditorPage() {
       setPwNext('');
       setPwConfirm('');
       setPwMessage('Password updated.');
-    } catch (e: any) {
-      setPwMessage(e?.message || 'Failed to change password.');
+    } catch (e: unknown) {
+      setPwMessage(e instanceof Error ? e.message : 'Failed to change password.');
     } finally {
       setPwSaving(false);
     }
@@ -512,6 +740,187 @@ export default function ProfileEditorPage() {
             </div>
           )}
         </div>
+
+        <section className="rounded-2xl border bg-white p-4">
+          <div className="flex items-center justify-between gap-4">
+            <div>
+              <h2 className="text-sm font-semibold">Case studies</h2>
+              <p className="mt-1 text-xs text-gray-500">Show real projects with budget, services, and outcomes.</p>
+            </div>
+            <button type="button" onClick={addProject} className="rounded-xl border px-3 py-2 text-sm font-medium hover:bg-gray-50">
+              Add case study
+            </button>
+          </div>
+
+          <div className="mt-4 grid gap-4">
+            {data.projects.length ? (
+              data.projects.map((project, index) => (
+                <div key={project.id || index} className="rounded-2xl border p-4">
+                  <div className="flex items-center justify-between gap-4">
+                    <div className="text-sm font-medium">Project {index + 1}</div>
+                    <button type="button" onClick={() => removeProject(index)} className="rounded-lg border px-3 py-1.5 text-xs font-medium hover:bg-gray-50">
+                      Remove
+                    </button>
+                  </div>
+
+                  <div className="mt-4 grid gap-4">
+                    <div>
+                      <label className="mb-1 block text-sm">Title</label>
+                      <input className="w-full rounded-xl border px-4 py-3" value={project.title} onChange={(e) => setProjectField(index, 'title', e.target.value)} placeholder="Paid search rebuild for regional clinic" />
+                    </div>
+                    <div>
+                      <label className="mb-1 block text-sm">Summary</label>
+                      <textarea className="min-h-[96px] w-full rounded-xl border px-4 py-3" value={project.summary ?? ''} onChange={(e) => setProjectField(index, 'summary', e.target.value)} placeholder="What was the project and why did it matter?" />
+                    </div>
+                    <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
+                      <div>
+                        <label className="mb-1 block text-sm">Challenge</label>
+                        <textarea className="min-h-[96px] w-full rounded-xl border px-4 py-3" value={project.challenge ?? ''} onChange={(e) => setProjectField(index, 'challenge', e.target.value)} />
+                      </div>
+                      <div>
+                        <label className="mb-1 block text-sm">Solution</label>
+                        <textarea className="min-h-[96px] w-full rounded-xl border px-4 py-3" value={project.solution ?? ''} onChange={(e) => setProjectField(index, 'solution', e.target.value)} />
+                      </div>
+                    </div>
+                    <div>
+                      <label className="mb-1 block text-sm">Results</label>
+                      <textarea className="min-h-[96px] w-full rounded-xl border px-4 py-3" value={project.results ?? ''} onChange={(e) => setProjectField(index, 'results', e.target.value)} placeholder="List measurable outcomes or a concise win summary." />
+                    </div>
+                    <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
+                      <div>
+                        <label className="mb-1 block text-sm">Project services (comma separated)</label>
+                        <input className="w-full rounded-xl border px-4 py-3" value={(project.services || []).join(', ')} onChange={(e) => setProjectField(index, 'services', parseTokenInput(e.target.value))} placeholder="ads, seo" />
+                      </div>
+                      <div>
+                        <label className="mb-1 block text-sm">Project budget</label>
+                        <input type="number" className="w-full rounded-xl border px-4 py-3" value={project.projectBudget ?? ''} onChange={(e) => setProjectField(index, 'projectBudget', e.target.value)} placeholder="e.g. 12000" />
+                      </div>
+                      <div>
+                        <label className="mb-1 block text-sm">Started at</label>
+                        <input type="date" className="w-full rounded-xl border px-4 py-3" value={project.startedAt ?? ''} onChange={(e) => setProjectField(index, 'startedAt', e.target.value)} />
+                      </div>
+                      <div>
+                        <label className="mb-1 block text-sm">Completed at</label>
+                        <input type="date" className="w-full rounded-xl border px-4 py-3" value={project.completedAt ?? ''} onChange={(e) => setProjectField(index, 'completedAt', e.target.value)} />
+                      </div>
+                      <div>
+                        <label className="mb-1 block text-sm">Cover image URL</label>
+                        <input className="w-full rounded-xl border px-4 py-3" value={project.coverImageUrl ?? ''} onChange={(e) => setProjectField(index, 'coverImageUrl', e.target.value)} placeholder="https://..." />
+                      </div>
+                      <label className="flex items-center gap-2 pt-8 text-sm">
+                        <input type="checkbox" checked={Boolean(project.isFeatured)} onChange={(e) => setProjectField(index, 'isFeatured', e.target.checked)} />
+                        Featured case study
+                      </label>
+                    </div>
+                  </div>
+                </div>
+              ))
+            ) : (
+              <div className="rounded-xl border border-dashed p-4 text-sm text-gray-500">No case studies yet.</div>
+            )}
+          </div>
+        </section>
+
+        <section className="rounded-2xl border bg-white p-4">
+          <div className="flex items-center justify-between gap-4">
+            <div>
+              <h2 className="text-sm font-semibold">Featured clients</h2>
+              <p className="mt-1 text-xs text-gray-500">Add client logos or names to build trust quickly.</p>
+            </div>
+            <button type="button" onClick={addClient} className="rounded-xl border px-3 py-2 text-sm font-medium hover:bg-gray-50">
+              Add client
+            </button>
+          </div>
+
+          <div className="mt-4 grid gap-4">
+            {data.clients.length ? (
+              data.clients.map((client, index) => (
+                <div key={client.id || index} className="rounded-2xl border p-4">
+                  <div className="flex items-center justify-between gap-4">
+                    <div className="text-sm font-medium">Client {index + 1}</div>
+                    <button type="button" onClick={() => removeClient(index)} className="rounded-lg border px-3 py-1.5 text-xs font-medium hover:bg-gray-50">
+                      Remove
+                    </button>
+                  </div>
+
+                  <div className="mt-4 grid gap-4 md:grid-cols-2">
+                    <div>
+                      <label className="mb-1 block text-sm">Client name</label>
+                      <input className="w-full rounded-xl border px-4 py-3" value={client.name} onChange={(e) => setClientField(index, 'name', e.target.value)} placeholder="Acme Health" />
+                    </div>
+                    <div>
+                      <label className="mb-1 block text-sm">Website URL</label>
+                      <input className="w-full rounded-xl border px-4 py-3" value={client.websiteUrl ?? ''} onChange={(e) => setClientField(index, 'websiteUrl', e.target.value)} placeholder="https://..." />
+                    </div>
+                    <div>
+                      <label className="mb-1 block text-sm">Logo URL</label>
+                      <input className="w-full rounded-xl border px-4 py-3" value={client.logoUrl ?? ''} onChange={(e) => setClientField(index, 'logoUrl', e.target.value)} placeholder="https://..." />
+                    </div>
+                    <label className="flex items-center gap-2 pt-8 text-sm">
+                      <input type="checkbox" checked={Boolean(client.isFeatured)} onChange={(e) => setClientField(index, 'isFeatured', e.target.checked)} />
+                      Featured client
+                    </label>
+                  </div>
+                </div>
+              ))
+            ) : (
+              <div className="rounded-xl border border-dashed p-4 text-sm text-gray-500">No featured clients yet.</div>
+            )}
+          </div>
+        </section>
+
+        <section className="rounded-2xl border bg-white p-4">
+          <div className="flex items-center justify-between gap-4">
+            <div>
+              <h2 className="text-sm font-semibold">Media gallery</h2>
+              <p className="mt-1 text-xs text-gray-500">Add image URLs, YouTube/Instagram links, or website URLs for embedded showcases.</p>
+            </div>
+            <button type="button" onClick={addMedia} className="rounded-xl border px-3 py-2 text-sm font-medium hover:bg-gray-50">
+              Add media
+            </button>
+          </div>
+
+          <div className="mt-4 grid gap-4">
+            {data.media.length ? (
+              data.media.map((item, index) => (
+                <div key={item.id || index} className="rounded-2xl border p-4">
+                  <div className="flex items-center justify-between gap-4">
+                    <div className="text-sm font-medium">Media item {index + 1}</div>
+                    <button type="button" onClick={() => removeMedia(index)} className="rounded-lg border px-3 py-1.5 text-xs font-medium hover:bg-gray-50">
+                      Remove
+                    </button>
+                  </div>
+
+                  <div className="mt-4 grid gap-4 md:grid-cols-2">
+                    <div>
+                      <label className="mb-1 block text-sm">Type</label>
+                      <select className="w-full rounded-xl border px-4 py-3" value={item.type} onChange={(e) => setMediaField(index, 'type', e.target.value as MediaType)}>
+                        {MEDIA_TYPE_OPTIONS.map((option) => (
+                          <option key={option.value} value={option.value}>
+                            {option.label}
+                          </option>
+                        ))}
+                      </select>
+                    </div>
+                    <div>
+                      <label className="mb-1 block text-sm">URL</label>
+                      <input className="w-full rounded-xl border px-4 py-3" value={item.url} onChange={(e) => setMediaField(index, 'url', e.target.value)} placeholder="https://youtube.com/... or https://your-site.com" />
+                    </div>
+                    <div className="md:col-span-2">
+                      <label className="mb-1 block text-sm">Alt text</label>
+                      <input className="w-full rounded-xl border px-4 py-3" value={item.altText ?? ''} onChange={(e) => setMediaField(index, 'altText', e.target.value)} placeholder="Describe what this media shows." />
+                    </div>
+                    <div className="md:col-span-2 text-xs text-gray-500">
+                      Supported embeds: YouTube and Instagram posts/reels. Instagram profile URLs and website URLs are attempted as sandboxed iframe previews when the site allows it.
+                    </div>
+                  </div>
+                </div>
+              ))
+            ) : (
+              <div className="rounded-xl border border-dashed p-4 text-sm text-gray-500">No media items yet.</div>
+            )}
+          </div>
+        </section>
 
         <div className="flex flex-wrap gap-3">
           <button type="submit" disabled={disableSave} className={`rounded-xl border px-4 py-3 font-medium ${disableSave ? 'cursor-not-allowed opacity-60' : 'hover:bg-gray-50'}`}>

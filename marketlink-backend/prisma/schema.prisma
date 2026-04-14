@@ -64,6 +64,9 @@ model Provider {
   status         ProviderStatus @default(active)
   AdminAction    AdminAction[]
   owner          User?          @relation(fields: [userId], references: [id])
+  projects       ProviderProject[]
+  clients        ProviderClient[]
+  media          ProviderMedia[]
 
   // ✅ New: inquiries/leads for this provider
   inquiries      Inquiry[]
@@ -160,4 +163,64 @@ model Inquiry {
 
   @@index([providerId, createdAt])
   @@index([status, createdAt])
+}
+
+model ProviderProject {
+  id            String   @id @default(cuid())
+  providerId    String
+  title         String
+  summary       String?
+  challenge     String?
+  solution      String?
+  results       String?
+  services      String[] @default([])
+  projectBudget Int?
+  startedAt     DateTime?
+  completedAt   DateTime?
+  isFeatured    Boolean  @default(false)
+  coverImageUrl String?
+  sortOrder     Int      @default(0)
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+  provider      Provider @relation(fields: [providerId], references: [id], onDelete: Cascade)
+
+  @@index([providerId, sortOrder, createdAt])
+  @@index([providerId, isFeatured])
+}
+
+model ProviderClient {
+  id         String   @id @default(cuid())
+  providerId String
+  name       String
+  logoUrl    String?
+  websiteUrl String?
+  isFeatured Boolean  @default(false)
+  sortOrder  Int      @default(0)
+  createdAt  DateTime @default(now())
+  updatedAt  DateTime @updatedAt
+  provider   Provider @relation(fields: [providerId], references: [id], onDelete: Cascade)
+
+  @@index([providerId, sortOrder, createdAt])
+  @@index([providerId, isFeatured])
+}
+
+model ProviderMedia {
+  id         String            @id @default(cuid())
+  providerId String
+  type       ProviderMediaType
+  url        String
+  altText    String?
+  sortOrder  Int               @default(0)
+  createdAt  DateTime          @default(now())
+  updatedAt  DateTime          @updatedAt
+  provider   Provider          @relation(fields: [providerId], references: [id], onDelete: Cascade)
+
+  @@index([providerId, type, sortOrder, createdAt])
+}
+
+enum ProviderMediaType {
+  logo
+  cover
+  gallery
+  video
 }
