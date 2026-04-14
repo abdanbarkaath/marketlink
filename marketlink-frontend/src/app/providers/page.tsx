@@ -11,12 +11,17 @@ type Provider = {
   slug: string;
   businessName: string;
   tagline: string | null;
+  shortDescription?: string | null;
   city: string;
   state: string;
   verified: boolean;
   logo: string | null;
   services: string[];
   rating: number;
+  hourlyRateMin?: number | null;
+  hourlyRateMax?: number | null;
+  minProjectBudget?: number | null;
+  currencyCode?: string | null;
   createdAt: string;
 };
 
@@ -50,8 +55,8 @@ function ProviderCard({ provider }: { provider: Provider }) {
           </div>
         </div>
 
-        {/* Tagline */}
-        {p.tagline ? <p className="mt-3 text-sm text-gray-700 line-clamp-2">{p.tagline}</p> : null}
+        {/* Tagline / short description */}
+        {p.shortDescription ? <p className="mt-3 text-sm text-gray-700 line-clamp-2">{p.shortDescription}</p> : p.tagline ? <p className="mt-3 text-sm text-gray-700 line-clamp-2">{p.tagline}</p> : null}
 
         {/* Services chips */}
         {topServices.length > 0 ? (
@@ -65,10 +70,20 @@ function ProviderCard({ provider }: { provider: Provider }) {
           </div>
         ) : null}
 
-        {/* Footer: rating + createdAt */}
+        {/* Footer: rating + pricing */}
         <div className="mt-3 flex items-center justify-between text-sm">
-          <span className="text-gray-600">⭐ {p.rating?.toFixed?.(1) ?? '0.0'}</span>
-          <span className="text-xs text-gray-400">{new Date(p.createdAt).toLocaleDateString()}</span>
+          <span className="text-gray-600">* {p.rating?.toFixed?.(1) ?? '0.0'}</span>
+          {p.minProjectBudget ? (
+            <span className="text-xs text-gray-500">
+              {p.currencyCode || 'USD'} {p.minProjectBudget}+ min
+            </span>
+          ) : p.hourlyRateMin || p.hourlyRateMax ? (
+            <span className="text-xs text-gray-500">
+              {p.currencyCode || 'USD'} {p.hourlyRateMin ?? ''}{p.hourlyRateMax ? `-${p.hourlyRateMax}` : '+'}/hr
+            </span>
+          ) : (
+            <span className="text-xs text-gray-400">{new Date(p.createdAt).toLocaleDateString()}</span>
+          )}
         </div>
       </Link>
     </li>
@@ -95,7 +110,7 @@ function toQS(params: Record<string, string | undefined>) {
   return usp.toString();
 }
 
-// Build a compact page number list like [1, '…', 5, 6, 7, '…', 12]
+// Build a compact page number list like [1, '...', 5, 6, 7, '...', 12]
 function buildPageWindow(current: number, total: number, span = 5): (number | string)[] {
   const pages: (number | string)[] = [];
   const start = Math.max(1, current - Math.floor(span / 2));
@@ -105,11 +120,11 @@ function buildPageWindow(current: number, total: number, span = 5): (number | st
 
   if (adjStart > 1) {
     pages.push(1);
-    if (adjStart > 2) pages.push('…');
+    if (adjStart > 2) pages.push('...');
   }
   for (let p = adjStart; p <= adjEnd; p++) pages.push(p);
   if (adjEnd < total) {
-    if (adjEnd < total - 1) pages.push('…');
+    if (adjEnd < total - 1) pages.push('...');
     pages.push(total);
   }
   return pages;
@@ -180,9 +195,6 @@ export default async function ProvidersPage({ searchParams }: { searchParams: Re
   const nextParams = toQS({ ...baseParams, page: String(Math.min(totalPages, page + 1)) });
   const pageWindow = buildPageWindow(page, totalPages, 5);
 
-  // Utilities to generate links with overridden params
-  const linkWith = (extra: Record<string, string | undefined>) => `/providers?${toQS({ ...baseParams, page: String(page), ...extra })}`;
-
   return (
     <main className="min-h-screen bg-[radial-gradient(900px_circle_at_20%_-10%,rgba(79,70,229,0.22),transparent_55%),radial-gradient(700px_circle_at_90%_10%,rgba(14,165,233,0.14),transparent_50%),radial-gradient(700px_circle_at_50%_110%,rgba(236,72,153,0.10),transparent_55%),linear-gradient(to_bottom,#f8fafc,#ffffff)]">
       <div className="mx-auto max-w-6xl px-4 py-8">
@@ -191,7 +203,7 @@ export default async function ProvidersPage({ searchParams }: { searchParams: Re
           <div>
             <h1 className="text-2xl font-semibold">Providers</h1>
             <p className="text-sm text-gray-500">
-              {total} result{total === 1 ? '' : 's'} · Page {meta.page} of {meta.totalPages}
+              {total} result{total === 1 ? '' : 's'} - Page {meta.page} of {meta.totalPages}
             </p>
           </div>
 
@@ -293,9 +305,9 @@ export default async function ProvidersPage({ searchParams }: { searchParams: Re
             <span className="text-sm text-gray-600">Min rating:</span>
             {[
               { label: 'None', value: '' },
-              { label: '3.0★', value: '3.0' },
-              { label: '4.0★', value: '4.0' },
-              { label: '4.5★', value: '4.5' },
+              { label: '3.0+', value: '3.0' },
+              { label: '4.0+', value: '4.0' },
+              { label: '4.5+', value: '4.5' },
             ].map((opt) => {
               const isActive = (!minRating && opt.value === '') || (minRating && opt.value === minRating);
               const href = `/providers?${toQS({
@@ -343,11 +355,11 @@ export default async function ProvidersPage({ searchParams }: { searchParams: Re
         {/* Pagination */}
         <div className="mt-8 flex items-center justify-between">
           <div className="text-sm text-gray-600">
-            Showing {(meta.page - 1) * meta.limit + 1}–{Math.min(meta.page * meta.limit, meta.total)} of {meta.total}
+            Showing {(meta.page - 1) * meta.limit + 1}-{Math.min(meta.page * meta.limit, meta.total)} of {meta.total}
           </div>
           <div className="flex items-center gap-1">
             <Link aria-disabled={page <= 1} className={`px-3 py-1 rounded border text-sm ${page <= 1 ? 'pointer-events-none opacity-50' : 'hover:bg-gray-50'}`} href={`/providers?${prevParams}`}>
-              ← Prev
+              Prev
             </Link>
 
             {pageWindow.map((p, i) =>
@@ -369,9 +381,8 @@ export default async function ProvidersPage({ searchParams }: { searchParams: Re
             <Link
               aria-disabled={page >= totalPages}
               className={`px-3 py-1 rounded border text-sm ${page >= totalPages ? 'pointer-events-none opacity-50' : 'hover:bg-gray-50'}`}
-              href={`/providers?${nextParams}`}
-            >
-              Next →
+              href={`/providers?${nextParams}`}>
+              Next
             </Link>
           </div>
         </div>

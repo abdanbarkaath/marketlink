@@ -12,6 +12,25 @@ type ProviderStatus = 'active' | 'pending' | 'disabled';
 type Provider = {
   slug: string;
   businessName: string;
+  shortDescription?: string | null;
+  overview?: string | null;
+  websiteUrl?: string | null;
+  phone?: string | null;
+  linkedinUrl?: string | null;
+  instagramUrl?: string | null;
+  facebookUrl?: string | null;
+  foundedYear?: number | string | null;
+  hourlyRateMin?: number | string | null;
+  hourlyRateMax?: number | string | null;
+  minProjectBudget?: number | string | null;
+  currencyCode?: string | null;
+  languages: string[];
+  industries: string[];
+  clientSizes: string[];
+  specialties: string[];
+  remoteFriendly?: boolean;
+  servesNationwide?: boolean;
+  responseTimeHours?: number | string | null;
   city: string;
   state: string;
   zip?: string | null;
@@ -69,6 +88,25 @@ export default function ProfileEditorPage() {
         setData({
           slug: p.slug,
           businessName: p.businessName ?? '',
+          shortDescription: p.shortDescription ?? '',
+          overview: p.overview ?? '',
+          websiteUrl: p.websiteUrl ?? '',
+          phone: p.phone ?? '',
+          linkedinUrl: p.linkedinUrl ?? '',
+          instagramUrl: p.instagramUrl ?? '',
+          facebookUrl: p.facebookUrl ?? '',
+          foundedYear: p.foundedYear ?? '',
+          hourlyRateMin: p.hourlyRateMin ?? '',
+          hourlyRateMax: p.hourlyRateMax ?? '',
+          minProjectBudget: p.minProjectBudget ?? '',
+          currencyCode: p.currencyCode ?? 'USD',
+          languages: Array.isArray(p.languages) ? p.languages : [],
+          industries: Array.isArray(p.industries) ? p.industries : [],
+          clientSizes: Array.isArray(p.clientSizes) ? p.clientSizes : [],
+          specialties: Array.isArray(p.specialties) ? p.specialties : [],
+          remoteFriendly: Boolean(p.remoteFriendly),
+          servesNationwide: Boolean(p.servesNationwide),
+          responseTimeHours: p.responseTimeHours ?? '',
           city: p.city ?? '',
           state: String(p.state ?? ''),
           zip: p.zip ?? '',
@@ -110,6 +148,17 @@ export default function ProfileEditorPage() {
     setData({ ...data, services: next });
   }
 
+  function parseTokenInput(raw: string) {
+    return Array.from(
+      new Set(
+        raw
+          .split(',')
+          .map((s) => s.trim().toLowerCase())
+          .filter(Boolean),
+      ),
+    );
+  }
+
   async function handleSave(e: React.FormEvent) {
     e.preventDefault();
     if (!data) return;
@@ -125,6 +174,25 @@ export default function ProfileEditorPage() {
         tagline: (data.tagline || '').trim(),
         logo: (data.logo || '').trim(),
         services: Array.from(new Set(data.services.map((s) => s.trim()).filter(Boolean))),
+        shortDescription: (data.shortDescription || '').trim(),
+        overview: (data.overview || '').trim(),
+        websiteUrl: (data.websiteUrl || '').trim(),
+        phone: (data.phone || '').trim(),
+        linkedinUrl: (data.linkedinUrl || '').trim(),
+        instagramUrl: (data.instagramUrl || '').trim(),
+        facebookUrl: (data.facebookUrl || '').trim(),
+        foundedYear: data.foundedYear ?? '',
+        hourlyRateMin: data.hourlyRateMin ?? '',
+        hourlyRateMax: data.hourlyRateMax ?? '',
+        minProjectBudget: data.minProjectBudget ?? '',
+        currencyCode: (data.currencyCode || 'USD').trim().toUpperCase(),
+        languages: Array.from(new Set((data.languages || []).map((s) => s.trim().toLowerCase()).filter(Boolean))),
+        industries: Array.from(new Set((data.industries || []).map((s) => s.trim().toLowerCase()).filter(Boolean))),
+        clientSizes: Array.from(new Set((data.clientSizes || []).map((s) => s.trim().toLowerCase()).filter(Boolean))),
+        specialties: Array.from(new Set((data.specialties || []).map((s) => s.trim().toLowerCase()).filter(Boolean))),
+        remoteFriendly: Boolean(data.remoteFriendly),
+        servesNationwide: Boolean(data.servesNationwide),
+        responseTimeHours: data.responseTimeHours ?? '',
       };
 
       // Admin-only fields
@@ -314,6 +382,49 @@ export default function ProfileEditorPage() {
         </div>
 
         <div>
+          <label className="mb-1 block text-sm">Short description</label>
+          <input className="w-full rounded-xl border px-4 py-3" value={data.shortDescription ?? ''} onChange={(e) => setField('shortDescription', e.target.value)} placeholder="One line summary for cards" />
+        </div>
+
+        <div>
+          <label className="mb-1 block text-sm">Overview</label>
+          <textarea className="w-full rounded-xl border px-4 py-3 min-h-[120px]" value={data.overview ?? ''} onChange={(e) => setField('overview', e.target.value)} placeholder="Describe your agency, focus areas, and approach." />
+        </div>
+
+        <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
+          <div>
+            <label className="mb-1 block text-sm">Website</label>
+            <input autoComplete="url" className="w-full rounded-xl border px-4 py-3" value={data.websiteUrl ?? ''} onChange={(e) => setField('websiteUrl', e.target.value)} placeholder="https://..." />
+          </div>
+          <div>
+            <label className="mb-1 block text-sm">Phone</label>
+            <input autoComplete="tel" className="w-full rounded-xl border px-4 py-3" value={data.phone ?? ''} onChange={(e) => setField('phone', e.target.value)} placeholder="(555) 123-4567" />
+          </div>
+        </div>
+
+        <div className="grid grid-cols-1 gap-4 md:grid-cols-3">
+          <div>
+            <label className="mb-1 block text-sm">LinkedIn</label>
+            <input autoComplete="url" className="w-full rounded-xl border px-4 py-3" value={data.linkedinUrl ?? ''} onChange={(e) => setField('linkedinUrl', e.target.value)} placeholder="https://linkedin.com/company/..." />
+          </div>
+          <div>
+            <label className="mb-1 block text-sm">Instagram</label>
+            <input autoComplete="url" className="w-full rounded-xl border px-4 py-3" value={data.instagramUrl ?? ''} onChange={(e) => setField('instagramUrl', e.target.value)} placeholder="https://instagram.com/..." />
+          </div>
+          <div>
+            <label className="mb-1 block text-sm">Facebook</label>
+            <input autoComplete="url" className="w-full rounded-xl border px-4 py-3" value={data.facebookUrl ?? ''} onChange={(e) => setField('facebookUrl', e.target.value)} placeholder="https://facebook.com/..." />
+          </div>
+        </div>
+
+        <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
+          <div>
+            <label className="mb-1 block text-sm">Founded year</label>
+            <input type="number" className="w-full rounded-xl border px-4 py-3" value={data.foundedYear ?? ''} onChange={(e) => setField('foundedYear', e.target.value)} placeholder="e.g. 2015" />
+          </div>
+        </div>
+
+        <div>
           <label className="mb-1 block text-sm">Logo URL</label>
           <input autoComplete="url" className="w-full rounded-xl border px-4 py-3" value={data.logo ?? ''} onChange={(e) => setField('logo', e.target.value)} placeholder="https://..." />
           {data.logo?.trim() ? (
@@ -322,6 +433,61 @@ export default function ProfileEditorPage() {
           ) : null}
         </div>
 
+        <div className="rounded-2xl border bg-white p-4">
+          <div className="text-sm font-semibold">Pricing</div>
+          <div className="mt-3 grid grid-cols-1 gap-4 md:grid-cols-2">
+            <div>
+              <label className="mb-1 block text-sm">Hourly rate min</label>
+              <input type="number" className="w-full rounded-xl border px-4 py-3" value={data.hourlyRateMin ?? ''} onChange={(e) => setField('hourlyRateMin', e.target.value)} placeholder="e.g. 75" />
+            </div>
+            <div>
+              <label className="mb-1 block text-sm">Hourly rate max</label>
+              <input type="number" className="w-full rounded-xl border px-4 py-3" value={data.hourlyRateMax ?? ''} onChange={(e) => setField('hourlyRateMax', e.target.value)} placeholder="e.g. 150" />
+            </div>
+            <div>
+              <label className="mb-1 block text-sm">Min project budget</label>
+              <input type="number" className="w-full rounded-xl border px-4 py-3" value={data.minProjectBudget ?? ''} onChange={(e) => setField('minProjectBudget', e.target.value)} placeholder="e.g. 5000" />
+            </div>
+            <div>
+              <label className="mb-1 block text-sm">Currency</label>
+              <input className="w-full rounded-xl border px-4 py-3" value={data.currencyCode ?? 'USD'} onChange={(e) => setField('currencyCode', e.target.value)} placeholder="USD" />
+            </div>
+          </div>
+        </div>
+
+        <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
+          <div>
+            <label className="mb-1 block text-sm">Languages (comma separated)</label>
+            <input className="w-full rounded-xl border px-4 py-3" value={(data.languages || []).join(', ')} onChange={(e) => setField('languages', parseTokenInput(e.target.value))} placeholder="english, spanish" />
+          </div>
+          <div>
+            <label className="mb-1 block text-sm">Industries (comma separated)</label>
+            <input className="w-full rounded-xl border px-4 py-3" value={(data.industries || []).join(', ')} onChange={(e) => setField('industries', parseTokenInput(e.target.value))} placeholder="healthcare, retail" />
+          </div>
+          <div>
+            <label className="mb-1 block text-sm">Client sizes (comma separated)</label>
+            <input className="w-full rounded-xl border px-4 py-3" value={(data.clientSizes || []).join(', ')} onChange={(e) => setField('clientSizes', parseTokenInput(e.target.value))} placeholder="smb, enterprise" />
+          </div>
+          <div>
+            <label className="mb-1 block text-sm">Specialties (comma separated)</label>
+            <input className="w-full rounded-xl border px-4 py-3" value={(data.specialties || []).join(', ')} onChange={(e) => setField('specialties', parseTokenInput(e.target.value))} placeholder="lead gen, ecommerce" />
+          </div>
+        </div>
+
+        <div className="grid grid-cols-1 gap-4 md:grid-cols-3">
+          <label className="flex items-center gap-2 text-sm">
+            <input type="checkbox" checked={Boolean(data.remoteFriendly)} onChange={(e) => setField('remoteFriendly', e.target.checked)} />
+            Remote friendly
+          </label>
+          <label className="flex items-center gap-2 text-sm">
+            <input type="checkbox" checked={Boolean(data.servesNationwide)} onChange={(e) => setField('servesNationwide', e.target.checked)} />
+            Serves nationwide
+          </label>
+          <div>
+            <label className="mb-1 block text-sm">Response time (hours)</label>
+            <input type="number" className="w-full rounded-xl border px-4 py-3" value={data.responseTimeHours ?? ''} onChange={(e) => setField('responseTimeHours', e.target.value)} placeholder="e.g. 24" />
+          </div>
+        </div>
         <div>
           <label className="mb-2 block text-sm">Services</label>
           <div className="flex flex-wrap gap-3">

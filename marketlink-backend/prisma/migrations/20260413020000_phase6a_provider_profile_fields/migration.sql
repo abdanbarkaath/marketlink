@@ -1,0 +1,23 @@
+-- AlterTable
+ALTER TABLE "Provider"
+ADD COLUMN     "shortDescription" TEXT,
+ADD COLUMN     "overview" TEXT,
+ADD COLUMN     "websiteUrl" TEXT,
+ADD COLUMN     "phone" TEXT,
+ADD COLUMN     "linkedinUrl" TEXT,
+ADD COLUMN     "instagramUrl" TEXT,
+ADD COLUMN     "facebookUrl" TEXT,
+ADD COLUMN     "foundedYear" INTEGER,
+ADD COLUMN     "hourlyRateMin" INTEGER,
+ADD COLUMN     "hourlyRateMax" INTEGER,
+ADD COLUMN     "minProjectBudget" INTEGER,
+ADD COLUMN     "currencyCode" TEXT NOT NULL DEFAULT 'USD',
+ADD COLUMN     "languages" TEXT[] NOT NULL DEFAULT ARRAY[]::TEXT[],
+ADD COLUMN     "industries" TEXT[] NOT NULL DEFAULT ARRAY[]::TEXT[],
+ADD COLUMN     "clientSizes" TEXT[] NOT NULL DEFAULT ARRAY[]::TEXT[],
+ADD COLUMN     "specialties" TEXT[] NOT NULL DEFAULT ARRAY[]::TEXT[],
+ADD COLUMN     "remoteFriendly" BOOLEAN NOT NULL DEFAULT false,
+ADD COLUMN     "servesNationwide" BOOLEAN NOT NULL DEFAULT false,
+ADD COLUMN     "responseTimeHours" INTEGER,
+ADD COLUMN     "featured" BOOLEAN NOT NULL DEFAULT false,
+ADD COLUMN     "completionScore" INTEGER NOT NULL DEFAULT 0;
