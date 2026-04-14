@@ -11,6 +11,25 @@ type Provider = {
   businessName: string;
   email: string;
   tagline: string | null;
+  shortDescription?: string | null;
+  overview?: string | null;
+  websiteUrl?: string | null;
+  phone?: string | null;
+  linkedinUrl?: string | null;
+  instagramUrl?: string | null;
+  facebookUrl?: string | null;
+  foundedYear?: number | null;
+  hourlyRateMin?: number | null;
+  hourlyRateMax?: number | null;
+  minProjectBudget?: number | null;
+  currencyCode?: string | null;
+  languages?: string[];
+  industries?: string[];
+  clientSizes?: string[];
+  specialties?: string[];
+  remoteFriendly?: boolean;
+  servesNationwide?: boolean;
+  responseTimeHours?: number | null;
   city: string;
   state: string;
   zip: string | null;
@@ -104,6 +123,96 @@ function ProviderPageContent({ provider: p }: { provider: Provider }) {
             </div>
           </header>
 
+          {(p.shortDescription || p.overview) ? (
+            <section className={`rounded-2xl ${t.surface} ${t.border} border p-6 shadow-[0_14px_45px_rgba(2,6,23,0.08)] backdrop-blur`}>
+              <h2 className="text-lg font-semibold text-slate-900">About</h2>
+              {p.shortDescription ? <p className="mt-3 text-sm text-slate-700">{p.shortDescription}</p> : null}
+              {p.overview ? <p className="mt-3 text-sm text-slate-700 whitespace-pre-line">{p.overview}</p> : null}
+            </section>
+          ) : null}
+
+          {(p.hourlyRateMin || p.hourlyRateMax || p.minProjectBudget) ? (
+            <section className={`rounded-2xl ${t.surface} ${t.border} border p-6 shadow-[0_14px_45px_rgba(2,6,23,0.08)] backdrop-blur`}>
+              <h2 className="text-lg font-semibold text-slate-900">Pricing</h2>
+              <div className="mt-4 grid gap-3 md:grid-cols-2">
+                {p.hourlyRateMin || p.hourlyRateMax ? (
+                  <div className={`rounded-xl ${t.surfaceMuted} ${t.border} border p-4`}>
+                    <div className={`text-sm font-medium ${t.mutedText}`}>Hourly rate</div>
+                    <div className="mt-1 text-slate-900">
+                      {(p.currencyCode || 'USD')} {p.hourlyRateMin ?? ''}{p.hourlyRateMax ? `-${p.hourlyRateMax}` : '+'} / hr
+                    </div>
+                  </div>
+                ) : null}
+                {p.minProjectBudget ? (
+                  <div className={`rounded-xl ${t.surfaceMuted} ${t.border} border p-4`}>
+                    <div className={`text-sm font-medium ${t.mutedText}`}>Min project budget</div>
+                    <div className="mt-1 text-slate-900">
+                      {(p.currencyCode || 'USD')} {p.minProjectBudget}+
+                    </div>
+                  </div>
+                ) : null}
+              </div>
+            </section>
+          ) : null}
+
+          {(p.industries?.length || p.languages?.length || p.clientSizes?.length || p.specialties?.length || p.remoteFriendly || p.servesNationwide || p.responseTimeHours) ? (
+            <section className={`rounded-2xl ${t.surface} ${t.border} border p-6 shadow-[0_14px_45px_rgba(2,6,23,0.08)] backdrop-blur`}>
+              <h2 className="text-lg font-semibold text-slate-900">Details</h2>
+              <div className="mt-4 grid gap-4 md:grid-cols-2">
+                {p.industries?.length ? (
+                  <div>
+                    <div className={`text-sm font-medium ${t.mutedText}`}>Industries</div>
+                    <div className="mt-2 flex flex-wrap gap-2">
+                      {p.industries.map((s) => (
+                        <span key={s} className={`rounded-full border ${t.border} px-3 py-1 text-xs ${t.mutedText}`}>{s}</span>
+                      ))}
+                    </div>
+                  </div>
+                ) : null}
+                {p.languages?.length ? (
+                  <div>
+                    <div className={`text-sm font-medium ${t.mutedText}`}>Languages</div>
+                    <div className="mt-2 flex flex-wrap gap-2">
+                      {p.languages.map((s) => (
+                        <span key={s} className={`rounded-full border ${t.border} px-3 py-1 text-xs ${t.mutedText}`}>{s}</span>
+                      ))}
+                    </div>
+                  </div>
+                ) : null}
+                {p.clientSizes?.length ? (
+                  <div>
+                    <div className={`text-sm font-medium ${t.mutedText}`}>Client sizes</div>
+                    <div className="mt-2 flex flex-wrap gap-2">
+                      {p.clientSizes.map((s) => (
+                        <span key={s} className={`rounded-full border ${t.border} px-3 py-1 text-xs ${t.mutedText}`}>{s}</span>
+                      ))}
+                    </div>
+                  </div>
+                ) : null}
+                {p.specialties?.length ? (
+                  <div>
+                    <div className={`text-sm font-medium ${t.mutedText}`}>Specialties</div>
+                    <div className="mt-2 flex flex-wrap gap-2">
+                      {p.specialties.map((s) => (
+                        <span key={s} className={`rounded-full border ${t.border} px-3 py-1 text-xs ${t.mutedText}`}>{s}</span>
+                      ))}
+                    </div>
+                  </div>
+                ) : null}
+                {(p.remoteFriendly || p.servesNationwide || p.responseTimeHours) ? (
+                  <div>
+                    <div className={`text-sm font-medium ${t.mutedText}`}>Service area</div>
+                    <div className="mt-2 text-sm text-slate-900 space-y-1">
+                      {p.remoteFriendly ? <div>Remote friendly</div> : null}
+                      {p.servesNationwide ? <div>Serves nationwide</div> : null}
+                      {p.responseTimeHours ? <div>Response time: {p.responseTimeHours}h</div> : null}
+                    </div>
+                  </div>
+                ) : null}
+              </div>
+            </section>
+          ) : null}
+
           <section className={`rounded-2xl ${t.surface} ${t.border} border p-6 shadow-[0_14px_45px_rgba(2,6,23,0.08)] backdrop-blur`}>
             <h2 className="text-lg font-semibold text-slate-900">Services</h2>
             {p.services.length ? (
@@ -129,6 +238,42 @@ function ProviderPageContent({ provider: p }: { provider: Provider }) {
               <div className={`rounded-xl ${t.surfaceMuted} ${t.border} border p-4 shadow-sm`}>
                 <div className={`text-sm font-medium ${t.mutedText}`}>Email</div>
                 <div className="mt-2 break-all text-slate-900">{p.email}</div>
+                {p.websiteUrl ? (
+                  <>
+                    <div className={`mt-4 text-sm font-medium ${t.mutedText}`}>Website</div>
+                    <a className="mt-1 break-all text-slate-900 underline" href={p.websiteUrl} target="_blank" rel="noreferrer">
+                      {p.websiteUrl}
+                    </a>
+                  </>
+                ) : null}
+                {p.phone ? (
+                  <>
+                    <div className={`mt-4 text-sm font-medium ${t.mutedText}`}>Phone</div>
+                    <div className="mt-1 text-slate-900">{p.phone}</div>
+                  </>
+                ) : null}
+                {(p.linkedinUrl || p.instagramUrl || p.facebookUrl) ? (
+                  <>
+                    <div className={`mt-4 text-sm font-medium ${t.mutedText}`}>Social</div>
+                    <div className="mt-1 flex flex-wrap gap-2 text-sm">
+                      {p.linkedinUrl ? (
+                        <a className="underline" href={p.linkedinUrl} target="_blank" rel="noreferrer">
+                          LinkedIn
+                        </a>
+                      ) : null}
+                      {p.instagramUrl ? (
+                        <a className="underline" href={p.instagramUrl} target="_blank" rel="noreferrer">
+                          Instagram
+                        </a>
+                      ) : null}
+                      {p.facebookUrl ? (
+                        <a className="underline" href={p.facebookUrl} target="_blank" rel="noreferrer">
+                          Facebook
+                        </a>
+                      ) : null}
+                    </div>
+                  </>
+                ) : null}
                 {p.zip && (
                   <>
                     <div className={`mt-4 text-sm font-medium ${t.mutedText}`}>ZIP</div>

@@ -29,6 +29,43 @@ const parsePage = (raw: unknown, fallback = 1) => {
   return Math.max(1, Math.trunc(n));
 };
 
+const normalizeTokenArray = (raw: unknown): string[] | null | undefined => {
+  if (typeof raw === 'undefined') return undefined;
+  let items: string[] = [];
+  if (Array.isArray(raw)) {
+    items = raw.map((s) => String(s ?? ''));
+  } else if (typeof raw === 'string') {
+    items = raw.split(',');
+  } else {
+    return null;
+  }
+
+  const cleaned = items
+    .map((s) => s.trim().toLowerCase())
+    .filter(Boolean)
+    .slice(0, 50);
+
+  return Array.from(new Set(cleaned));
+};
+
+const parseOptionalInt = (raw: unknown): number | null | undefined => {
+  if (typeof raw === 'undefined') return undefined;
+  const s = String(raw).trim();
+  if (!s) return null;
+  const n = Number(s);
+  if (!Number.isFinite(n)) return NaN;
+  return Math.trunc(n);
+};
+
+const parseOptionalBool = (raw: unknown): boolean | undefined => {
+  if (typeof raw === 'undefined') return undefined;
+  if (typeof raw === 'boolean') return raw;
+  const s = String(raw).trim().toLowerCase();
+  if (s === 'true' || s === '1') return true;
+  if (s === 'false' || s === '0') return false;
+  return undefined;
+};
+
 // ---- Fastify JSON schema for query validation ----
 const listQuerySchema = {
   type: 'object',
@@ -55,6 +92,27 @@ const providerDetailSelect = {
   businessName: true,
   email: true,
   tagline: true,
+  shortDescription: true,
+  overview: true,
+  websiteUrl: true,
+  phone: true,
+  linkedinUrl: true,
+  instagramUrl: true,
+  facebookUrl: true,
+  foundedYear: true,
+  hourlyRateMin: true,
+  hourlyRateMax: true,
+  minProjectBudget: true,
+  currencyCode: true,
+  languages: true,
+  industries: true,
+  clientSizes: true,
+  specialties: true,
+  remoteFriendly: true,
+  servesNationwide: true,
+  responseTimeHours: true,
+  featured: true,
+  completionScore: true,
   city: true,
   state: true,
   zip: true,
@@ -72,6 +130,25 @@ const providerEditorSelect = {
   id: true,
   slug: true,
   businessName: true,
+  shortDescription: true,
+  overview: true,
+  websiteUrl: true,
+  phone: true,
+  linkedinUrl: true,
+  instagramUrl: true,
+  facebookUrl: true,
+  foundedYear: true,
+  hourlyRateMin: true,
+  hourlyRateMax: true,
+  minProjectBudget: true,
+  currencyCode: true,
+  languages: true,
+  industries: true,
+  clientSizes: true,
+  specialties: true,
+  remoteFriendly: true,
+  servesNationwide: true,
+  responseTimeHours: true,
   city: true,
   state: true,
   zip: true,
@@ -212,12 +289,17 @@ const providersRoutes: FastifyPluginAsync = async (fastify) => {
             slug: true,
             businessName: true,
             tagline: true,
+            shortDescription: true,
             city: true,
             state: true,
             verified: true,
             logo: true,
             services: true,
             rating: true,
+            hourlyRateMin: true,
+            hourlyRateMax: true,
+            minProjectBudget: true,
+            currencyCode: true,
             createdAt: true,
           },
         }),
@@ -288,6 +370,25 @@ const providersRoutes: FastifyPluginAsync = async (fastify) => {
       services?: string[] | string;
       tagline?: string;
       logo?: string;
+      shortDescription?: string;
+      overview?: string;
+      websiteUrl?: string;
+      phone?: string;
+      linkedinUrl?: string;
+      instagramUrl?: string;
+      facebookUrl?: string;
+      foundedYear?: number | string;
+      hourlyRateMin?: number | string;
+      hourlyRateMax?: number | string;
+      minProjectBudget?: number | string;
+      currencyCode?: string;
+      languages?: string[] | string;
+      industries?: string[] | string;
+      clientSizes?: string[] | string;
+      specialties?: string[] | string;
+      remoteFriendly?: boolean | string;
+      servesNationwide?: boolean | string;
+      responseTimeHours?: number | string;
     };
 
     const businessName = (body.businessName || '').trim();
@@ -408,6 +509,107 @@ const providersRoutes: FastifyPluginAsync = async (fastify) => {
       const v = body.logo.trim();
       (data as any).logo = v || null;
     }
+    if (typeof body.shortDescription === 'string') {
+      const v = body.shortDescription.trim();
+      (data as any).shortDescription = v || null;
+    }
+    if (typeof body.overview === 'string') {
+      const v = body.overview.trim();
+      (data as any).overview = v || null;
+    }
+    if (typeof body.websiteUrl === 'string') {
+      const v = body.websiteUrl.trim();
+      (data as any).websiteUrl = v || null;
+    }
+    if (typeof body.phone === 'string') {
+      const v = body.phone.trim();
+      (data as any).phone = v || null;
+    }
+    if (typeof body.linkedinUrl === 'string') {
+      const v = body.linkedinUrl.trim();
+      (data as any).linkedinUrl = v || null;
+    }
+    if (typeof body.instagramUrl === 'string') {
+      const v = body.instagramUrl.trim();
+      (data as any).instagramUrl = v || null;
+    }
+    if (typeof body.facebookUrl === 'string') {
+      const v = body.facebookUrl.trim();
+      (data as any).facebookUrl = v || null;
+    }
+    if (typeof body.currencyCode === 'string') {
+      const v = body.currencyCode.trim().toUpperCase();
+      if (v && !/^[A-Z]{3}$/.test(v)) return reply.code(400).send({ error: 'currencyCode must be a 3-letter code (e.g. USD).' });
+      (data as any).currencyCode = v || 'USD';
+    }
+
+    const foundedYear = parseOptionalInt(body.foundedYear);
+    if (typeof foundedYear !== 'undefined') {
+      if (Number.isNaN(foundedYear)) return reply.code(400).send({ error: 'foundedYear must be a number.' });
+      if (foundedYear !== null) {
+        const currentYear = new Date().getFullYear();
+        if (foundedYear < 1900 || foundedYear > currentYear + 1) {
+          return reply.code(400).send({ error: 'foundedYear must be a reasonable year.' });
+        }
+      }
+      (data as any).foundedYear = foundedYear;
+    }
+    const hourlyRateMin = parseOptionalInt(body.hourlyRateMin);
+    if (typeof hourlyRateMin !== 'undefined') {
+      if (Number.isNaN(hourlyRateMin)) return reply.code(400).send({ error: 'hourlyRateMin must be a number.' });
+      if (hourlyRateMin !== null && hourlyRateMin < 0) return reply.code(400).send({ error: 'hourlyRateMin cannot be negative.' });
+      (data as any).hourlyRateMin = hourlyRateMin;
+    }
+    const hourlyRateMax = parseOptionalInt(body.hourlyRateMax);
+    if (typeof hourlyRateMax !== 'undefined') {
+      if (Number.isNaN(hourlyRateMax)) return reply.code(400).send({ error: 'hourlyRateMax must be a number.' });
+      if (hourlyRateMax !== null && hourlyRateMax < 0) return reply.code(400).send({ error: 'hourlyRateMax cannot be negative.' });
+      (data as any).hourlyRateMax = hourlyRateMax;
+    }
+    const minProjectBudget = parseOptionalInt(body.minProjectBudget);
+    if (typeof minProjectBudget !== 'undefined') {
+      if (Number.isNaN(minProjectBudget)) return reply.code(400).send({ error: 'minProjectBudget must be a number.' });
+      if (minProjectBudget !== null && minProjectBudget < 0) return reply.code(400).send({ error: 'minProjectBudget cannot be negative.' });
+      (data as any).minProjectBudget = minProjectBudget;
+    }
+    const responseTimeHours = parseOptionalInt(body.responseTimeHours);
+    if (typeof responseTimeHours !== 'undefined') {
+      if (Number.isNaN(responseTimeHours)) return reply.code(400).send({ error: 'responseTimeHours must be a number.' });
+      if (responseTimeHours !== null && responseTimeHours < 0) return reply.code(400).send({ error: 'responseTimeHours cannot be negative.' });
+      (data as any).responseTimeHours = responseTimeHours;
+    }
+
+    if (
+      typeof hourlyRateMin !== 'undefined' &&
+      typeof hourlyRateMax !== 'undefined' &&
+      hourlyRateMin !== null &&
+      hourlyRateMax !== null &&
+      hourlyRateMin > hourlyRateMax
+    ) {
+      return reply.code(400).send({ error: 'hourlyRateMin must be less than or equal to hourlyRateMax.' });
+    }
+
+    const languages = normalizeTokenArray(body.languages);
+    if (languages === null) return reply.code(400).send({ error: 'languages must be an array or comma-separated string.' });
+    if (typeof languages !== 'undefined') (data as any).languages = languages;
+
+    const industries = normalizeTokenArray(body.industries);
+    if (industries === null) return reply.code(400).send({ error: 'industries must be an array or comma-separated string.' });
+    if (typeof industries !== 'undefined') (data as any).industries = industries;
+
+    const clientSizes = normalizeTokenArray(body.clientSizes);
+    if (clientSizes === null) return reply.code(400).send({ error: 'clientSizes must be an array or comma-separated string.' });
+    if (typeof clientSizes !== 'undefined') (data as any).clientSizes = clientSizes;
+
+    const specialties = normalizeTokenArray(body.specialties);
+    if (specialties === null) return reply.code(400).send({ error: 'specialties must be an array or comma-separated string.' });
+    if (typeof specialties !== 'undefined') (data as any).specialties = specialties;
+
+    const remoteFriendly = parseOptionalBool(body.remoteFriendly);
+    if (typeof remoteFriendly !== 'undefined') (data as any).remoteFriendly = remoteFriendly;
+
+    const servesNationwide = parseOptionalBool(body.servesNationwide);
+    if (typeof servesNationwide !== 'undefined') (data as any).servesNationwide = servesNationwide;
     if (Array.isArray(body.services)) {
       (data as any).services = body.services.map((s) => String(s).trim().toLowerCase()).filter(Boolean);
     } else if (typeof body.services === 'string') {
