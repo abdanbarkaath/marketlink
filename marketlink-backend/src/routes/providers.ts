@@ -2,7 +2,7 @@ import type { FastifyPluginAsync } from 'fastify';
 import type { Prisma } from '@prisma/client';
 import { prisma } from '../lib/prisma';
 import { getUserFromRequest } from '../lib/session';
-import { ProviderStatus } from '@prisma/client';
+import { ProviderMediaType, ProviderStatus } from '@prisma/client';
 
 type SortKey = 'newest' | 'name' | 'rating' | 'verified';
 type OrderDir = 'asc' | 'desc';
@@ -12,7 +12,7 @@ const asSortKey = (v?: string): SortKey => {
   if (v === 'name' || v === 'rating' || v === 'verified') return v;
   return 'newest';
 };
-const asOrder = (v?: string, sort: SortKey): OrderDir => {
+const asOrder = (v: string | undefined, sort: SortKey): OrderDir => {
   if (v === 'asc' || v === 'desc') return v;
   return sort === 'name' ? 'asc' : 'desc';
 };
@@ -65,6 +65,54 @@ const parseOptionalBool = (raw: unknown): boolean | undefined => {
   if (s === 'false' || s === '0') return false;
   return undefined;
 };
+
+const parseOptionalDate = (raw: unknown): Date | null | undefined => {
+  if (typeof raw === 'undefined') return undefined;
+  const s = String(raw).trim();
+  if (!s) return null;
+  const d = new Date(s);
+  if (Number.isNaN(d.getTime())) return new Date('invalid');
+  return d;
+};
+
+const providerProjectSelect = {
+  id: true,
+  title: true,
+  summary: true,
+  challenge: true,
+  solution: true,
+  results: true,
+  services: true,
+  projectBudget: true,
+  startedAt: true,
+  completedAt: true,
+  isFeatured: true,
+  coverImageUrl: true,
+  sortOrder: true,
+  createdAt: true,
+  updatedAt: true,
+} satisfies Prisma.ProviderProjectSelect;
+
+const providerClientSelect = {
+  id: true,
+  name: true,
+  logoUrl: true,
+  websiteUrl: true,
+  isFeatured: true,
+  sortOrder: true,
+  createdAt: true,
+  updatedAt: true,
+} satisfies Prisma.ProviderClientSelect;
+
+const providerMediaSelect = {
+  id: true,
+  type: true,
+  url: true,
+  altText: true,
+  sortOrder: true,
+  createdAt: true,
+  updatedAt: true,
+} satisfies Prisma.ProviderMediaSelect;
 
 // ---- Fastify JSON schema for query validation ----
 const listQuerySchema = {
@@ -124,6 +172,18 @@ const providerDetailSelect = {
   disabledReason: true,
   createdAt: true,
   updatedAt: true,
+  projects: {
+    select: providerProjectSelect,
+    orderBy: [{ sortOrder: 'asc' }, { createdAt: 'asc' }],
+  },
+  clients: {
+    select: providerClientSelect,
+    orderBy: [{ sortOrder: 'asc' }, { createdAt: 'asc' }],
+  },
+  media: {
+    select: providerMediaSelect,
+    orderBy: [{ sortOrder: 'asc' }, { createdAt: 'asc' }],
+  },
 } satisfies Prisma.ProviderSelect;
 
 const providerEditorSelect = {
@@ -157,6 +217,18 @@ const providerEditorSelect = {
   services: true,
   status: true,
   disabledReason: true,
+  projects: {
+    select: providerProjectSelect,
+    orderBy: [{ sortOrder: 'asc' }, { createdAt: 'asc' }],
+  },
+  clients: {
+    select: providerClientSelect,
+    orderBy: [{ sortOrder: 'asc' }, { createdAt: 'asc' }],
+  },
+  media: {
+    select: providerMediaSelect,
+    orderBy: [{ sortOrder: 'asc' }, { createdAt: 'asc' }],
+  },
 } satisfies Prisma.ProviderSelect;
 
 const providersRoutes: FastifyPluginAsync = async (fastify) => {
@@ -389,6 +461,33 @@ const providersRoutes: FastifyPluginAsync = async (fastify) => {
       remoteFriendly?: boolean | string;
       servesNationwide?: boolean | string;
       responseTimeHours?: number | string;
+      projects?: Array<{
+        title?: string;
+        summary?: string;
+        challenge?: string;
+        solution?: string;
+        results?: string;
+        services?: string[] | string;
+        projectBudget?: number | string;
+        startedAt?: string;
+        completedAt?: string;
+        isFeatured?: boolean | string;
+        coverImageUrl?: string;
+        sortOrder?: number | string;
+      }>;
+      clients?: Array<{
+        name?: string;
+        logoUrl?: string;
+        websiteUrl?: string;
+        isFeatured?: boolean | string;
+        sortOrder?: number | string;
+      }>;
+      media?: Array<{
+        type?: string;
+        url?: string;
+        altText?: string;
+        sortOrder?: number | string;
+      }>;
     };
 
     const businessName = (body.businessName || '').trim();
@@ -478,9 +577,58 @@ const providersRoutes: FastifyPluginAsync = async (fastify) => {
       services?: string[] | string;
       tagline?: string;
       logo?: string;
+      shortDescription?: string;
+      overview?: string;
+      websiteUrl?: string;
+      phone?: string;
+      linkedinUrl?: string;
+      instagramUrl?: string;
+      facebookUrl?: string;
+      foundedYear?: number | string;
+      hourlyRateMin?: number | string;
+      hourlyRateMax?: number | string;
+      minProjectBudget?: number | string;
+      currencyCode?: string;
+      languages?: string[] | string;
+      industries?: string[] | string;
+      clientSizes?: string[] | string;
+      specialties?: string[] | string;
+      remoteFriendly?: boolean | string;
+      servesNationwide?: boolean | string;
+      responseTimeHours?: number | string;
+      projects?: Array<{
+        title?: string;
+        summary?: string;
+        challenge?: string;
+        solution?: string;
+        results?: string;
+        services?: string[] | string;
+        projectBudget?: number | string;
+        startedAt?: string;
+        completedAt?: string;
+        isFeatured?: boolean | string;
+        coverImageUrl?: string;
+        sortOrder?: number | string;
+      }>;
+      clients?: Array<{
+        name?: string;
+        logoUrl?: string;
+        websiteUrl?: string;
+        isFeatured?: boolean | string;
+        sortOrder?: number | string;
+      }>;
+      media?: Array<{
+        type?: string;
+        url?: string;
+        altText?: string;
+        sortOrder?: number | string;
+      }>;
     };
 
     const data: Prisma.ProviderUpdateInput = {};
+    let projectCreates: Prisma.ProviderProjectCreateManyProviderInput[] | undefined;
+    let clientCreates: Prisma.ProviderClientCreateManyProviderInput[] | undefined;
+    let mediaCreates: Prisma.ProviderMediaCreateManyProviderInput[] | undefined;
 
     if (typeof body.businessName === 'string') {
       const v = body.businessName.trim();
@@ -619,16 +767,133 @@ const providersRoutes: FastifyPluginAsync = async (fastify) => {
         .filter(Boolean);
     }
 
-    if (Object.keys(data).length === 0) {
+    if (typeof body.projects !== 'undefined') {
+      if (!Array.isArray(body.projects)) return reply.code(400).send({ error: 'projects must be an array.' });
+      projectCreates = [];
+      for (let i = 0; i < body.projects.length; i++) {
+        const item = body.projects[i] || {};
+        const title = String(item.title || '').trim();
+        if (!title) return reply.code(400).send({ error: `projects[${i}].title is required.` });
+        const projectBudget = parseOptionalInt(item.projectBudget);
+        if (Number.isNaN(projectBudget)) return reply.code(400).send({ error: `projects[${i}].projectBudget must be a number.` });
+        if (projectBudget !== null && typeof projectBudget === 'number' && projectBudget < 0) return reply.code(400).send({ error: `projects[${i}].projectBudget cannot be negative.` });
+        const startedAt = parseOptionalDate(item.startedAt);
+        if (startedAt instanceof Date && Number.isNaN(startedAt.getTime())) return reply.code(400).send({ error: `projects[${i}].startedAt must be a valid date.` });
+        const completedAt = parseOptionalDate(item.completedAt);
+        if (completedAt instanceof Date && Number.isNaN(completedAt.getTime())) return reply.code(400).send({ error: `projects[${i}].completedAt must be a valid date.` });
+        const sortOrder = parseOptionalInt(item.sortOrder);
+        if (Number.isNaN(sortOrder)) return reply.code(400).send({ error: `projects[${i}].sortOrder must be a number.` });
+        const services = normalizeTokenArray(item.services);
+        if (services === null) return reply.code(400).send({ error: `projects[${i}].services must be an array or comma-separated string.` });
+        const isFeatured = parseOptionalBool(item.isFeatured);
+
+        projectCreates.push({
+          title,
+          summary: String(item.summary || '').trim() || null,
+          challenge: String(item.challenge || '').trim() || null,
+          solution: String(item.solution || '').trim() || null,
+          results: String(item.results || '').trim() || null,
+          services: services || [],
+          projectBudget: typeof projectBudget === 'undefined' ? null : projectBudget,
+          startedAt: typeof startedAt === 'undefined' ? null : startedAt,
+          completedAt: typeof completedAt === 'undefined' ? null : completedAt,
+          isFeatured: Boolean(isFeatured),
+          coverImageUrl: String(item.coverImageUrl || '').trim() || null,
+          sortOrder: typeof sortOrder === 'undefined' || sortOrder === null ? i : sortOrder,
+        });
+      }
+    }
+
+    if (typeof body.clients !== 'undefined') {
+      if (!Array.isArray(body.clients)) return reply.code(400).send({ error: 'clients must be an array.' });
+      clientCreates = [];
+      for (let i = 0; i < body.clients.length; i++) {
+        const item = body.clients[i] || {};
+        const name = String(item.name || '').trim();
+        if (!name) return reply.code(400).send({ error: `clients[${i}].name is required.` });
+        const sortOrder = parseOptionalInt(item.sortOrder);
+        if (Number.isNaN(sortOrder)) return reply.code(400).send({ error: `clients[${i}].sortOrder must be a number.` });
+        const isFeatured = parseOptionalBool(item.isFeatured);
+
+        clientCreates.push({
+          name,
+          logoUrl: String(item.logoUrl || '').trim() || null,
+          websiteUrl: String(item.websiteUrl || '').trim() || null,
+          isFeatured: Boolean(isFeatured),
+          sortOrder: typeof sortOrder === 'undefined' || sortOrder === null ? i : sortOrder,
+        });
+      }
+    }
+
+    if (typeof body.media !== 'undefined') {
+      if (!Array.isArray(body.media)) return reply.code(400).send({ error: 'media must be an array.' });
+      mediaCreates = [];
+      for (let i = 0; i < body.media.length; i++) {
+        const item = body.media[i] || {};
+        const type = String(item.type || '').trim().toLowerCase();
+        if (!type || !Object.values(ProviderMediaType).includes(type as ProviderMediaType)) {
+          return reply.code(400).send({ error: `media[${i}].type must be one of: ${Object.values(ProviderMediaType).join(', ')}.` });
+        }
+        const url = String(item.url || '').trim();
+        if (!url) return reply.code(400).send({ error: `media[${i}].url is required.` });
+        const sortOrder = parseOptionalInt(item.sortOrder);
+        if (Number.isNaN(sortOrder)) return reply.code(400).send({ error: `media[${i}].sortOrder must be a number.` });
+
+        mediaCreates.push({
+          type: type as ProviderMediaType,
+          url,
+          altText: String(item.altText || '').trim() || null,
+          sortOrder: typeof sortOrder === 'undefined' || sortOrder === null ? i : sortOrder,
+        });
+      }
+    }
+
+    if (Object.keys(data).length === 0 && typeof projectCreates === 'undefined' && typeof clientCreates === 'undefined' && typeof mediaCreates === 'undefined') {
       return reply.code(400).send({ error: 'No fields to update' });
     }
 
     try {
-      const updated = await prisma.provider.update({
-        where: { id: provider.id },
-        data,
-        select: providerEditorSelect,
+      const updated = await prisma.$transaction(async (tx) => {
+        if (Object.keys(data).length > 0) {
+          await tx.provider.update({
+            where: { id: provider.id },
+            data,
+          });
+        }
+
+        if (typeof projectCreates !== 'undefined') {
+          await tx.providerProject.deleteMany({ where: { providerId: provider.id } });
+          if (projectCreates.length) {
+            await tx.providerProject.createMany({
+              data: projectCreates.map((item) => ({ ...item, providerId: provider.id })),
+            });
+          }
+        }
+
+        if (typeof clientCreates !== 'undefined') {
+          await tx.providerClient.deleteMany({ where: { providerId: provider.id } });
+          if (clientCreates.length) {
+            await tx.providerClient.createMany({
+              data: clientCreates.map((item) => ({ ...item, providerId: provider.id })),
+            });
+          }
+        }
+
+        if (typeof mediaCreates !== 'undefined') {
+          await tx.providerMedia.deleteMany({ where: { providerId: provider.id } });
+          if (mediaCreates.length) {
+            await tx.providerMedia.createMany({
+              data: mediaCreates.map((item) => ({ ...item, providerId: provider.id })),
+            });
+          }
+        }
+
+        return tx.provider.findUniqueOrThrow({
+          where: { id: provider.id },
+          select: providerEditorSelect,
+        });
       });
+
       return reply.send({ ok: true, provider: updated });
     } catch (e: any) {
       req.log.error({ err: e }, 'update-provider.failed');
