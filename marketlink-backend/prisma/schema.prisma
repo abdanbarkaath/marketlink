@@ -67,9 +67,6 @@ model Provider {
   projects       ProviderProject[]
   clients        ProviderClient[]
   media          ProviderMedia[]
-  reviews        ProviderReview[]
-  certifications ProviderCertification[]
-  awards         ProviderAward[]
 
   // ✅ New: inquiries/leads for this provider
   inquiries      Inquiry[]
@@ -226,60 +223,4 @@ enum ProviderMediaType {
   cover
   gallery
   video
-}
-
-model ProviderReview {
-  id                    String   @id @default(cuid())
-  providerId            String
-  reviewerName          String
-  company               String?
-  rating                Float
-  communicationRating   Float?
-  qualityRating         Float?
-  valueRating           Float?
-  title                 String?
-  body                  String
-  projectSummary        String?
-  verified              Boolean  @default(false)
-  source                String?
-  publishedAt           DateTime?
-  sortOrder             Int      @default(0)
-  createdAt             DateTime @default(now())
-  updatedAt             DateTime @updatedAt
-  provider              Provider @relation(fields: [providerId], references: [id], onDelete: Cascade)
-
-  @@index([providerId, sortOrder, createdAt])
-  @@index([providerId, verified, publishedAt])
-}
-
-model ProviderCertification {
-  id           String   @id @default(cuid())
-  providerId   String
-  title        String
-  issuer       String
-  year         Int?
-  url          String?
-  badgeImageUrl String?
-  sortOrder    Int      @default(0)
-  createdAt    DateTime @default(now())
-  updatedAt    DateTime @updatedAt
-  provider     Provider @relation(fields: [providerId], references: [id], onDelete: Cascade)
-
-  @@index([providerId, sortOrder, createdAt])
-}
-
-model ProviderAward {
-  id           String   @id @default(cuid())
-  providerId   String
-  title        String
-  issuer       String
-  year         Int?
-  url          String?
-  badgeImageUrl String?
-  sortOrder    Int      @default(0)
-  createdAt    DateTime @default(now())
-  updatedAt    DateTime @updatedAt
-  provider     Provider @relation(fields: [providerId], references: [id], onDelete: Cascade)
-
-  @@index([providerId, sortOrder, createdAt])
 }

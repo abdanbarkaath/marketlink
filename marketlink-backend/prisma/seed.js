@@ -81,31 +81,6 @@ async function main() {
           altText: "Windy City Growth Instagram profile",
         },
       ],
-      certifications: [
-        {
-          title: "Google Ads Search Certification",
-          issuer: "Google",
-          year: 2025,
-          url: "https://skillshop.credential.net/",
-          badgeImageUrl: "https://placehold.co/120x120?text=Google",
-        },
-        {
-          title: "Meta Certified Media Buying Professional",
-          issuer: "Meta",
-          year: 2024,
-          url: "https://www.facebook.com/business/learn/certification",
-          badgeImageUrl: "https://placehold.co/120x120?text=Meta",
-        },
-      ],
-      awards: [
-        {
-          title: "Top Local Paid Media Partner",
-          issuer: "Chicago Growth Awards",
-          year: 2025,
-          url: "https://example.com/chicago-growth-awards",
-          badgeImageUrl: "https://placehold.co/120x120?text=Award",
-        },
-      ],
     },
     {
       email: "hello@napervilledigitalboost.com",
@@ -174,16 +149,6 @@ async function main() {
           altText: "Naperville Digital Boost Instagram profile",
         },
       ],
-      certifications: [
-        {
-          title: "Google Analytics Certification",
-          issuer: "Google",
-          year: 2025,
-          url: "https://skillshop.credential.net/",
-          badgeImageUrl: "https://placehold.co/120x120?text=GA4",
-        },
-      ],
-      awards: [],
     },
     {
       email: "team@evanstonsociallab.com",
@@ -250,24 +215,6 @@ async function main() {
           type: "gallery",
           url: "https://placehold.co/1000x700?text=Storyboard+Frames",
           altText: "Storyboard frames from a social video shoot",
-        },
-      ],
-      certifications: [
-        {
-          title: "Meta Certified Creative Strategy Professional",
-          issuer: "Meta",
-          year: 2024,
-          url: "https://www.facebook.com/business/learn/certification",
-          badgeImageUrl: "https://placehold.co/120x120?text=Meta",
-        },
-      ],
-      awards: [
-        {
-          title: "Best Social Campaign Concept",
-          issuer: "North Shore Marketing Awards",
-          year: 2025,
-          url: "https://example.com/north-shore-awards",
-          badgeImageUrl: "https://placehold.co/120x120?text=NS",
         },
       ],
     },
@@ -338,13 +285,11 @@ async function main() {
           altText: "Oak Park Print Co. Instagram profile",
         },
       ],
-      certifications: [],
-      awards: [],
     },
   ];
 
   for (const p of sample) {
-    const { projects = [], clients = [], media = [], reviews = [], certifications = [], awards = [], ...providerData } = p;
+    const { projects = [], clients = [], media = [], ...providerData } = p;
 
     const provider = await prisma.provider.upsert({
       where: { slug: p.slug },
@@ -355,9 +300,6 @@ async function main() {
     await prisma.providerProject.deleteMany({ where: { providerId: provider.id } });
     await prisma.providerClient.deleteMany({ where: { providerId: provider.id } });
     await prisma.providerMedia.deleteMany({ where: { providerId: provider.id } });
-    await prisma.providerReview.deleteMany({ where: { providerId: provider.id } });
-    await prisma.providerCertification.deleteMany({ where: { providerId: provider.id } });
-    await prisma.providerAward.deleteMany({ where: { providerId: provider.id } });
 
     if (projects.length) {
       await prisma.providerProject.createMany({
@@ -399,55 +341,6 @@ async function main() {
           type: item.type,
           url: item.url,
           altText: item.altText ?? null,
-          sortOrder: index,
-        })),
-      });
-    }
-
-    if (reviews.length) {
-      await prisma.providerReview.createMany({
-        data: reviews.map((review, index) => ({
-          providerId: provider.id,
-          reviewerName: review.reviewerName,
-          company: review.company ?? null,
-          rating: review.rating,
-          communicationRating: review.communicationRating ?? null,
-          qualityRating: review.qualityRating ?? null,
-          valueRating: review.valueRating ?? null,
-          title: review.title ?? null,
-          body: review.body,
-          projectSummary: review.projectSummary ?? null,
-          verified: Boolean(review.verified),
-          source: review.source ?? null,
-          publishedAt: review.publishedAt ? new Date(review.publishedAt) : null,
-          sortOrder: index,
-        })),
-      });
-    }
-
-    if (certifications.length) {
-      await prisma.providerCertification.createMany({
-        data: certifications.map((item, index) => ({
-          providerId: provider.id,
-          title: item.title,
-          issuer: item.issuer,
-          year: item.year ?? null,
-          url: item.url ?? null,
-          badgeImageUrl: item.badgeImageUrl ?? null,
-          sortOrder: index,
-        })),
-      });
-    }
-
-    if (awards.length) {
-      await prisma.providerAward.createMany({
-        data: awards.map((item, index) => ({
-          providerId: provider.id,
-          title: item.title,
-          issuer: item.issuer,
-          year: item.year ?? null,
-          url: item.url ?? null,
-          badgeImageUrl: item.badgeImageUrl ?? null,
           sortOrder: index,
         })),
       });
