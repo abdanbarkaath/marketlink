@@ -114,6 +114,49 @@ const providerMediaSelect = {
   updatedAt: true,
 } satisfies Prisma.ProviderMediaSelect;
 
+const providerReviewSelect = {
+  id: true,
+  reviewerName: true,
+  company: true,
+  rating: true,
+  communicationRating: true,
+  qualityRating: true,
+  valueRating: true,
+  title: true,
+  body: true,
+  projectSummary: true,
+  verified: true,
+  source: true,
+  publishedAt: true,
+  sortOrder: true,
+  createdAt: true,
+  updatedAt: true,
+} satisfies Prisma.ProviderReviewSelect;
+
+const providerCertificationSelect = {
+  id: true,
+  title: true,
+  issuer: true,
+  year: true,
+  url: true,
+  badgeImageUrl: true,
+  sortOrder: true,
+  createdAt: true,
+  updatedAt: true,
+} satisfies Prisma.ProviderCertificationSelect;
+
+const providerAwardSelect = {
+  id: true,
+  title: true,
+  issuer: true,
+  year: true,
+  url: true,
+  badgeImageUrl: true,
+  sortOrder: true,
+  createdAt: true,
+  updatedAt: true,
+} satisfies Prisma.ProviderAwardSelect;
+
 // ---- Fastify JSON schema for query validation ----
 const listQuerySchema = {
   type: 'object',
@@ -183,6 +226,18 @@ const providerDetailSelect = {
   media: {
     select: providerMediaSelect,
     orderBy: [{ sortOrder: 'asc' }, { createdAt: 'asc' }],
+  },
+  reviews: {
+    select: providerReviewSelect,
+    orderBy: [{ sortOrder: 'asc' }, { publishedAt: 'desc' }, { createdAt: 'desc' }],
+  },
+  certifications: {
+    select: providerCertificationSelect,
+    orderBy: [{ sortOrder: 'asc' }, { year: 'desc' }, { createdAt: 'asc' }],
+  },
+  awards: {
+    select: providerAwardSelect,
+    orderBy: [{ sortOrder: 'asc' }, { year: 'desc' }, { createdAt: 'asc' }],
   },
 } satisfies Prisma.ProviderSelect;
 
@@ -727,13 +782,7 @@ const providersRoutes: FastifyPluginAsync = async (fastify) => {
       (data as any).responseTimeHours = responseTimeHours;
     }
 
-    if (
-      typeof hourlyRateMin !== 'undefined' &&
-      typeof hourlyRateMax !== 'undefined' &&
-      hourlyRateMin !== null &&
-      hourlyRateMax !== null &&
-      hourlyRateMin > hourlyRateMax
-    ) {
+    if (typeof hourlyRateMin !== 'undefined' && typeof hourlyRateMax !== 'undefined' && hourlyRateMin !== null && hourlyRateMax !== null && hourlyRateMin > hourlyRateMax) {
       return reply.code(400).send({ error: 'hourlyRateMin must be less than or equal to hourlyRateMax.' });
     }
 
@@ -830,7 +879,9 @@ const providersRoutes: FastifyPluginAsync = async (fastify) => {
       mediaCreates = [];
       for (let i = 0; i < body.media.length; i++) {
         const item = body.media[i] || {};
-        const type = String(item.type || '').trim().toLowerCase();
+        const type = String(item.type || '')
+          .trim()
+          .toLowerCase();
         if (!type || !Object.values(ProviderMediaType).includes(type as ProviderMediaType)) {
           return reply.code(400).send({ error: `media[${i}].type must be one of: ${Object.values(ProviderMediaType).join(', ')}.` });
         }

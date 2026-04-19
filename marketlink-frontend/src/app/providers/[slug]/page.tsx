@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useEffect, useState, use } from 'react';
+import React, { useEffect, useState } from 'react';
 import { notFound } from 'next/navigation';
 import { Figtree, Playfair_Display } from 'next/font/google';
 import InquiryForm from './InquiryForm';
@@ -73,6 +73,40 @@ type Provider = {
     type: 'logo' | 'cover' | 'gallery' | 'video';
     url: string;
     altText?: string | null;
+    sortOrder?: number;
+  }>;
+  reviews?: Array<{
+    id: string;
+    reviewerName: string;
+    company?: string | null;
+    rating: number;
+    communicationRating?: number | null;
+    qualityRating?: number | null;
+    valueRating?: number | null;
+    title?: string | null;
+    body: string;
+    projectSummary?: string | null;
+    verified: boolean;
+    source?: string | null;
+    publishedAt?: string | null;
+    sortOrder?: number;
+  }>;
+  certifications?: Array<{
+    id: string;
+    title: string;
+    issuer: string;
+    year?: number | null;
+    url?: string | null;
+    badgeImageUrl?: string | null;
+    sortOrder?: number;
+  }>;
+  awards?: Array<{
+    id: string;
+    title: string;
+    issuer: string;
+    year?: number | null;
+    url?: string | null;
+    badgeImageUrl?: string | null;
     sortOrder?: number;
   }>;
   rating: number | null;
@@ -204,7 +238,6 @@ function getMediaPresentation(item: ProviderMediaItem): MediaPresentation {
 }
 
 export default function ProviderPage({ params }: PageProps) {
-  const resolvedParams = use(params);
   const [provider, setProvider] = useState<Provider | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -213,7 +246,7 @@ export default function ProviderPage({ params }: PageProps) {
     async function fetchProvider() {
       try {
         const API_BASE = process.env.NEXT_PUBLIC_API_URL || 'http://127.0.0.1:4000';
-        const res = await fetch(`${API_BASE}/providers/${resolvedParams.slug}`);
+        const res = await fetch(`${API_BASE}/providers/${params.slug}`);
         if (res.status === 404) {
           notFound();
         }
@@ -230,7 +263,7 @@ export default function ProviderPage({ params }: PageProps) {
     }
 
     fetchProvider();
-  }, [resolvedParams.slug]);
+  }, [params.slug]);
 
   if (loading) {
     return <div className="mx-auto max-w-4xl px-4 py-8">Loading...</div>;
@@ -249,6 +282,8 @@ function ProviderPageContent({ provider: p }: { provider: Provider }) {
   const visibleProjects = featuredProjects.length ? featuredProjects : p.projects || [];
   const featuredClients = (p.clients || []).filter((client) => client.isFeatured);
   const visibleClients = featuredClients.length ? featuredClients : p.clients || [];
+  const visibleCertifications = p.certifications || [];
+  const visibleAwards = p.awards || [];
   const visibleMedia = (p.media || []).filter((item) => item.type !== 'logo');
   const coverMedia = visibleMedia.find((item) => item.type === 'cover') || visibleMedia.find((item) => getMediaPresentation(item).kind === 'image') || null;
   const hourlyRange = formatMoneyRange(p.hourlyRateMin, p.hourlyRateMax, p.currencyCode, ' / hr');
@@ -416,6 +451,23 @@ function ProviderPageContent({ provider: p }: { provider: Provider }) {
                           {formatToken(service)}
                         </span>
                       ))}
+                    </div>
+                  ) : null}
+
+                  {(visibleCertifications.length || visibleAwards.length) ? (
+                    <div className="mt-6 flex flex-wrap gap-3">
+                      {visibleCertifications.length ? (
+                        <div className={`rounded-2xl border ${t.border} bg-white/80 px-4 py-3 shadow-sm`}>
+                          <div className={`text-[11px] font-medium uppercase tracking-[0.18em] ${t.mutedText}`}>Certifications</div>
+                          <div className="mt-2 text-sm font-semibold text-slate-900">{visibleCertifications.length} active credential{visibleCertifications.length === 1 ? '' : 's'}</div>
+                        </div>
+                      ) : null}
+                      {visibleAwards.length ? (
+                        <div className={`rounded-2xl border ${t.border} bg-white/80 px-4 py-3 shadow-sm`}>
+                          <div className={`text-[11px] font-medium uppercase tracking-[0.18em] ${t.mutedText}`}>Awards</div>
+                          <div className="mt-2 text-sm font-semibold text-slate-900">{visibleAwards.length} recognition{visibleAwards.length === 1 ? '' : 's'}</div>
+                        </div>
+                      ) : null}
                     </div>
                   ) : null}
 
@@ -608,6 +660,7 @@ function ProviderPageContent({ provider: p }: { provider: Provider }) {
                   </div>
                 </section>
               ) : null}
+
             </div>
 
             <aside className="flex min-w-0 flex-col gap-6 xl:sticky xl:top-0">
@@ -696,6 +749,74 @@ function ProviderPageContent({ provider: p }: { provider: Provider }) {
                         </div>
                       </div>
                     ))}
+                  </div>
+                </section>
+              ) : null}
+
+              {(visibleCertifications.length || visibleAwards.length) ? (
+                <section className={`rounded-2xl ${t.surface} ${t.border} border p-6 shadow-[0_14px_45px_rgba(2,6,23,0.08)] backdrop-blur`}>
+                  <h2 className={`${displayFont.className} text-lg font-semibold tracking-[-0.02em] text-slate-900`}>Credentials</h2>
+                  <div className="mt-4 space-y-4">
+                    {visibleCertifications.length ? (
+                      <div>
+                        <div className={`text-[11px] font-medium uppercase tracking-[0.18em] ${t.mutedText}`}>Certifications</div>
+                        <div className="mt-3 space-y-3">
+                          {visibleCertifications.map((item) => (
+                            <div key={item.id} className={`rounded-2xl ${t.surfaceMuted} ${t.border} border p-4`}>
+                              <div className="flex items-start gap-3">
+                                {item.badgeImageUrl ? (
+                                  // eslint-disable-next-line @next/next/no-img-element
+                                  <img src={item.badgeImageUrl} alt={item.title} className="h-11 w-11 rounded-xl border object-cover" />
+                                ) : (
+                                  <div className="flex h-11 w-11 items-center justify-center rounded-xl border bg-white text-[11px] font-medium text-slate-500">Cert</div>
+                                )}
+                                <div className="min-w-0">
+                                  <div className="text-sm font-semibold text-slate-900">{item.title}</div>
+                                  <div className={`mt-1 text-xs ${t.mutedText}`}>
+                                    {item.issuer}{item.year ? ` • ${item.year}` : ''}
+                                  </div>
+                                  {item.url ? (
+                                    <a className="mt-2 inline-block text-xs font-medium underline text-slate-700" href={item.url} target="_blank" rel="noreferrer">
+                                      View credential
+                                    </a>
+                                  ) : null}
+                                </div>
+                              </div>
+                            </div>
+                          ))}
+                        </div>
+                      </div>
+                    ) : null}
+                    {visibleAwards.length ? (
+                      <div>
+                        <div className={`text-[11px] font-medium uppercase tracking-[0.18em] ${t.mutedText}`}>Awards</div>
+                        <div className="mt-3 space-y-3">
+                          {visibleAwards.map((item) => (
+                            <div key={item.id} className={`rounded-2xl ${t.surfaceMuted} ${t.border} border p-4`}>
+                              <div className="flex items-start gap-3">
+                                {item.badgeImageUrl ? (
+                                  // eslint-disable-next-line @next/next/no-img-element
+                                  <img src={item.badgeImageUrl} alt={item.title} className="h-11 w-11 rounded-xl border object-cover" />
+                                ) : (
+                                  <div className="flex h-11 w-11 items-center justify-center rounded-xl border bg-white text-[11px] font-medium text-slate-500">Award</div>
+                                )}
+                                <div className="min-w-0">
+                                  <div className="text-sm font-semibold text-slate-900">{item.title}</div>
+                                  <div className={`mt-1 text-xs ${t.mutedText}`}>
+                                    {item.issuer}{item.year ? ` • ${item.year}` : ''}
+                                  </div>
+                                  {item.url ? (
+                                    <a className="mt-2 inline-block text-xs font-medium underline text-slate-700" href={item.url} target="_blank" rel="noreferrer">
+                                      View award
+                                    </a>
+                                  ) : null}
+                                </div>
+                              </div>
+                            </div>
+                          ))}
+                        </div>
+                      </div>
+                    ) : null}
                   </div>
                 </section>
               ) : null}
