@@ -114,6 +114,49 @@ const providerMediaSelect = {
   updatedAt: true,
 } satisfies Prisma.ProviderMediaSelect;
 
+const providerReviewSelect = {
+  id: true,
+  reviewerName: true,
+  company: true,
+  rating: true,
+  communicationRating: true,
+  qualityRating: true,
+  valueRating: true,
+  title: true,
+  body: true,
+  projectSummary: true,
+  verified: true,
+  source: true,
+  publishedAt: true,
+  sortOrder: true,
+  createdAt: true,
+  updatedAt: true,
+} satisfies Prisma.ProviderReviewSelect;
+
+const providerCertificationSelect = {
+  id: true,
+  title: true,
+  issuer: true,
+  year: true,
+  url: true,
+  badgeImageUrl: true,
+  sortOrder: true,
+  createdAt: true,
+  updatedAt: true,
+} satisfies Prisma.ProviderCertificationSelect;
+
+const providerAwardSelect = {
+  id: true,
+  title: true,
+  issuer: true,
+  year: true,
+  url: true,
+  badgeImageUrl: true,
+  sortOrder: true,
+  createdAt: true,
+  updatedAt: true,
+} satisfies Prisma.ProviderAwardSelect;
+
 // ---- Fastify JSON schema for query validation ----
 const listQuerySchema = {
   type: 'object',
@@ -183,6 +226,18 @@ const providerDetailSelect = {
   media: {
     select: providerMediaSelect,
     orderBy: [{ sortOrder: 'asc' }, { createdAt: 'asc' }],
+  },
+  reviews: {
+    select: providerReviewSelect,
+    orderBy: [{ sortOrder: 'asc' }, { publishedAt: 'desc' }, { createdAt: 'desc' }],
+  },
+  certifications: {
+    select: providerCertificationSelect,
+    orderBy: [{ sortOrder: 'asc' }, { year: 'desc' }, { createdAt: 'asc' }],
+  },
+  awards: {
+    select: providerAwardSelect,
+    orderBy: [{ sortOrder: 'asc' }, { year: 'desc' }, { createdAt: 'asc' }],
   },
 } satisfies Prisma.ProviderSelect;
 
