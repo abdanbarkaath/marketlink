@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useEffect, useState, use } from 'react';
+import React, { useEffect, useState } from 'react';
 import { notFound } from 'next/navigation';
 import { Figtree, Playfair_Display } from 'next/font/google';
 import InquiryForm from './InquiryForm';
@@ -238,7 +238,6 @@ function getMediaPresentation(item: ProviderMediaItem): MediaPresentation {
 }
 
 export default function ProviderPage({ params }: PageProps) {
-  const resolvedParams = use(params);
   const [provider, setProvider] = useState<Provider | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -247,7 +246,7 @@ export default function ProviderPage({ params }: PageProps) {
     async function fetchProvider() {
       try {
         const API_BASE = process.env.NEXT_PUBLIC_API_URL || 'http://127.0.0.1:4000';
-        const res = await fetch(`${API_BASE}/providers/${resolvedParams.slug}`);
+        const res = await fetch(`${API_BASE}/providers/${params.slug}`);
         if (res.status === 404) {
           notFound();
         }
@@ -264,7 +263,7 @@ export default function ProviderPage({ params }: PageProps) {
     }
 
     fetchProvider();
-  }, [resolvedParams.slug]);
+  }, [params.slug]);
 
   if (loading) {
     return <div className="mx-auto max-w-4xl px-4 py-8">Loading...</div>;

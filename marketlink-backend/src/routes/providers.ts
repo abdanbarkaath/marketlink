@@ -782,13 +782,7 @@ const providersRoutes: FastifyPluginAsync = async (fastify) => {
       (data as any).responseTimeHours = responseTimeHours;
     }
 
-    if (
-      typeof hourlyRateMin !== 'undefined' &&
-      typeof hourlyRateMax !== 'undefined' &&
-      hourlyRateMin !== null &&
-      hourlyRateMax !== null &&
-      hourlyRateMin > hourlyRateMax
-    ) {
+    if (typeof hourlyRateMin !== 'undefined' && typeof hourlyRateMax !== 'undefined' && hourlyRateMin !== null && hourlyRateMax !== null && hourlyRateMin > hourlyRateMax) {
       return reply.code(400).send({ error: 'hourlyRateMin must be less than or equal to hourlyRateMax.' });
     }
 
@@ -885,7 +879,9 @@ const providersRoutes: FastifyPluginAsync = async (fastify) => {
       mediaCreates = [];
       for (let i = 0; i < body.media.length; i++) {
         const item = body.media[i] || {};
-        const type = String(item.type || '').trim().toLowerCase();
+        const type = String(item.type || '')
+          .trim()
+          .toLowerCase();
         if (!type || !Object.values(ProviderMediaType).includes(type as ProviderMediaType)) {
           return reply.code(400).send({ error: `media[${i}].type must be one of: ${Object.values(ProviderMediaType).join(', ')}.` });
         }
