@@ -4,7 +4,7 @@ import Link from 'next/link';
 import { useEffect, useState } from 'react';
 import { usePathname } from 'next/navigation';
 import LogoutButton from '@/components/LogoutButton';
-import ThemeToggle, { useMarketLinkTheme } from '@/components/ThemeToggle';
+import { useMarketLinkTheme } from '@/components/ThemeToggle';
 
 const API_BASE = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:4000';
 
@@ -13,6 +13,7 @@ type Role = 'provider' | 'admin' | '' | null | string;
 export default function AppHeader() {
   const pathname = usePathname();
   const [role, setRole] = useState<Role>(null);
+  const [mobileOpen, setMobileOpen] = useState(false);
   const { t } = useMarketLinkTheme();
 
   useEffect(() => {
@@ -38,7 +39,7 @@ export default function AppHeader() {
           return;
         }
 
-        const data = await res.json().catch(() => ({} as any));
+        const data: { user?: { role?: unknown } } = await res.json().catch(() => ({}));
         const r = String(data?.user?.role || '');
         setRole(r);
       } catch {
@@ -52,35 +53,130 @@ export default function AppHeader() {
     };
   }, [pathname]);
 
+  useEffect(() => {
+    setMobileOpen(false);
+  }, [pathname]);
+
   const canSeeDashboard = role === 'provider' || role === 'admin';
+  const isProvidersPage = pathname?.startsWith('/providers');
+  const isLoginPage = pathname === '/login';
+  const isDashboardPage = pathname?.startsWith('/dashboard');
+  const showLoginAction = !canSeeDashboard && !isLoginPage;
+  const mobileMenuBaseClass = 'inline-flex min-h-12 items-center justify-between rounded-xl border px-4 text-sm font-medium transition';
+  const mobileMenuRowClass = `${mobileMenuBaseClass} ${t.secondaryBtn}`;
+  const mobileMenuActiveClass = `${mobileMenuBaseClass} ml-btn-primary border-transparent text-white`;
+  const desktopNavShellClass =
+    'hidden lg:flex items-center gap-1 rounded-[1.35rem] border border-white/14 bg-white/10 px-2 py-1.5 shadow-[0_18px_40px_rgba(15,23,42,0.12)] backdrop-blur';
+  const desktopLinkClass =
+    'inline-flex items-center rounded-xl px-3 py-2 text-sm font-medium transition text-[rgb(var(--ml-header-muted))] hover:bg-white/10 hover:text-[rgb(var(--ml-header-text))]';
+  const desktopActiveLinkClass = 'inline-flex items-center rounded-xl px-3 py-2 text-sm font-medium bg-white/14 text-[rgb(var(--ml-header-text))]';
+  const actionButtonClass = `inline-flex min-h-11 items-center justify-center rounded-xl border px-4 text-sm font-medium shadow-sm transition ${t.secondaryBtn}`;
+  const mobileMenuButtonClass = `inline-flex h-11 w-11 items-center justify-center rounded-xl border text-current shadow-sm transition lg:hidden ${t.secondaryBtn} ${t.headerText}`;
 
   return (
-    <header className={`sticky top-0 z-50 border-b ${t.header} backdrop-blur`}>
-      <div className="mx-auto flex max-w-6xl items-center justify-between px-4 py-3 sm:py-4">
-        <Link href="/" className="flex items-center gap-2 font-semibold tracking-tight text-slate-900">
-          <span className={`inline-flex h-8 w-8 items-center justify-center rounded-xl ${t.brandBadge} shadow-sm`}>M</span>
-          <span className="text-base sm:text-lg">MarketLink</span>
+    <header className={`sticky top-0 z-50 border-b ${t.header} relative shadow-[0_12px_30px_rgba(15,23,42,0.05)]`}>
+      <div className="mx-auto flex max-w-7xl items-center justify-between gap-4 px-4 py-3 sm:px-6 sm:py-4">
+        <Link href="/" className={`flex min-w-0 items-center gap-3 ${t.headerText}`}>
+          <span className={`inline-flex h-10 w-10 shrink-0 items-center justify-center rounded-2xl ${t.brandBadge} shadow-[0_16px_36px_rgba(15,23,42,0.18)]`}>
+            M
+          </span>
+          <span className="min-w-0">
+            <span className={`block text-[11px] font-medium uppercase tracking-[0.32em] ${t.headerMutedText}`}>Local Growth Marketplace</span>
+            <span className="block truncate text-lg font-semibold tracking-tight sm:text-xl">MarketLink</span>
+          </span>
         </Link>
 
-        <div className="flex items-center gap-2">
-          <ThemeToggle compact />
-
-          {role === null ? (
-            <div className="h-9 w-20 sm:w-24 rounded-xl border border-slate-200/70 bg-white/60 opacity-60" aria-hidden="true" />
-          ) : canSeeDashboard ? (
-            <>
-              <Link href="/dashboard" className={`h-9 rounded-xl px-3 flex items-center text-sm font-semibold ${t.secondaryBtn}`}>
-                Dashboard
+        <div className="flex items-center gap-3">
+          <div className="hidden lg:flex items-center gap-3">
+            <nav className={desktopNavShellClass}>
+              <Link href="/" className={pathname === '/' ? desktopActiveLinkClass : desktopLinkClass}>
+                Home
               </Link>
-              <LogoutButton />
-            </>
-          ) : (
-            <Link href="/login" className={`h-9 rounded-xl px-3 flex items-center text-sm font-semibold ${t.secondaryBtn}`}>
-              Login
-            </Link>
-          )}
+              <Link href="/providers" className={isProvidersPage ? desktopActiveLinkClass : desktopLinkClass}>
+                Browse providers
+              </Link>
+              {canSeeDashboard ? (
+                <Link href="/dashboard" className={isDashboardPage ? desktopActiveLinkClass : desktopLinkClass}>
+                  Dashboard
+                </Link>
+              ) : null}
+            </nav>
+
+            {role === null ? (
+              <div className="h-11 w-28 rounded-xl border border-white/10 bg-white/8 opacity-60" aria-hidden="true" />
+            ) : canSeeDashboard ? (
+              <LogoutButton className={actionButtonClass} />
+            ) : showLoginAction ? (
+              <Link href="/login" className={actionButtonClass}>
+                Login
+              </Link>
+            ) : null}
+          </div>
+
+          <button
+            type="button"
+            className={mobileMenuButtonClass}
+            aria-expanded={mobileOpen}
+            aria-label={mobileOpen ? 'Close navigation menu' : 'Open navigation menu'}
+            onClick={() => setMobileOpen((value) => !value)}
+          >
+            <span className="relative block h-4 w-4 shrink-0">
+              <span className={`absolute left-0 top-0 h-0.5 w-4 bg-current transition ${mobileOpen ? 'translate-y-[7px] rotate-45' : ''}`} />
+              <span className={`absolute left-0 top-[7px] h-0.5 w-4 bg-current transition ${mobileOpen ? 'opacity-0' : ''}`} />
+              <span className={`absolute left-0 top-[14px] h-0.5 w-4 bg-current transition ${mobileOpen ? '-translate-y-[7px] -rotate-45' : ''}`} />
+            </span>
+          </button>
         </div>
       </div>
+
+      {mobileOpen ? (
+        <div className="pointer-events-none absolute inset-x-0 top-full px-4 pt-3 sm:px-6 lg:hidden">
+          <div className={`pointer-events-auto ml-auto w-full max-w-[22rem] overflow-hidden rounded-[1.5rem] border shadow-[0_18px_40px_rgba(15,23,42,0.14)] backdrop-blur ${t.header}`}>
+            <div className="border-b border-white/10 px-5 py-4">
+              <div className={`text-[11px] font-medium uppercase tracking-[0.26em] ${t.headerMutedText}`}>Navigate</div>
+            </div>
+            <div className="flex flex-col gap-3 px-4 py-4">
+              <Link
+                href="/providers"
+                className={isProvidersPage ? mobileMenuActiveClass : mobileMenuRowClass}
+              >
+                <span>Browse providers</span>
+                <span className="text-base leading-none text-current/55" aria-hidden="true">&rarr;</span>
+              </Link>
+              <Link
+                href="/"
+                className={pathname === '/' ? mobileMenuActiveClass : mobileMenuRowClass}
+              >
+                <span>Home</span>
+                <span className="text-base leading-none text-current/55" aria-hidden="true">&rarr;</span>
+              </Link>
+
+              {role === null ? (
+                <div className="h-12 rounded-xl border border-white/10 bg-white/8 opacity-60" aria-hidden="true" />
+              ) : canSeeDashboard ? (
+              <>
+                <Link
+                  href="/dashboard"
+                  className={isDashboardPage ? mobileMenuActiveClass : mobileMenuRowClass}
+                >
+                  <span>Dashboard</span>
+                  <span className="text-base leading-none text-current/55" aria-hidden="true">&rarr;</span>
+                </Link>
+                <LogoutButton className={`${mobileMenuRowClass} justify-center`} />
+              </>
+            ) : showLoginAction ? (
+              <Link
+                href="/login"
+                className={mobileMenuRowClass}
+              >
+                <span>Login</span>
+                <span className="text-base leading-none text-current/55" aria-hidden="true">&rarr;</span>
+              </Link>
+            ) : null}
+            </div>
+          </div>
+        </div>
+      ) : null}
     </header>
   );
 }

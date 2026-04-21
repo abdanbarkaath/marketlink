@@ -35,7 +35,6 @@ export default function LoginPage() {
 
   const API_BASE = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:4000';
 
-  // Support both ?returnTo= and your existing ?next=
   const desiredPath = useMemo(() => {
     const returnTo = searchParams.get('returnTo');
     const next = searchParams.get('next');
@@ -43,11 +42,12 @@ export default function LoginPage() {
   }, [searchParams]);
 
   const [checkingSession, setCheckingSession] = useState(true);
-
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [submitting, setSubmitting] = useState(false);
-  const [error, setError] = useState<string>('');
+  const [error, setError] = useState('');
+
+  const fieldClass = 'ml-input w-full rounded-2xl px-4 py-3 text-sm text-slate-900';
 
   const fetchRoleAndRedirect = useCallback(async () => {
     const res = await fetch(`${API_BASE}/me/summary`, {
@@ -59,7 +59,7 @@ export default function LoginPage() {
     if (!res.ok) return false;
 
     const data = (await res.json().catch(() => ({}))) as MeSummaryResponse;
-    const role = (data as any)?.user?.role as 'provider' | 'admin' | undefined;
+    const role = (data as { user?: { role?: 'provider' | 'admin' } })?.user?.role;
     if (!role) return false;
 
     const target = pickRedirect(role, desiredPath);
@@ -68,7 +68,6 @@ export default function LoginPage() {
     return true;
   }, [API_BASE, desiredPath, router]);
 
-  // If user already has a valid session cookie, don’t show login page.
   useEffect(() => {
     let cancelled = false;
 
@@ -115,12 +114,11 @@ export default function LoginPage() {
       }
 
       if (!res.ok) {
-        const msg = (data as any)?.message || (res.status === 401 ? 'Invalid email or password.' : 'Login failed.');
+        const msg = (data as { message?: string } | null)?.message || (res.status === 401 ? 'Invalid email or password.' : 'Login failed.');
         setError(msg);
         return;
       }
 
-      // After successful login, read role and redirect correctly.
       const didRedirect = await fetchRoleAndRedirect();
       if (!didRedirect) {
         router.replace('/dashboard');
@@ -135,74 +133,131 @@ export default function LoginPage() {
 
   if (checkingSession) {
     return (
-      <main className="mx-auto max-w-md px-4 py-12">
-        <h1 className="text-2xl font-semibold">Login</h1>
-        <p className="mt-2 text-sm text-gray-600">Checking your session…</p>
+      <main className="ml-page-bg min-h-[calc(100vh-80px)]">
+        <div className="mx-auto max-w-7xl px-4 py-6 sm:px-6 sm:py-10">
+          <div className="ml-card rounded-[2rem] px-6 py-8 shadow-[0_18px_48px_rgba(23,26,31,0.08)]">
+            <h1 className="text-2xl font-semibold tracking-tight text-slate-900">Login</h1>
+            <p className="mt-2 text-sm text-slate-600">Checking your session...</p>
+          </div>
+        </div>
       </main>
     );
   }
 
   return (
-    <main className="mx-auto max-w-md px-4 py-12">
-      <h1 className="text-2xl font-semibold">Login</h1>
-      <p className="mt-2 text-sm text-gray-600">Provider / Admin portal access.</p>
+    <main className="ml-page-bg min-h-[calc(100vh-80px)]">
+      <div className="mx-auto max-w-7xl px-4 py-6 sm:px-6 sm:py-10">
+        <section className="grid gap-5 lg:grid-cols-[minmax(0,1.05fr)_520px]">
+          <div className="ml-dark-panel order-2 overflow-hidden rounded-[2rem] shadow-[0_30px_90px_rgba(23,26,31,0.22)] lg:order-1">
+            <div className="h-2 bg-[linear-gradient(90deg,#0f172a,#25324a,#b6bdc8)]" />
+            <div className="bg-[radial-gradient(120%_120%_at_0%_0%,rgba(148,163,184,0.16),transparent_42%),linear-gradient(135deg,rgba(15,23,42,0.98),rgba(15,23,42,0.90))] px-5 py-6 sm:px-8 sm:py-10">
+              <div className="inline-flex items-center rounded-xl border border-white/12 bg-white/6 px-3 py-1 text-[11px] font-medium uppercase tracking-[0.24em] text-white/65">
+                Provider and admin access
+              </div>
+              <h1 className="mt-4 max-w-xl text-3xl font-semibold tracking-[-0.05em] text-white sm:mt-5 sm:text-5xl">
+                Sign in to manage your profile, leads, and platform tools.
+              </h1>
+              <p className="mt-3 max-w-xl text-sm leading-6 text-slate-200/78 sm:mt-4 sm:text-base sm:leading-7">
+                Use the same account flow for providers and admins. After sign-in, MarketLink will route you to the correct dashboard automatically.
+              </p>
 
-      <form onSubmit={onSubmit} className="mt-8 grid gap-4">
-        <div className="grid gap-1">
-          <label htmlFor="email" className="text-sm font-medium">
-            Email
-          </label>
-          <input
-            id="email"
-            name="email"
-            type="email"
-            autoComplete="email"
-            className="w-full rounded-xl border px-4 py-3"
-            placeholder="you@company.com"
-            value={email}
-            onChange={(e) => setEmail(e.target.value)}
-            disabled={submitting}
-            required
-          />
-        </div>
-
-        <div className="grid gap-1">
-          <label htmlFor="password" className="text-sm font-medium">
-            Password
-          </label>
-          <input
-            id="password"
-            name="password"
-            type="password"
-            autoComplete="current-password"
-            className="w-full rounded-xl border px-4 py-3"
-            placeholder="••••••••"
-            value={password}
-            onChange={(e) => setPassword(e.target.value)}
-            disabled={submitting}
-            required
-          />
-        </div>
-
-        {error ? (
-          <div role="alert" className="rounded-xl border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700">
-            {error}
+              <div className="mt-5 grid gap-3 sm:mt-8 sm:grid-cols-3">
+                <div className="rounded-[1.3rem] border border-white/10 bg-white/6 px-4 py-4">
+                  <div className="text-[11px] font-medium uppercase tracking-[0.18em] text-slate-300">Providers</div>
+                  <div className="mt-2 text-sm font-semibold text-white">Update profiles</div>
+                  <p className="mt-2 text-sm leading-6 text-slate-200/72">Manage services, portfolio content, and inquiries.</p>
+                </div>
+                <div className="rounded-[1.3rem] border border-white/10 bg-white/6 px-4 py-4">
+                  <div className="text-[11px] font-medium uppercase tracking-[0.18em] text-slate-300">Admins</div>
+                  <div className="mt-2 text-sm font-semibold text-white">Operate safely</div>
+                  <p className="mt-2 text-sm leading-6 text-slate-200/72">Handle invites, resets, and provider controls from one place.</p>
+                </div>
+                <div className="rounded-[1.3rem] border border-white/10 bg-white/6 px-4 py-4">
+                  <div className="text-[11px] font-medium uppercase tracking-[0.18em] text-slate-300">Sessions</div>
+                  <div className="mt-2 text-sm font-semibold text-white">Cookie-based</div>
+                  <p className="mt-2 text-sm leading-6 text-slate-200/72">Simple sign-in with redirect logic handled server-side.</p>
+                </div>
+              </div>
+            </div>
           </div>
-        ) : null}
 
-        <button type="submit" disabled={submitting} className="rounded-xl bg-black px-4 py-3 font-medium text-white hover:opacity-90 disabled:opacity-60">
-          {submitting ? 'Signing in...' : 'Sign in'}
-        </button>
+          <div className="ml-card order-1 rounded-[2rem] px-5 py-6 shadow-[0_18px_48px_rgba(23,26,31,0.08)] sm:px-8 sm:py-10 lg:order-2">
+            <div className="flex items-start justify-between gap-4 border-b border-slate-200/80 pb-5">
+              <div>
+                <div className="text-[11px] font-medium uppercase tracking-[0.22em] text-slate-500">Portal access</div>
+                <h2 className="mt-3 text-3xl font-semibold tracking-[-0.04em] text-slate-900">Sign in</h2>
+                <p className="mt-2 text-sm leading-6 text-slate-600">Enter your email and password to continue.</p>
+              </div>
+              <span className="ml-pill rounded-xl px-4 py-2 text-sm font-medium normal-case tracking-normal">Secure</span>
+            </div>
 
-        <div className="flex items-center justify-between text-sm">
-          <Link href="/" className="text-gray-700 hover:underline underline-offset-4">
-            Continue as guest
-          </Link>
-          <Link href="/providers" className="text-gray-700 hover:underline underline-offset-4">
-            View providers
-          </Link>
-        </div>
-      </form>
+            <form onSubmit={onSubmit} className="mt-6 grid gap-4">
+              <div className="grid gap-2">
+                <label htmlFor="email" className="text-sm font-medium text-slate-700">
+                  Email
+                </label>
+                <input
+                  id="email"
+                  name="email"
+                  type="email"
+                  autoComplete="email"
+                  className={fieldClass}
+                  placeholder="you@company.com"
+                  value={email}
+                  onChange={(e) => setEmail(e.target.value)}
+                  disabled={submitting}
+                  required
+                />
+              </div>
+
+              <div className="grid gap-2">
+                <label htmlFor="password" className="text-sm font-medium text-slate-700">
+                  Password
+                </label>
+                <input
+                  id="password"
+                  name="password"
+                  type="password"
+                  autoComplete="current-password"
+                  className={fieldClass}
+                  placeholder="Password"
+                  value={password}
+                  onChange={(e) => setPassword(e.target.value)}
+                  disabled={submitting}
+                  required
+                />
+              </div>
+
+              {error ? (
+                <div role="alert" className="rounded-2xl border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700">
+                  {error}
+                </div>
+              ) : null}
+
+              <div className="flex flex-col gap-3 border-t border-slate-200/80 pt-4 sm:flex-row sm:items-center sm:justify-between">
+                <div className="text-sm text-slate-600">You&apos;ll be redirected to the right dashboard after sign-in.</div>
+                <button
+                  type="submit"
+                  disabled={submitting}
+                  className="ml-btn-primary inline-flex min-h-11 items-center justify-center rounded-xl px-6 text-sm font-semibold text-white disabled:opacity-60"
+                >
+                  {submitting ? 'Signing in...' : 'Sign in'}
+                </button>
+              </div>
+
+              <div className="flex flex-col gap-2 pt-2 text-sm sm:flex-row sm:items-center sm:justify-between">
+                <Link href="/" className="font-medium text-slate-700 underline underline-offset-4 hover:text-slate-900">
+                  Continue as guest
+                </Link>
+                <Link href="/providers" className="font-medium text-slate-700 underline underline-offset-4 hover:text-slate-900">
+                  View providers
+                </Link>
+              </div>
+            </form>
+          </div>
+        </section>
+      </div>
     </main>
   );
 }
+

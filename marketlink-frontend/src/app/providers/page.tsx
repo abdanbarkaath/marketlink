@@ -25,65 +25,253 @@ type Provider = {
   createdAt: string;
 };
 
-// Client component for themed provider cards
+type FiltersFormProps = {
+  name?: string;
+  city?: string;
+  service?: string;
+  match: 'any' | 'all';
+  minRating?: string;
+  sort: 'newest' | 'name' | 'rating' | 'verified';
+  order?: 'asc' | 'desc';
+  limit: number;
+  verified?: string;
+  compact?: boolean;
+};
+
+const FIELD_CLASS = 'ml-input w-full rounded-2xl px-4 py-3 text-sm';
+const CHECKBOX_CLASS = 'ml-checkbox h-4 w-4 rounded';
+const PRIMARY_BUTTON_CLASS = 'ml-btn-primary inline-flex min-h-12 items-center justify-center rounded-xl px-6 text-sm font-semibold shadow-sm';
+const PILL_CLASS = 'ml-pill rounded-xl px-3 py-1 text-[11px] font-medium uppercase tracking-[0.18em]';
+const PILL_MUTED_CLASS = 'ml-pill-muted rounded-xl px-3 py-1 text-[11px] font-medium uppercase tracking-[0.18em]';
+const SECTION_CLASS = 'ml-card rounded-[1.8rem] px-5 py-5 shadow-[0_16px_40px_rgba(23,26,31,0.06)] sm:px-6 sm:py-6';
+
+function FiltersForm({ name, city, service, match, minRating, sort, order, limit, verified, compact = false }: FiltersFormProps) {
+  return (
+    <form method="GET" className={`grid gap-4 ${compact ? '' : 'lg:grid-cols-12'}`}>
+      <input type="hidden" name="page" value="1" />
+
+      <label className={compact ? '' : 'lg:col-span-3'}>
+        <span className="mb-2 block text-sm font-medium text-slate-700">Provider name</span>
+        <input
+          type="text"
+          name="name"
+          defaultValue={name ?? ''}
+          placeholder="Search by business name"
+          className={FIELD_CLASS}
+        />
+      </label>
+
+      <label className={compact ? '' : 'lg:col-span-2'}>
+        <span className="mb-2 block text-sm font-medium text-slate-700">City</span>
+        <input
+          type="text"
+          name="city"
+          defaultValue={city ?? ''}
+          placeholder="Chicago"
+          className={FIELD_CLASS}
+        />
+      </label>
+
+      <label className={compact ? '' : 'lg:col-span-3'}>
+        <span className="mb-2 block text-sm font-medium text-slate-700">Service</span>
+        <input
+          type="text"
+          name="service"
+          defaultValue={service ?? ''}
+          placeholder="seo, ads, social"
+          className={FIELD_CLASS}
+        />
+      </label>
+
+      <label className={compact ? '' : 'lg:col-span-2'}>
+        <span className="mb-2 block text-sm font-medium text-slate-700">Service match</span>
+        <select
+          name="match"
+          defaultValue={match}
+          className={FIELD_CLASS}
+        >
+          <option value="any">Any selected service</option>
+          <option value="all">Must match all</option>
+        </select>
+      </label>
+
+      <label className={compact ? '' : 'lg:col-span-2'}>
+        <span className="mb-2 block text-sm font-medium text-slate-700">Minimum rating</span>
+        <select
+          name="minRating"
+          defaultValue={minRating ?? ''}
+          className={FIELD_CLASS}
+        >
+          <option value="">Any rating</option>
+          <option value="3.0">3.0+</option>
+          <option value="4.0">4.0+</option>
+          <option value="4.5">4.5+</option>
+        </select>
+      </label>
+
+      <label className={compact ? '' : 'lg:col-span-2'}>
+        <span className="mb-2 block text-sm font-medium text-slate-700">Sort by</span>
+        <select
+          name="sort"
+          defaultValue={sort}
+          className={FIELD_CLASS}
+        >
+          <option value="newest">Newest</option>
+          <option value="name">Name</option>
+          <option value="rating">Rating</option>
+          <option value="verified">Verified</option>
+        </select>
+      </label>
+
+      <label className={compact ? '' : 'lg:col-span-2'}>
+        <span className="mb-2 block text-sm font-medium text-slate-700">Order</span>
+        <select
+          name="order"
+          defaultValue={order ?? (sort === 'name' ? 'asc' : 'desc')}
+          className={FIELD_CLASS}
+        >
+          <option value="asc">Ascending</option>
+          <option value="desc">Descending</option>
+        </select>
+      </label>
+
+      <label className={compact ? '' : 'lg:col-span-2'}>
+        <span className="mb-2 block text-sm font-medium text-slate-700">Page size</span>
+        <select
+          name="limit"
+          defaultValue={String(limit)}
+          className={FIELD_CLASS}
+        >
+          <option value="12">12</option>
+          <option value="20">20</option>
+          <option value="30">30</option>
+          <option value="50">50</option>
+        </select>
+      </label>
+
+      <div className={compact ? '' : 'lg:col-span-2'}>
+        <span className="mb-2 block text-sm font-medium text-slate-700">Verification</span>
+        <label className="ml-input flex w-full items-center gap-3 rounded-2xl px-4 py-3 text-sm font-medium text-slate-700">
+          <input
+            type="checkbox"
+            name="verified"
+            value="1"
+            defaultChecked={verified === '1' || (verified ?? '').toLowerCase() === 'true'}
+            className={CHECKBOX_CLASS}
+          />
+          Verified only
+        </label>
+      </div>
+
+      <div className={compact ? '' : 'lg:col-span-12'}>
+        <button type="submit" className={PRIMARY_BUTTON_CLASS}>
+          Apply filters
+        </button>
+      </div>
+    </form>
+  );
+}
+
 function ProviderCard({ provider }: { provider: Provider }) {
   const p = provider;
-
   const topServices = (p.services ?? []).slice(0, 3);
   const overflow = Math.max(0, (p.services?.length ?? 0) - topServices.length);
+  const pricingLabel = p.minProjectBudget
+    ? `${p.currencyCode || 'USD'} ${p.minProjectBudget}+ min`
+      : p.hourlyRateMin || p.hourlyRateMax
+      ? `${p.currencyCode || 'USD'} ${p.hourlyRateMin ?? ''}${p.hourlyRateMax ? `-${p.hourlyRateMax}` : '+'}/hr`
+      : 'Request quote';
+  const profileSummary = p.shortDescription ? p.shortDescription : p.tagline ? p.tagline : 'Explore services, profile fit, and pricing details.';
+  const sinceLabel = new Date(p.createdAt).toLocaleDateString();
 
   return (
-    <li className="rounded-2xl border border-slate-200/80 bg-white/70 p-5 shadow-[0_18px_50px_rgba(2,6,23,0.10)] backdrop-blur hover:bg-white/85 hover:shadow-[0_24px_70px_rgba(2,6,23,0.12)] transition hover:-translate-y-0.5">
-      <Link href={`/providers/${p.slug}`} className="block">
-        <div className="flex items-center gap-3">
-          <div className="h-12 w-12 rounded bg-gray-100 overflow-hidden">
-            {p.logo ? (
-              // eslint-disable-next-line @next/next/no-img-element
-              <img src={p.logo} alt={p.businessName} className="h-full w-full object-cover" />
-            ) : (
-              <div className="h-full w-full grid place-items-center text-xs text-gray-500">Logo</div>
-            )}
-          </div>
-          <div className="min-w-0">
-            <div className="flex items-center gap-2">
-              <h3 className="font-semibold truncate">{p.businessName}</h3>
-              {p.verified ? <span className="text-[10px] rounded bg-green-100 text-green-700 px-1.5 py-0.5">Verified</span> : null}
+    <li className="ml-card ml-card-hover overflow-hidden rounded-[1.9rem] transition hover:-translate-y-0.5">
+      <Link href={`/providers/${p.slug}`} className="group block">
+        <div className="h-1.5 bg-[linear-gradient(90deg,#0f172a,#25324a,#b6bdc8)]" />
+        <div className="p-4 sm:p-5">
+          <div className="flex items-start gap-3 sm:gap-4">
+            <div className="ml-surface-muted h-14 w-14 shrink-0 overflow-hidden rounded-2xl shadow-sm">
+              {p.logo ? (
+                // eslint-disable-next-line @next/next/no-img-element
+                <img src={p.logo} alt={p.businessName} className="h-full w-full object-cover" />
+              ) : (
+                <div className="grid h-full w-full place-items-center text-[11px] font-medium uppercase tracking-[0.18em] text-slate-500">Logo</div>
+              )}
             </div>
-            <p className="text-xs text-gray-500">
-              {p.city}, {p.state}
-            </p>
+
+            <div className="min-w-0 flex-1">
+              <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
+                <div className="min-w-0">
+                  <div className="flex flex-wrap items-center gap-2">
+                    <span className={`${PILL_CLASS} px-2.5 text-[10px]`}>
+                      {p.city}, {p.state}
+                    </span>
+                    {p.verified ? (
+                      <span className={`${PILL_MUTED_CLASS} inline-flex items-center px-2.5 py-1 text-[10px]`}>
+                        Verified
+                      </span>
+                    ) : null}
+                  </div>
+
+                  <div className="mt-2 text-[11px] font-medium uppercase tracking-[0.22em] text-slate-500">Local marketing provider</div>
+                  <h3 className="mt-1 truncate text-[1.2rem] font-semibold tracking-tight text-slate-900 sm:text-[1.35rem]">{p.businessName}</h3>
+                  <p className="mt-2 text-sm leading-6 text-slate-600 sm:max-w-2xl">{profileSummary}</p>
+                </div>
+
+                <div className="grid shrink-0 grid-cols-2 gap-2 sm:min-w-[220px]">
+                  <div className="ml-surface-muted rounded-[1.15rem] px-3 py-2.5 text-right shadow-sm">
+                    <div className="text-[10px] font-medium uppercase tracking-[0.18em] text-slate-500">Rating</div>
+                    <div className="mt-1 text-base font-semibold text-slate-900 sm:text-lg">{p.rating?.toFixed?.(1) ?? '0.0'}</div>
+                  </div>
+                  <div className="ml-surface-muted rounded-[1.15rem] px-3 py-2.5 text-right shadow-sm">
+                    <div className="text-[10px] font-medium uppercase tracking-[0.18em] text-slate-500">Pricing</div>
+                    <div className="mt-1 text-sm font-semibold text-slate-900">{pricingLabel}</div>
+                  </div>
+                </div>
+              </div>
+
+              {topServices.length > 0 ? (
+                <div className="mt-4 flex flex-wrap gap-2" title={p.services.join(', ')}>
+                  {topServices.map((service) => (
+                    <span key={service} className={`${PILL_CLASS} px-3 text-[10px]`}>
+                      {service}
+                    </span>
+                  ))}
+                  {overflow > 0 ? (
+                    <span className={`${PILL_MUTED_CLASS} px-3 text-[10px]`}>
+                      +{overflow} more
+                    </span>
+                  ) : null}
+                </div>
+              ) : null}
+
+              <div className="mt-4 hidden gap-3 border-t border-slate-200/80 pt-4 sm:grid sm:grid-cols-[1.05fr_0.95fr_auto] sm:items-center">
+                <div className="ml-surface-muted rounded-[1.05rem] px-3 py-3">
+                  <div className="text-[10px] font-medium uppercase tracking-[0.18em] text-slate-500">Profile status</div>
+                  <div className="mt-1 text-sm font-semibold text-slate-900">{p.verified ? 'Verified profile' : 'Live listing'}</div>
+                </div>
+                <div className="ml-surface-muted rounded-[1.05rem] px-3 py-3">
+                  <div className="text-[10px] font-medium uppercase tracking-[0.18em] text-slate-500">Updated</div>
+                  <div className="mt-1 text-sm font-semibold text-slate-900">{sinceLabel}</div>
+                </div>
+                <div className="ml-dark-panel flex items-center justify-between gap-3 rounded-[1.05rem] px-4 py-3 sm:justify-center">
+                  <span className="text-sm font-semibold">Open profile</span>
+                  <span className="text-base transition group-hover:translate-x-1" aria-hidden="true">&rarr;</span>
+                </div>
+              </div>
+
+              <div className="mt-4 flex items-center justify-between gap-4 border-t border-slate-200/80 pt-4 sm:hidden">
+                <div className="min-w-0">
+                  <div className="text-[10px] font-medium uppercase tracking-[0.18em] text-slate-500">Updated</div>
+                  <div className="mt-1 text-sm font-semibold text-slate-900">{sinceLabel}</div>
+                </div>
+                <div className="ml-btn-primary flex items-center gap-2 rounded-xl px-4 py-2 text-sm font-semibold text-white">
+                  Open
+                  <span className="text-base transition group-hover:translate-x-1" aria-hidden="true">&rarr;</span>
+                </div>
+              </div>
+            </div>
           </div>
-        </div>
-
-        {/* Tagline / short description */}
-        {p.shortDescription ? <p className="mt-3 text-sm text-gray-700 line-clamp-2">{p.shortDescription}</p> : p.tagline ? <p className="mt-3 text-sm text-gray-700 line-clamp-2">{p.tagline}</p> : null}
-
-        {/* Services chips */}
-        {topServices.length > 0 ? (
-          <div className="mt-3 flex flex-wrap gap-1" title={p.services?.join(', ')}>
-            {topServices.map((s) => (
-              <span key={s} className="text-[10px] uppercase tracking-wide rounded-full border px-2 py-0.5 text-gray-700 bg-gray-50">
-                {s}
-              </span>
-            ))}
-            {overflow > 0 ? <span className="text-[10px] rounded-full border px-2 py-0.5 text-gray-500 bg-white">+{overflow} more</span> : null}
-          </div>
-        ) : null}
-
-        {/* Footer: rating + pricing */}
-        <div className="mt-3 flex items-center justify-between text-sm">
-          <span className="text-gray-600">* {p.rating?.toFixed?.(1) ?? '0.0'}</span>
-          {p.minProjectBudget ? (
-            <span className="text-xs text-gray-500">
-              {p.currencyCode || 'USD'} {p.minProjectBudget}+ min
-            </span>
-          ) : p.hourlyRateMin || p.hourlyRateMax ? (
-            <span className="text-xs text-gray-500">
-              {p.currencyCode || 'USD'} {p.hourlyRateMin ?? ''}{p.hourlyRateMax ? `-${p.hourlyRateMax}` : '+'}/hr
-            </span>
-          ) : (
-            <span className="text-xs text-gray-400">{new Date(p.createdAt).toLocaleDateString()}</span>
-          )}
         </div>
       </Link>
     </li>
@@ -110,7 +298,6 @@ function toQS(params: Record<string, string | undefined>) {
   return usp.toString();
 }
 
-// Build a compact page number list like [1, '...', 5, 6, 7, '...', 12]
 function buildPageWindow(current: number, total: number, span = 5): (number | string)[] {
   const pages: (number | string)[] = [];
   const start = Math.max(1, current - Math.floor(span / 2));
@@ -131,15 +318,13 @@ function buildPageWindow(current: number, total: number, span = 5): (number | st
 }
 
 export default async function ProvidersPage({ searchParams }: { searchParams: Record<string, string | string[] | undefined> }) {
-  // Existing filters
   const name = typeof searchParams.name === 'string' ? searchParams.name : undefined;
   const city = typeof searchParams.city === 'string' ? searchParams.city : undefined;
-  const service = typeof searchParams.service === 'string' ? searchParams.service : undefined; // comma-separated
+  const service = typeof searchParams.service === 'string' ? searchParams.service : undefined;
   const match = (typeof searchParams.match === 'string' ? searchParams.match : 'any') as 'any' | 'all';
   const minRating = typeof searchParams.minRating === 'string' ? searchParams.minRating : undefined;
   const verified = typeof searchParams.verified === 'string' ? searchParams.verified : undefined;
 
-  // Sorting + pagination
   const sort = (typeof searchParams.sort === 'string' ? searchParams.sort : 'newest') as 'newest' | 'name' | 'rating' | 'verified';
   const order = (typeof searchParams.order === 'string' ? searchParams.order : undefined) as 'asc' | 'desc' | undefined;
   const page = Math.max(1, parseInt(String(searchParams.page ?? '1'), 10) || 1);
@@ -167,9 +352,13 @@ export default async function ProvidersPage({ searchParams }: { searchParams: Re
 
   if (!res.ok) {
     return (
-      <main className="mx-auto max-w-6xl px-4 py-8">
-        <h1 className="text-2xl font-semibold mb-4">Providers</h1>
-        <p className="text-red-600">Failed to load providers.</p>
+      <main className="ml-page-bg min-h-screen">
+        <div className="mx-auto max-w-7xl px-4 py-10 sm:px-6">
+          <div className="ml-card rounded-[1.8rem] px-6 py-8 shadow-sm">
+            <h1 className="text-2xl font-semibold text-slate-900">Providers</h1>
+            <p className="mt-3 text-red-600">Failed to load providers.</p>
+          </div>
+        </div>
       </main>
     );
   }
@@ -178,7 +367,6 @@ export default async function ProvidersPage({ searchParams }: { searchParams: Re
   const { meta, data } = payload;
   const { total, totalPages } = meta;
 
-  // Helpers for pagination links that preserve current filters/sorting
   const baseParams = {
     name,
     city,
@@ -195,198 +383,156 @@ export default async function ProvidersPage({ searchParams }: { searchParams: Re
   const nextParams = toQS({ ...baseParams, page: String(Math.min(totalPages, page + 1)) });
   const pageWindow = buildPageWindow(page, totalPages, 5);
 
+  const activeFilters = [
+    name ? { label: `Name: ${name}` } : null,
+    city ? { label: `City: ${city}` } : null,
+    service ? { label: `Service: ${service}` } : null,
+    minRating ? { label: `Rating ${minRating}+` } : null,
+    verified === '1' || (verified ?? '').toLowerCase() === 'true' ? { label: 'Verified only' } : null,
+  ].filter(Boolean) as { label: string }[];
+
   return (
-    <main className="min-h-screen bg-[radial-gradient(900px_circle_at_20%_-10%,rgba(79,70,229,0.22),transparent_55%),radial-gradient(700px_circle_at_90%_10%,rgba(14,165,233,0.14),transparent_50%),radial-gradient(700px_circle_at_50%_110%,rgba(236,72,153,0.10),transparent_55%),linear-gradient(to_bottom,#f8fafc,#ffffff)]">
-      <div className="mx-auto max-w-6xl px-4 py-8">
-        {/* Header */}
-        <div className="flex flex-col md:flex-row md:items-end md:justify-between gap-4 mb-6">
-          <div>
-            <h1 className="text-2xl font-semibold">Providers</h1>
-            <p className="text-sm text-gray-500">
-              {total} result{total === 1 ? '' : 's'} - Page {meta.page} of {meta.totalPages}
-            </p>
+    <main className="ml-page-bg min-h-screen">
+      <div className="mx-auto max-w-7xl px-4 py-6 sm:px-6 sm:py-10">
+        <section className={`${SECTION_CLASS} rounded-[2rem] sm:px-8 sm:py-8`}>
+          <div className="flex flex-col gap-4 lg:flex-row lg:items-end lg:justify-between">
+            <div className="max-w-3xl">
+              <div className="text-[11px] font-medium uppercase tracking-[0.26em] text-slate-500">Provider directory</div>
+              <h1 className="mt-3 text-[2rem] font-semibold tracking-[-0.04em] text-slate-900 sm:text-4xl">Find teams by city, fit, and service.</h1>
+              <p className="mt-3 text-sm leading-7 text-slate-600">
+                Use filters to narrow the directory quickly, then open richer provider profiles to compare services, proof of work, and contact details.
+              </p>
+            </div>
+            <div className="ml-dark-panel w-full rounded-[1.4rem] px-5 py-4 text-white sm:w-auto">
+              <div className="text-[11px] font-medium uppercase tracking-[0.2em] text-slate-300">Results</div>
+              <div className="mt-2 text-2xl font-semibold">{total}</div>
+              <div className="text-sm text-slate-200/78">
+                Page {meta.page} of {meta.totalPages}
+              </div>
+            </div>
           </div>
+        </section>
 
-          {/* Sorting bar (GET) */}
-          <form method="GET" className="flex flex-wrap items-end gap-3">
-            {/* Preserve current filters */}
-            {name ? <input type="hidden" name="name" value={name} /> : null}
-            {city ? <input type="hidden" name="city" value={city} /> : null}
-            {service ? <input type="hidden" name="service" value={service} /> : null}
-            <input type="hidden" name="match" value={match} />
-            {minRating ? <input type="hidden" name="minRating" value={minRating} /> : null}
-            {verified ? <input type="hidden" name="verified" value={verified} /> : null}
-            <input type="hidden" name="page" value="1" />
-            <label className="text-sm font-medium">
-              Page size
-              <select
-                name="limit"
-                defaultValue={String(limit)}
-                className="ml-2 rounded-xl border border-slate-200/80 bg-white/70 px-3 py-2 text-sm focus:outline-none focus:ring-4 focus:ring-indigo-200"
-              >
-                <option value="12">12</option>
-                <option value="20">20</option>
-                <option value="30">30</option>
-                <option value="50">50</option>
-              </select>
-            </label>
-
-            <label className="text-sm font-medium">
-              Sort
-              <select name="sort" defaultValue={sort} className="ml-2 rounded-xl border border-slate-200/80 bg-white/70 px-3 py-2 text-sm focus:outline-none focus:ring-4 focus:ring-indigo-200">
-                <option value="newest">Newest</option>
-                <option value="name">Name</option>
-                <option value="rating">Rating</option>
-                <option value="verified">Verified</option>
-              </select>
-            </label>
-
-            <label className="text-sm font-medium">
-              Order
-              <select
-                name="order"
-                defaultValue={order ?? (sort === 'name' ? 'asc' : 'desc')}
-                className="ml-2 rounded-xl border border-slate-200/80 bg-white/70 px-3 py-2 text-sm focus:outline-none focus:ring-4 focus:ring-indigo-200"
-              >
-                <option value="asc">Asc</option>
-                <option value="desc">Desc</option>
-              </select>
-            </label>
-
-            <button
-              type="submit"
-              className="rounded-xl bg-gradient-to-r from-indigo-600 to-indigo-700 text-white px-4 py-2 font-medium shadow-sm hover:opacity-95 focus:outline-none focus:ring-4 focus:ring-indigo-200"
-            >
-              Apply
-            </button>
-          </form>
-        </div>
-
-        {/* Filters bar */}
-        <form method="GET" className="flex flex-wrap items-end gap-3 rounded-2xl border border-slate-200/80 bg-white/70 p-4 mb-4 shadow-[0_14px_45px_rgba(2,6,23,0.08)] backdrop-blur">
-          {/* Preserve sorting/pagination when changing filters */}
-          <input type="hidden" name="sort" value={sort} />
-          <input type="hidden" name="order" value={order ?? (sort === 'name' ? 'asc' : 'desc')} />
-          <input type="hidden" name="limit" value={String(limit)} />
-          <input type="hidden" name="page" value="1" />
-
-          {/* Existing filters that might be set elsewhere */}
-          {name ? <input type="hidden" name="name" value={name} /> : null}
-          {city ? <input type="hidden" name="city" value={city} /> : null}
-
-          {/* Services + match */}
-          <label className="text-sm font-medium">
-            Services
-            <input
-              type="text"
-              name="service"
-              defaultValue={service ?? ''}
-              placeholder="e.g. seo,ads,social"
-              className="ml-2 rounded-xl border border-slate-200/80 bg-white/70 px-3 py-2 text-sm w-64 focus:outline-none focus:ring-4 focus:ring-indigo-200"
-            />
-          </label>
-
-          <label className="text-sm font-medium">
-            Match
-            <select name="match" defaultValue={match} className="ml-2 rounded-xl border border-slate-200/80 bg-white/70 px-3 py-2 text-sm focus:outline-none focus:ring-4 focus:ring-indigo-200">
-              <option value="any">Any</option>
-              <option value="all">All</option>
-            </select>
-          </label>
-
-          {/* Verified-only toggle */}
-          <label className="text-sm font-medium flex items-center gap-2">
-            <input type="checkbox" name="verified" value="1" defaultChecked={verified === '1' || (verified ?? '').toLowerCase() === 'true'} className="rounded border-slate-200/80" />
-            Verified only
-          </label>
-
-          {/* Min rating quick presets */}
-          <div className="ml-auto flex items-center gap-2">
-            <span className="text-sm text-gray-600">Min rating:</span>
-            {[
-              { label: 'None', value: '' },
-              { label: '3.0+', value: '3.0' },
-              { label: '4.0+', value: '4.0' },
-              { label: '4.5+', value: '4.5' },
-            ].map((opt) => {
-              const isActive = (!minRating && opt.value === '') || (minRating && opt.value === minRating);
-              const href = `/providers?${toQS({
-                name,
-                city,
-                service,
-                match,
-                verified,
-                sort,
-                order,
-                limit: String(limit),
-                page: '1',
-                minRating: opt.value || undefined,
-              })}`;
-              return (
-                <Link
-                  key={opt.label}
-                  href={href}
-                  className={`rounded-xl border px-3 py-2 text-xs font-medium transition ${
-                    isActive ? 'bg-gradient-to-r from-indigo-600 to-indigo-700 text-white border-indigo-600 shadow-sm' : 'border-slate-200/80 bg-white/70 hover:bg-white/90 hover:shadow-sm'
-                  }`}
-                >
-                  {opt.label}
+        <section className={`mt-6 ${SECTION_CLASS}`}>
+          <details className="group md:hidden">
+            <summary className="ml-surface flex cursor-pointer list-none items-center justify-between gap-4 rounded-[1.4rem] px-4 py-4 shadow-sm">
+              <div className="min-w-0">
+                <div className="text-[11px] font-medium uppercase tracking-[0.22em] text-slate-500">Filters</div>
+                <h2 className="mt-1 text-xl font-semibold tracking-tight text-slate-900">Refine the shortlist</h2>
+                <p className="mt-1 text-sm text-slate-600">
+                  {activeFilters.length > 0 ? `${activeFilters.length} active filter${activeFilters.length > 1 ? 's' : ''}` : 'Open filters to narrow the list'}
+                </p>
+              </div>
+              <div className="flex flex-col items-end gap-2">
+                <span className="ml-btn-secondary rounded-xl px-4 py-2 text-sm font-medium normal-case tracking-normal group-open:hidden">Open</span>
+                <span className="ml-btn-secondary hidden rounded-xl px-4 py-2 text-sm font-medium normal-case tracking-normal group-open:inline-flex">Close</span>
+              </div>
+            </summary>
+            <div className="ml-surface mt-4 rounded-[1.4rem] p-4 shadow-sm">
+              <div className="mb-4 flex items-center justify-between gap-3">
+                <div className="text-sm font-medium text-slate-700">Set filters and apply when ready.</div>
+                <Link href="/providers" className="text-sm font-medium text-slate-600 underline underline-offset-4 hover:text-slate-900">
+                  Clear
                 </Link>
-              );
-            })}
-          </div>
+              </div>
+              <FiltersForm name={name} city={city} service={service} match={match} minRating={minRating} sort={sort} order={order} limit={limit} verified={verified} compact />
+            </div>
+          </details>
 
-          <button type="submit" className="rounded bg-black text-white text-sm px-3 py-1">
-            Filter
-          </button>
-        </form>
-
-        {/* Results grid */}
-        {data.length === 0 ? (
-          <div className="rounded border p-6 text-center text-gray-600">No providers found. Try adjusting filters.</div>
-        ) : (
-          <ul className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
-            {data.map((p) => (
-              <ProviderCard key={p.id} provider={p} />
-            ))}
-          </ul>
-        )}
-
-        {/* Pagination */}
-        <div className="mt-8 flex items-center justify-between">
-          <div className="text-sm text-gray-600">
-            Showing {(meta.page - 1) * meta.limit + 1}-{Math.min(meta.page * meta.limit, meta.total)} of {meta.total}
-          </div>
-          <div className="flex items-center gap-1">
-            <Link aria-disabled={page <= 1} className={`px-3 py-1 rounded border text-sm ${page <= 1 ? 'pointer-events-none opacity-50' : 'hover:bg-gray-50'}`} href={`/providers?${prevParams}`}>
-              Prev
-            </Link>
-
-            {pageWindow.map((p, i) =>
-              typeof p === 'number' ? (
-                <Link
-                  key={`${p}-${i}`}
-                  href={`/providers?${toQS({ ...baseParams, page: String(p) })}`}
-                  className={`px-3 py-1 rounded border text-sm ${p === page ? 'bg-black text-white border-black' : 'hover:bg-gray-50'}`}
-                >
-                  {p}
-                </Link>
-              ) : (
-                <span key={`dots-${p}-${i}`} className="px-2 text-sm text-gray-400">
-                  {p}
-                </span>
-              ),
-            )}
-
-            <Link
-              aria-disabled={page >= totalPages}
-              className={`px-3 py-1 rounded border text-sm ${page >= totalPages ? 'pointer-events-none opacity-50' : 'hover:bg-gray-50'}`}
-              href={`/providers?${nextParams}`}>
-              Next
+          <div className="hidden flex-col gap-3 md:flex md:flex-row md:items-end md:justify-between">
+            <div>
+              <div className="text-[11px] font-medium uppercase tracking-[0.22em] text-slate-500">Filters</div>
+              <h2 className="mt-2 text-2xl font-semibold tracking-tight text-slate-900">Refine the shortlist</h2>
+            </div>
+            <Link href="/providers" className="text-sm font-medium text-slate-600 underline underline-offset-4 hover:text-slate-900">
+              Clear all filters
             </Link>
           </div>
-        </div>
+
+          <div className="mt-5 hidden md:block">
+            <FiltersForm name={name} city={city} service={service} match={match} minRating={minRating} sort={sort} order={order} limit={limit} verified={verified} />
+          </div>
+        </section>
+
+        <section className={`mt-6 ${SECTION_CLASS}`}>
+          <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+            <div>
+              <h2 className="text-2xl font-semibold tracking-tight text-slate-900">Directory results</h2>
+              <p className="mt-1 text-sm text-slate-600">
+                Showing {(meta.page - 1) * meta.limit + 1}-{Math.min(meta.page * meta.limit, meta.total)} of {meta.total}
+              </p>
+            </div>
+
+            {activeFilters.length > 0 ? (
+              <div className="flex flex-wrap gap-2">
+                {activeFilters.map((item) => (
+                  <span key={item.label} className={`${PILL_CLASS} px-3`}>
+                    {item.label}
+                  </span>
+                ))}
+              </div>
+            ) : null}
+          </div>
+
+          {data.length === 0 ? (
+            <div className="ml-card mt-5 rounded-[1.5rem] p-8 text-center text-slate-600 shadow-[0_16px_40px_rgba(23,26,31,0.06)]">
+              No providers found. Try adjusting your filters.
+            </div>
+          ) : (
+            <ul className="mt-5 grid grid-cols-1 gap-4 xl:grid-cols-2">
+              {data.map((p) => (
+                <ProviderCard key={p.id} provider={p} />
+              ))}
+            </ul>
+          )}
+          <div className="mt-8 flex flex-col gap-4 border-t border-[rgba(var(--ml-border),0.7)] pt-6 sm:flex-row sm:items-center sm:justify-between">
+            <div className="text-sm text-slate-600">
+              Page {meta.page} of {meta.totalPages}
+            </div>
+
+            <div className="flex flex-wrap items-center gap-2">
+              <Link
+                aria-disabled={page <= 1}
+                className={`inline-flex items-center rounded-xl border px-4 py-2 text-sm font-medium ${
+                  page <= 1 ? 'pointer-events-none ml-btn-secondary text-slate-400 opacity-60' : 'ml-btn-secondary text-slate-800'
+                }`}
+                href={`/providers?${prevParams}`}
+              >
+                Prev
+              </Link>
+
+              {pageWindow.map((item, index) =>
+                typeof item === 'number' ? (
+                  <Link
+                    key={`${item}-${index}`}
+                    href={`/providers?${toQS({ ...baseParams, page: String(item) })}`}
+                    className={`inline-flex h-10 w-10 items-center justify-center rounded-xl border text-sm font-medium ${
+                      item === page ? 'ml-btn-primary border-transparent text-white' : 'ml-btn-secondary text-slate-800'
+                    }`}
+                  >
+                    {item}
+                  </Link>
+                ) : (
+                  <span key={`dots-${index}`} className="px-2 text-sm text-slate-400">
+                    {item}
+                  </span>
+                ),
+              )}
+
+              <Link
+                aria-disabled={page >= totalPages}
+                className={`inline-flex items-center rounded-xl border px-4 py-2 text-sm font-medium ${
+                  page >= totalPages ? 'pointer-events-none ml-btn-secondary text-slate-400 opacity-60' : 'ml-btn-secondary text-slate-800'
+                }`}
+                href={`/providers?${nextParams}`}
+              >
+                Next
+              </Link>
+            </div>
+          </div>
+        </section>
       </div>
     </main>
   );
 }
+

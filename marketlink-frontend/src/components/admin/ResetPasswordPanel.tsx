@@ -25,32 +25,58 @@ export default function ResetPasswordPanel({ providerId, providerEmail }: { prov
         body: JSON.stringify({}),
       });
 
-      const data = (await res.json().catch(() => ({}))) as any;
+      const data = (await res.json().catch(() => ({}))) as { error?: string; tempPassword?: string; emailSent?: boolean };
       if (!res.ok) {
         setResult({ ok: false, error: data?.error || 'Reset failed.' });
       } else {
         setResult({ ok: true, tempPassword: data?.tempPassword, emailSent: data?.emailSent });
       }
-    } catch (err: any) {
-      setResult({ ok: false, error: err?.message || 'Reset failed.' });
+    } catch (err: unknown) {
+      setResult({ ok: false, error: err instanceof Error ? err.message : 'Reset failed.' });
     } finally {
       setBusy(false);
     }
   };
 
   return (
-    <div className="space-y-3">
-      <div className="text-xs text-gray-500">Send a new temp password to {providerEmail}.</div>
-      <button type="button" onClick={reset} disabled={busy} className="rounded border px-3 py-1.5 text-xs hover:bg-gray-50 disabled:opacity-60">
+    <div className="space-y-4">
+      <div className="rounded-[24px] border border-slate-200/80 bg-[linear-gradient(180deg,rgba(248,250,252,0.98),rgba(226,232,240,0.72))] p-4 shadow-[0_10px_30px_rgba(15,23,42,0.04)]">
+        <div className="text-xs font-semibold uppercase tracking-[0.24em] text-slate-400">Password reset</div>
+        <p className="mt-2 text-sm leading-6 text-slate-600">
+          Send a new temporary password to <span className="font-medium text-slate-800">{providerEmail}</span>.
+        </p>
+      </div>
+
+      <button
+        type="button"
+        onClick={reset}
+        disabled={busy}
+        className="w-full rounded-full bg-slate-900 px-4 py-3 text-sm font-semibold text-white shadow-[0_18px_34px_rgba(15,23,42,0.16)] transition hover:bg-slate-800 disabled:cursor-not-allowed disabled:opacity-60 sm:w-auto"
+      >
         {busy ? 'Resetting...' : 'Reset password'}
       </button>
 
       {result ? (
-        <div className={`rounded border px-2 py-1.5 text-xs ${result.ok ? 'bg-green-50 text-green-800 border-green-200' : 'bg-red-50 text-red-800 border-red-200'}`}>
+        <div
+          className={`rounded-[24px] border px-4 py-4 text-sm shadow-[0_10px_30px_rgba(15,23,42,0.04)] ${
+            result.ok
+              ? 'border-emerald-200 bg-[linear-gradient(180deg,rgba(236,253,245,0.95),rgba(209,250,229,0.88))] text-emerald-800'
+              : 'border-red-200 bg-[linear-gradient(180deg,rgba(254,242,242,0.95),rgba(254,226,226,0.9))] text-red-800'
+          }`}
+        >
           {result.ok ? (
-            <div className="space-y-1">
-              <div>Email sent: {result.emailSent ? 'yes' : 'no'}</div>
-              {result.tempPassword ? <div>Temp password: <span className="font-mono">{result.tempPassword}</span></div> : null}
+            <div className="space-y-3">
+              <div>
+                <div className="font-semibold text-emerald-900">Password reset created</div>
+                <div className="mt-1 text-emerald-800">Email sent: {result.emailSent ? 'yes' : 'no'}</div>
+              </div>
+              {result.tempPassword ? (
+                <div className="rounded-[22px] border border-emerald-200 bg-white/85 px-4 py-3 shadow-[0_8px_24px_rgba(16,185,129,0.08)]">
+                  <div className="text-xs font-semibold uppercase tracking-[0.24em] text-emerald-700">Temp password</div>
+                  <div className="mt-2 break-all font-mono text-sm text-slate-900">{result.tempPassword}</div>
+                </div>
+              ) : null}
+              <div className="text-xs text-emerald-800">The provider should change this password on the next sign-in.</div>
             </div>
           ) : (
             <div>{result.error}</div>

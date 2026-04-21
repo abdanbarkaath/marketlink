@@ -19,17 +19,23 @@ export default function LogoutButton({ className = '' }: { className?: string })
         credentials: 'include',
       });
     } catch {
-      // ignore network errors; still proceed with redirect
+      // Ignore network errors; still proceed with redirect.
     } finally {
       setLoading(false);
-      router.replace('/'); // triggers AppHeader re-check (pathname changes)
+      router.replace('/');
       router.refresh();
     }
   }
 
   return (
-    <button onClick={handleLogout} className={`rounded-xl border px-3 py-2 text-sm font-medium hover:bg-gray-50 disabled:opacity-60 ${className}`} disabled={loading}>
-      {loading ? 'Logging out…' : 'Log out'}
+    <button
+      type="button"
+      onClick={handleLogout}
+      className={`inline-flex items-center justify-center rounded-xl px-3 py-2 text-sm font-medium transition disabled:cursor-not-allowed disabled:opacity-60 ${className}`}
+      disabled={loading}
+      aria-busy={loading}
+    >
+      {loading ? 'Logging out...' : 'Log out'}
     </button>
   );
 }

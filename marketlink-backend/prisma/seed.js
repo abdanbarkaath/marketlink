@@ -66,11 +66,6 @@ async function main() {
           altText: "Campaign dashboard overview for Windy City Growth",
         },
         {
-          type: "video",
-          url: "https://www.youtube.com/watch?v=dQw4w9WgXcQ",
-          altText: "Video walkthrough of campaign reporting and lead flow improvements",
-        },
-        {
           type: "gallery",
           url: "https://windycitygrowth.com",
           altText: "Windy City Growth website preview",

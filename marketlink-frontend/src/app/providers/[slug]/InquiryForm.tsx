@@ -10,10 +10,11 @@ export default function InquiryForm({ providerSlug }: { providerSlug: string }) 
   const [saving, setSaving] = useState(false);
   const [sent, setSent] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const fieldClass = 'ml-input w-full rounded-2xl px-4 py-3 text-sm text-slate-900';
 
   async function onSubmit(e: React.FormEvent<HTMLFormElement>) {
     e.preventDefault();
-    if (saving) return; // hard guard (prevents double submit)
+    if (saving) return;
 
     setError(null);
     setSent(false);
@@ -40,7 +41,7 @@ export default function InquiryForm({ providerSlug }: { providerSlug: string }) 
       const res = await fetch(`${API_BASE}/inquiries`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        credentials: 'include', // safe even if not needed
+        credentials: 'include',
         cache: 'no-store',
         body: JSON.stringify({ providerSlug, name, email, phone, message }),
       });
@@ -71,28 +72,31 @@ export default function InquiryForm({ providerSlug }: { providerSlug: string }) 
   }
 
   return (
-    <div className={`rounded-2xl ${t.surface} ${t.border} border p-6 shadow-[0_14px_45px_rgba(2,6,23,0.08)] backdrop-blur`}>
-      {sent && <div className="rounded-xl border border-green-200 bg-green-50 p-3 text-sm text-green-800 mb-4">Message sent!</div>}
+    <div className="ml-card rounded-[1.35rem] p-5 shadow-[0_14px_40px_rgba(23,26,31,0.08)]">
+      <div className="mb-5 flex items-start justify-between gap-4 border-b border-[#d4c6b4]/70 pb-4">
+        <div>
+          <div className="text-[11px] font-medium uppercase tracking-[0.18em] text-slate-500">Inquiry form</div>
+          <p className="mt-2 text-sm leading-6 text-slate-600">Share your goals, budget range, and timeline. The provider will receive it directly.</p>
+        </div>
+        <span className="ml-pill rounded-xl px-3 py-1 text-[11px] font-medium uppercase tracking-[0.18em]">
+          Fast response
+        </span>
+      </div>
 
-      {error && (
-        <div role="alert" className="rounded-xl border border-red-200 bg-red-50 p-3 text-sm text-red-800 mb-4">
+      {sent ? <div className="mb-4 rounded-2xl border border-green-200 bg-green-50 px-4 py-3 text-sm text-green-800">Message sent!</div> : null}
+
+      {error ? (
+        <div role="alert" className="mb-4 rounded-2xl border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-800">
           {error}
         </div>
-      )}
+      ) : null}
 
       <form onSubmit={onSubmit} className="space-y-4">
         <div className="grid gap-2">
           <label htmlFor="name" className={`text-sm font-medium ${t.mutedText}`}>
             Name *
           </label>
-          <input
-            id="name"
-            name="name"
-            required
-            disabled={saving}
-            className={`w-full rounded-xl ${t.border} border ${t.surfaceMuted} px-4 py-3 text-sm focus:outline-none focus:ring-4 focus:ring-indigo-200`}
-            placeholder="Jane"
-          />
+          <input id="name" name="name" required disabled={saving} className={fieldClass} placeholder="Jane" />
         </div>
 
         <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
@@ -100,28 +104,14 @@ export default function InquiryForm({ providerSlug }: { providerSlug: string }) 
             <label htmlFor="email" className={`text-sm font-medium ${t.mutedText}`}>
               Email *
             </label>
-            <input
-              id="email"
-              name="email"
-              type="email"
-              required
-              disabled={saving}
-              className={`w-full rounded-xl ${t.border} border ${t.surfaceMuted} px-4 py-3 text-sm focus:outline-none focus:ring-4 focus:ring-indigo-200`}
-              placeholder="you@cafe.com"
-            />
+            <input id="email" name="email" type="email" required disabled={saving} className={fieldClass} placeholder="you@cafe.com" />
           </div>
 
           <div className="grid gap-2">
             <label htmlFor="phone" className={`text-sm font-medium ${t.mutedText}`}>
               Phone
             </label>
-            <input
-              id="phone"
-              name="phone"
-              disabled={saving}
-              className={`w-full rounded-xl ${t.border} border ${t.surfaceMuted} px-4 py-3 text-sm focus:outline-none focus:ring-4 focus:ring-indigo-200`}
-              placeholder="Optional"
-            />
+            <input id="phone" name="phone" disabled={saving} className={fieldClass} placeholder="Optional" />
           </div>
         </div>
 
@@ -135,19 +125,19 @@ export default function InquiryForm({ providerSlug }: { providerSlug: string }) 
             required
             rows={4}
             disabled={saving}
-            className={`w-full rounded-xl ${t.border} border ${t.surfaceMuted} px-4 py-3 text-sm focus:outline-none focus:ring-4 focus:ring-indigo-200 resize-none`}
+            className={`${fieldClass} min-h-[132px] resize-none`}
             placeholder="What do you need help with?"
           />
         </div>
 
-        <div className="flex items-center justify-between pt-2">
+        <div className="flex flex-col gap-3 border-t border-[#d4c6b4]/70 pt-4 sm:flex-row sm:items-center sm:justify-between">
           <p className={`text-sm ${t.mutedText}`}>* required</p>
           <button
             type="submit"
             disabled={saving}
-            className={`rounded-xl px-6 py-3 text-sm font-semibold text-white shadow-sm transition ${t.primaryBtn} ${saving ? 'opacity-60' : 'hover:opacity-95'}`}
+            className={`ml-btn-primary inline-flex min-h-11 items-center justify-center rounded-xl px-6 text-sm font-semibold text-white shadow-sm transition ${saving ? 'opacity-60' : 'hover:opacity-95'}`}
           >
-            {saving ? 'Sending…' : 'Send Message'}
+            {saving ? 'Sending...' : 'Send message'}
           </button>
         </div>
       </form>
