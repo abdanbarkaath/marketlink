@@ -99,15 +99,20 @@ async function adminPATCH(path: string, body: unknown) {
   }
 }
 
-export default async function AdminOverviewPage({ searchParams }: { searchParams: Record<string, string | string[] | undefined> }) {
+type AdminOverviewPageProps = {
+  searchParams: Promise<Record<string, string | string[] | undefined>>;
+};
+
+export default async function AdminOverviewPage({ searchParams }: AdminOverviewPageProps) {
   const apiBase = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:4000';
   const cookie = headers().get('cookie') || '';
+  const resolvedSearchParams = await searchParams;
 
-  const query = typeof searchParams.query === 'string' ? searchParams.query : undefined;
-  const status = typeof searchParams.status === 'string' ? searchParams.status : '';
-  const verified = typeof searchParams.verified === 'string' ? searchParams.verified : '';
-  const page = Math.max(1, parseInt(String(searchParams.page ?? '1'), 10) || 1);
-  const limit = Math.min(50, Math.max(1, parseInt(String(searchParams.limit ?? '20'), 10) || 20));
+  const query = typeof resolvedSearchParams.query === 'string' ? resolvedSearchParams.query : undefined;
+  const status = typeof resolvedSearchParams.status === 'string' ? resolvedSearchParams.status : '';
+  const verified = typeof resolvedSearchParams.verified === 'string' ? resolvedSearchParams.verified : '';
+  const page = Math.max(1, parseInt(String(resolvedSearchParams.page ?? '1'), 10) || 1);
+  const limit = Math.min(50, Math.max(1, parseInt(String(resolvedSearchParams.limit ?? '20'), 10) || 20));
 
   const statsRes = await fetch(`${apiBase}/admin/stats`, {
     cache: 'no-store',
