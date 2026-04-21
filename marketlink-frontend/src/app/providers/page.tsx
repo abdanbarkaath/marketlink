@@ -349,7 +349,7 @@ export default async function ProvidersPage({ searchParams }: ProvidersPageProps
     limit: String(limit),
   });
 
-  const apiBase = process.env.API_BASE_URL || process.env.NEXT_PUBLIC_API_BASE_URL || 'http://localhost:4000';
+  const apiBase = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:4000';
 
   const res = await fetch(`${apiBase}/providers?${qs}`, {
     cache: 'no-store',
