@@ -317,18 +317,24 @@ function buildPageWindow(current: number, total: number, span = 5): (number | st
   return pages;
 }
 
-export default async function ProvidersPage({ searchParams }: { searchParams: Record<string, string | string[] | undefined> }) {
-  const name = typeof searchParams.name === 'string' ? searchParams.name : undefined;
-  const city = typeof searchParams.city === 'string' ? searchParams.city : undefined;
-  const service = typeof searchParams.service === 'string' ? searchParams.service : undefined;
-  const match = (typeof searchParams.match === 'string' ? searchParams.match : 'any') as 'any' | 'all';
-  const minRating = typeof searchParams.minRating === 'string' ? searchParams.minRating : undefined;
-  const verified = typeof searchParams.verified === 'string' ? searchParams.verified : undefined;
+type ProvidersPageProps = {
+  searchParams: Promise<Record<string, string | string[] | undefined>>;
+};
 
-  const sort = (typeof searchParams.sort === 'string' ? searchParams.sort : 'newest') as 'newest' | 'name' | 'rating' | 'verified';
-  const order = (typeof searchParams.order === 'string' ? searchParams.order : undefined) as 'asc' | 'desc' | undefined;
-  const page = Math.max(1, parseInt(String(searchParams.page ?? '1'), 10) || 1);
-  const limit = Math.min(50, Math.max(1, parseInt(String(searchParams.limit ?? '20'), 10) || 20));
+export default async function ProvidersPage({ searchParams }: ProvidersPageProps) {
+  const resolvedSearchParams = await searchParams;
+
+  const name = typeof resolvedSearchParams.name === 'string' ? resolvedSearchParams.name : undefined;
+  const city = typeof resolvedSearchParams.city === 'string' ? resolvedSearchParams.city : undefined;
+  const service = typeof resolvedSearchParams.service === 'string' ? resolvedSearchParams.service : undefined;
+  const match = (typeof resolvedSearchParams.match === 'string' ? resolvedSearchParams.match : 'any') as 'any' | 'all';
+  const minRating = typeof resolvedSearchParams.minRating === 'string' ? resolvedSearchParams.minRating : undefined;
+  const verified = typeof resolvedSearchParams.verified === 'string' ? resolvedSearchParams.verified : undefined;
+
+  const sort = (typeof resolvedSearchParams.sort === 'string' ? resolvedSearchParams.sort : 'newest') as 'newest' | 'name' | 'rating' | 'verified';
+  const order = (typeof resolvedSearchParams.order === 'string' ? resolvedSearchParams.order : undefined) as 'asc' | 'desc' | undefined;
+  const page = Math.max(1, parseInt(String(resolvedSearchParams.page ?? '1'), 10) || 1);
+  const limit = Math.min(50, Math.max(1, parseInt(String(resolvedSearchParams.limit ?? '20'), 10) || 20));
 
   const qs = toQS({
     name,

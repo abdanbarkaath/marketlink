@@ -1,3 +1,4 @@
+import type { ReactNode } from 'react';
 import Link from 'next/link';
 import { headers } from 'next/headers';
 import { redirect } from 'next/navigation';
@@ -72,7 +73,7 @@ function parseServices(raw: string) {
   return Array.from(new Set(parts)).slice(0, 50);
 }
 
-function Badge({ children }: { children: React.ReactNode }) {
+function Badge({ children }: { children: ReactNode }) {
   return <span className="inline-flex items-center rounded-full border border-slate-200/80 bg-white px-3 py-1 text-xs font-medium text-slate-700 shadow-sm">{children}</span>;
 }
 
@@ -95,7 +96,7 @@ function SectionTitle({ title, subtitle }: { title: string; subtitle?: string })
   );
 }
 
-function Field({ label, hint, children }: { label: string; hint?: string; children: React.ReactNode }) {
+function Field({ label, hint, children }: { label: string; hint?: string; children: ReactNode }) {
   return (
     <div className="grid gap-1.5">
       <div className="flex items-center justify-between gap-3">
@@ -107,8 +108,12 @@ function Field({ label, hint, children }: { label: string; hint?: string; childr
   );
 }
 
-export default async function AdminProviderEditPage({ params }: { params: { id: string } }) {
-  const { id } = params;
+type AdminProviderEditPageProps = {
+  params: Promise<{ id: string }>;
+};
+
+export default async function AdminProviderEditPage({ params }: AdminProviderEditPageProps) {
+  const { id } = await params;
 
   const data = await adminFetchJSON<{ ok: true; provider: Provider }>(`/admin/providers/${id}`);
   const p = data.provider;

@@ -2,7 +2,7 @@
 
 import Link from 'next/link';
 import { useRouter, useSearchParams } from 'next/navigation';
-import React, { useCallback, useEffect, useMemo, useState } from 'react';
+import React, { Suspense, useCallback, useEffect, useMemo, useState } from 'react';
 
 type MeSummaryResponse =
   | {
@@ -29,7 +29,20 @@ function pickRedirect(role: 'provider' | 'admin', desiredPath: string) {
   return desiredPath;
 }
 
-export default function LoginPage() {
+function LoginLoadingState({ message }: { message: string }) {
+  return (
+    <main className="ml-page-bg min-h-[calc(100vh-80px)]">
+      <div className="mx-auto max-w-7xl px-4 py-6 sm:px-6 sm:py-10">
+        <div className="ml-card rounded-[2rem] px-6 py-8 shadow-[0_18px_48px_rgba(23,26,31,0.08)]">
+          <h1 className="text-2xl font-semibold tracking-tight text-slate-900">Login</h1>
+          <p className="mt-2 text-sm text-slate-600">{message}</p>
+        </div>
+      </div>
+    </main>
+  );
+}
+
+function LoginPageContent() {
   const router = useRouter();
   const searchParams = useSearchParams();
 
@@ -132,16 +145,7 @@ export default function LoginPage() {
   }
 
   if (checkingSession) {
-    return (
-      <main className="ml-page-bg min-h-[calc(100vh-80px)]">
-        <div className="mx-auto max-w-7xl px-4 py-6 sm:px-6 sm:py-10">
-          <div className="ml-card rounded-[2rem] px-6 py-8 shadow-[0_18px_48px_rgba(23,26,31,0.08)]">
-            <h1 className="text-2xl font-semibold tracking-tight text-slate-900">Login</h1>
-            <p className="mt-2 text-sm text-slate-600">Checking your session...</p>
-          </div>
-        </div>
-      </main>
-    );
+    return <LoginLoadingState message="Checking your session..." />;
   }
 
   return (
@@ -258,6 +262,14 @@ export default function LoginPage() {
         </section>
       </div>
     </main>
+  );
+}
+
+export default function LoginPage() {
+  return (
+    <Suspense fallback={<LoginLoadingState message="Loading sign-in..." />}>
+      <LoginPageContent />
+    </Suspense>
   );
 }
 
