@@ -1,77 +1,227 @@
 @import "tailwindcss";
 
-/* optional base tweaks */
-html, body { height: 100%; }
-/* ===== Theme tokens (vibrant) ===== */
+html,
+body {
+  height: 100%;
+}
+
 :root {
-  /* text + borders */
-  --ml-text: 17 24 39;
-  --ml-muted: 107 114 128;
-  --ml-border: 226 232 240;
+  --ml-text: 24 28 34;
+  --ml-muted: 96 104 116;
+  --ml-border: 227 228 232;
 
-  /* surfaces */
-  --ml-surface: 255 255 255;        /* cards/header */
-  --ml-surface-2: 248 250 252;      /* soft panels */
+  --ml-surface: 255 255 255;
+  --ml-surface-2: 250 247 243;
 
-  /* brand */
-  --ml-primary: 79 70 229;          /* indigo */
-  --ml-primary-hover: 67 56 202;
-  --ml-primary-contrast: 255 255 255;
+  --ml-primary: 15 23 42;
+  --ml-primary-hover: 10 18 34;
+  --ml-primary-contrast: 248 250 252;
 
-  /* “vibrance” */
-  --ml-bg-grad: radial-gradient(900px circle at 20% -10%, rgba(79,70,229,.25), transparent 55%),
-                radial-gradient(700px circle at 90% 10%, rgba(14,165,233,.18), transparent 50%),
-                radial-gradient(700px circle at 50% 110%, rgba(236,72,153,.12), transparent 55%),
-                linear-gradient(to bottom, #f8fafc, #ffffff);
+  --ml-bg-grad:
+    radial-gradient(circle at top left, rgba(246, 242, 238, 0.34), transparent 30%),
+    radial-gradient(circle at top right, rgba(230, 232, 236, 0.08), transparent 24%),
+    linear-gradient(180deg, rgba(255, 255, 255, 0.998) 0%, rgba(252, 251, 249, 1) 52%, rgba(248, 245, 241, 1) 100%);
 
-  --ml-card-grad: linear-gradient(180deg, rgba(255,255,255,.92), rgba(255,255,255,.82));
-  --ml-glow: 0 20px 60px rgba(2,6,23,.10);
-  --ml-ring: rgba(79,70,229,.35);
+  --ml-card-grad: linear-gradient(180deg, rgba(255, 255, 255, 0.985), rgba(250, 247, 243, 0.95));
+  --ml-card-hover-grad: linear-gradient(180deg, rgba(253, 252, 250, 0.985), rgba(247, 243, 239, 0.96));
+  --ml-glow: 0 24px 72px rgba(23, 26, 31, 0.10);
+  --ml-ring: rgba(91, 127, 163, 0.22);
+  --ml-header-bg: linear-gradient(180deg, rgba(37, 50, 74, 0.96), rgba(15, 23, 42, 0.98));
+  --ml-header-border: rgba(56, 70, 97, 0.82);
+  --ml-header-text: 248 250 252;
+  --ml-header-muted: 236 239 244;
+  --ml-brand-bg: linear-gradient(180deg, rgba(252, 250, 247, 1), rgba(242, 238, 232, 1));
+  --ml-brand-fg: 15 23 42;
+  --ml-btn-primary-bg: linear-gradient(180deg, rgba(37, 50, 74, 1), rgba(15, 23, 42, 1));
+  --ml-btn-primary-hover: linear-gradient(180deg, rgba(46, 62, 90, 1), rgba(20, 30, 52, 1));
+  --ml-btn-secondary-bg: linear-gradient(180deg, rgba(255, 255, 255, 0.97), rgba(250, 247, 243, 0.95));
+  --ml-btn-secondary-hover: linear-gradient(180deg, rgba(253, 252, 250, 0.985), rgba(247, 243, 239, 0.96));
+  --ml-btn-secondary-text: 15 23 42;
+  --ml-surface-grad: linear-gradient(180deg, rgba(255, 255, 255, 0.95), rgba(250, 247, 243, 0.96));
+  --ml-surface-muted-grad: linear-gradient(180deg, rgba(252, 251, 249, 0.985), rgba(246, 243, 239, 0.9));
+  --ml-input-grad: linear-gradient(180deg, rgba(255, 255, 255, 0.985), rgba(250, 247, 243, 0.94));
+  --ml-pill-bg: rgba(255, 255, 255, 0.92);
+  --ml-pill-muted-bg: rgba(246, 243, 239, 0.84);
+  --ml-pill-text: 96 104 116;
+  --ml-pill-muted-text: 111 102 92;
+  --ml-dark-panel-bg: linear-gradient(180deg, rgba(37, 50, 74, 1), rgba(15, 23, 42, 1));
+  --ml-dark-panel-border: rgba(56, 70, 97, 0.85);
+  --ml-dark-panel-text: 248 250 252;
+  --ml-accent: 91 127 163;
 }
 
-/* Teal Breeze */
-html[data-theme='teal'] {
-  --ml-primary: 13 148 136;
-  --ml-primary-hover: 15 118 110;
-  --ml-ring: rgba(13,148,136,.35);
-
-  --ml-bg-grad: radial-gradient(900px circle at 20% -10%, rgba(13,148,136,.22), transparent 55%),
-                radial-gradient(700px circle at 90% 10%, rgba(56,189,248,.16), transparent 50%),
-                radial-gradient(700px circle at 50% 110%, rgba(34,197,94,.10), transparent 55%),
-                linear-gradient(to bottom, #f0fdfa, #ffffff);
-}
-
-/* Sunset */
-html[data-theme='amber'] {
-  --ml-primary: 217 119 6;
-  --ml-primary-hover: 180 83 9;
-  --ml-ring: rgba(217,119,6,.35);
-
-  --ml-bg-grad: radial-gradient(900px circle at 20% -10%, rgba(245,158,11,.25), transparent 55%),
-                radial-gradient(700px circle at 90% 10%, rgba(251,113,133,.16), transparent 50%),
-                radial-gradient(700px circle at 50% 110%, rgba(244,63,94,.10), transparent 55%),
-                linear-gradient(to bottom, #fffbeb, #ffffff);
-}
-
-/* Mono (still classy, but not dead) */
-html[data-theme='mono'] {
-  --ml-primary: 17 24 39;
-  --ml-primary-hover: 0 0 0;
-  --ml-ring: rgba(17,24,39,.28);
-
-  --ml-bg-grad: radial-gradient(900px circle at 20% -10%, rgba(2,6,23,.14), transparent 55%),
-                radial-gradient(700px circle at 90% 10%, rgba(2,6,23,.10), transparent 50%),
-                linear-gradient(to bottom, #f8fafc, #ffffff);
-}
-
-/* Apply background globally */
 body {
   background: var(--ml-bg-grad);
   color: rgb(var(--ml-text));
+  text-rendering: optimizeLegibility;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
 }
 
-/* Optional: nicer focus ring (keeps a11y) */
+a {
+  text-underline-offset: 0.18em;
+}
+
+::selection {
+  background: var(--ml-ring);
+  color: rgb(var(--ml-text));
+}
+
 :focus-visible {
   outline: 3px solid var(--ml-ring);
   outline-offset: 3px;
+}
+
+@layer components {
+  .ml-page-bg {
+    background-image: var(--ml-bg-grad);
+  }
+
+  .ml-border {
+    border-color: rgba(var(--ml-border), 0.7);
+  }
+
+  .ml-surface {
+    border: 1px solid rgba(var(--ml-border), 0.7);
+    background: var(--ml-surface-grad);
+    backdrop-filter: blur(14px);
+  }
+
+  .ml-surface-muted {
+    border: 1px solid rgba(var(--ml-border), 0.7);
+    background: var(--ml-surface-muted-grad);
+    backdrop-filter: blur(14px);
+  }
+
+  .ml-card {
+    border: 1px solid rgba(var(--ml-border), 0.7);
+    background: var(--ml-card-grad);
+    box-shadow: 0 24px 70px rgba(23, 26, 31, 0.1);
+    backdrop-filter: blur(14px);
+  }
+
+  .ml-card-hover {
+    transition:
+      background 180ms ease,
+      box-shadow 180ms ease,
+      transform 180ms ease;
+  }
+
+  .ml-card-hover:hover {
+    background: var(--ml-card-hover-grad);
+    box-shadow: 0 34px 88px rgba(23, 26, 31, 0.13);
+  }
+
+  .ml-header {
+    border-color: var(--ml-header-border);
+    background: var(--ml-header-bg);
+    backdrop-filter: blur(18px);
+  }
+
+  .ml-brand-badge {
+    background: var(--ml-brand-bg);
+    color: rgb(var(--ml-brand-fg));
+  }
+
+  .ml-btn-primary {
+    border-radius: 0.95rem !important;
+    background: var(--ml-btn-primary-bg);
+    color: rgb(var(--ml-primary-contrast));
+    transition:
+      background 180ms ease,
+      transform 180ms ease,
+      box-shadow 180ms ease;
+  }
+
+  .ml-btn-primary:hover {
+    background: var(--ml-btn-primary-hover);
+  }
+
+  .ml-btn-primary:focus-visible {
+    outline: none;
+    box-shadow: 0 0 0 4px var(--ml-ring);
+  }
+
+  .ml-btn-secondary {
+    border-radius: 0.95rem !important;
+    border: 1px solid rgba(var(--ml-border), 0.7);
+    background: var(--ml-btn-secondary-bg);
+    color: rgb(var(--ml-btn-secondary-text));
+    transition:
+      background 180ms ease,
+      border-color 180ms ease,
+      transform 180ms ease;
+  }
+
+  .ml-btn-secondary:hover {
+    background: var(--ml-btn-secondary-hover);
+  }
+
+  .ml-btn-secondary:focus-visible {
+    outline: none;
+    box-shadow: 0 0 0 4px var(--ml-ring);
+  }
+
+  .ml-input {
+    border-radius: 0.95rem !important;
+    border: 1px solid rgba(var(--ml-border), 0.7);
+    background: var(--ml-input-grad);
+    color: rgb(var(--ml-text));
+    box-shadow: 0 8px 24px rgba(23, 26, 31, 0.05);
+    transition:
+      border-color 180ms ease,
+      box-shadow 180ms ease,
+      background 180ms ease;
+  }
+
+  .ml-input::placeholder {
+    color: rgba(var(--ml-muted), 0.72);
+  }
+
+  .ml-input:focus {
+    border-color: rgba(var(--ml-accent), 0.7);
+    box-shadow:
+      0 0 0 4px var(--ml-ring),
+      0 10px 28px rgba(23, 26, 31, 0.07);
+    outline: none;
+  }
+
+  .ml-checkbox {
+    border-color: rgba(var(--ml-border), 0.85);
+    color: rgb(var(--ml-accent));
+  }
+
+  .ml-checkbox:focus {
+    --tw-ring-color: var(--ml-ring);
+  }
+
+  .ml-pill {
+    border-radius: 0.8rem !important;
+    border: 1px solid rgba(var(--ml-border), 0.72);
+    background: var(--ml-pill-bg);
+    color: rgb(var(--ml-pill-text));
+    box-shadow: 0 8px 18px rgba(23, 26, 31, 0.05);
+  }
+
+  .ml-pill-muted {
+    border-radius: 0.8rem !important;
+    border: 1px solid rgba(var(--ml-border), 0.7);
+    background: var(--ml-pill-muted-bg);
+    color: rgb(var(--ml-pill-muted-text));
+  }
+
+  .ml-dark-panel {
+    border: 1px solid var(--ml-dark-panel-border);
+    background: var(--ml-dark-panel-bg);
+    color: rgb(var(--ml-dark-panel-text));
+    box-shadow: 0 24px 70px rgba(23, 26, 31, 0.2);
+  }
+
+  .ml-text-muted {
+    color: rgb(var(--ml-muted));
+  }
+
+  :where(a, button, span, label, div).rounded-full[class*='px-'] {
+    border-radius: 0.95rem !important;
+  }
 }

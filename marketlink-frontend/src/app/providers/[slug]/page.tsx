@@ -1,4 +1,4 @@
-'use client';
+﻿'use client';
 
 import React, { useEffect, useState } from 'react';
 import { notFound } from 'next/navigation';
@@ -119,7 +119,7 @@ type Provider = {
 };
 
 type PageProps = {
-  params: { slug: string };
+  params: Promise<{ slug: string }>;
 };
 
 type ProviderMediaItem = NonNullable<Provider['media']>[number];
@@ -141,19 +141,9 @@ function parseUrl(raw: string): URL | null {
   }
 }
 
-function getYouTubeEmbed(url: URL): string | null {
+function isYouTubeUrl(url: URL): boolean {
   const host = url.hostname.replace(/^www\./, '');
-  let id = '';
-
-  if (host === 'youtu.be') {
-    id = url.pathname.split('/').filter(Boolean)[0] || '';
-  } else if (host === 'youtube.com' || host === 'm.youtube.com') {
-    if (url.pathname === '/watch') id = url.searchParams.get('v') || '';
-    if (url.pathname.startsWith('/shorts/')) id = url.pathname.split('/')[2] || '';
-    if (url.pathname.startsWith('/embed/')) id = url.pathname.split('/')[2] || '';
-  }
-
-  return id ? `https://www.youtube.com/embed/${id}` : null;
+  return host === 'youtu.be' || host === 'youtube.com' || host === 'm.youtube.com';
 }
 
 function getInstagramEmbed(url: URL): string | null {
@@ -215,15 +205,18 @@ function getMediaPresentation(item: ProviderMediaItem): MediaPresentation {
     return { kind: 'link', href: item.url, label: 'Open link' };
   }
 
-  const embedUrl = getYouTubeEmbed(url) || getInstagramEmbed(url);
+  const embedUrl = getInstagramEmbed(url);
   if (embedUrl) {
-    const label = embedUrl.includes('instagram.com') ? 'Instagram embed' : 'YouTube embed';
-    return { kind: 'embed', src: embedUrl, label };
+    return { kind: 'embed', src: embedUrl, label: 'Instagram embed' };
   }
 
   const instagramProfile = getInstagramProfile(url);
   if (instagramProfile) {
     return { kind: 'instagramProfile', href: instagramProfile.href, handle: instagramProfile.handle };
+  }
+
+  if (isYouTubeUrl(url)) {
+    return { kind: 'link', href: item.url, label: 'Watch on YouTube' };
   }
 
   if (item.type !== 'video' && IMAGE_EXT_RE.test(url.pathname)) {
@@ -238,6 +231,7 @@ function getMediaPresentation(item: ProviderMediaItem): MediaPresentation {
 }
 
 export default function ProviderPage({ params }: PageProps) {
+  const resolvedParams = React.use(params);
   const [provider, setProvider] = useState<Provider | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -246,7 +240,7 @@ export default function ProviderPage({ params }: PageProps) {
     async function fetchProvider() {
       try {
         const API_BASE = process.env.NEXT_PUBLIC_API_URL || 'http://127.0.0.1:4000';
-        const res = await fetch(`${API_BASE}/providers/${params.slug}`);
+        const res = await fetch(`${API_BASE}/providers/${resolvedParams.slug}`);
         if (res.status === 404) {
           notFound();
         }
@@ -263,7 +257,7 @@ export default function ProviderPage({ params }: PageProps) {
     }
 
     fetchProvider();
-  }, [params.slug]);
+  }, [resolvedParams.slug]);
 
   if (loading) {
     return <div className="mx-auto max-w-4xl px-4 py-8">Loading...</div>;
@@ -278,35 +272,66 @@ export default function ProviderPage({ params }: PageProps) {
 
 function ProviderPageContent({ provider: p }: { provider: Provider }) {
   const { t } = useMarketLinkTheme();
+  const pageBorder = 'border-[rgba(var(--ml-border),0.7)]';
+  const pageSurface = t.surface;
+  const pageSurfaceMuted = t.surfaceMuted;
+  const [fitOpen, setFitOpen] = useState(false);
+  const [credentialsOpen, setCredentialsOpen] = useState(false);
+  const [contactOpen, setContactOpen] = useState(false);
   const featuredProjects = (p.projects || []).filter((project) => project.isFeatured);
   const visibleProjects = featuredProjects.length ? featuredProjects : p.projects || [];
   const featuredClients = (p.clients || []).filter((client) => client.isFeatured);
   const visibleClients = featuredClients.length ? featuredClients : p.clients || [];
   const visibleCertifications = p.certifications || [];
   const visibleAwards = p.awards || [];
-  const visibleMedia = (p.media || []).filter((item) => item.type !== 'logo');
+  const visibleMedia = (p.media || []).filter((item) => {
+    if (item.type === 'logo') return false;
+    const url = parseUrl(item.url);
+    return url ? !isYouTubeUrl(url) : true;
+  });
   const coverMedia = visibleMedia.find((item) => item.type === 'cover') || visibleMedia.find((item) => getMediaPresentation(item).kind === 'image') || null;
   const hourlyRange = formatMoneyRange(p.hourlyRateMin, p.hourlyRateMax, p.currencyCode, ' / hr');
   const startingBudget = formatMoney(p.minProjectBudget, p.currencyCode);
   const locationLabel = formatLocation(p.city, p.state, p.zip);
   const mapEmbedSrc = `https://maps.google.com/maps?hl=en&q=${encodeURIComponent(locationLabel)}&t=&z=11&ie=UTF8&iwloc=B&output=embed`;
-  const quickFacts = [
+  const decisionCards = [
     hourlyRange ? { label: 'Hourly range', value: hourlyRange } : null,
-    startingBudget ? { label: 'Starting budget', value: `${startingBudget}+` } : null,
+    startingBudget ? { label: 'Project minimum', value: `${startingBudget}+` } : null,
     p.responseTimeHours ? { label: 'Response time', value: `${p.responseTimeHours}h` } : null,
     p.foundedYear ? { label: 'Founded', value: String(p.foundedYear) } : null,
     p.rating ? { label: 'Rating', value: `${p.rating.toFixed(1)} / 5` } : null,
-    p.servesNationwide ? { label: 'Coverage', value: 'Nationwide' } : p.remoteFriendly ? { label: 'Coverage', value: 'Remote available' } : null,
+    p.servesNationwide ? { label: 'Coverage', value: 'Nationwide' } : p.remoteFriendly ? { label: 'Coverage', value: 'Remote-ready' } : null,
   ].filter(Boolean) as Array<{ label: string; value: string }>;
-  const mediaGallerySection = visibleMedia.length ? (
-    <section className={`rounded-2xl ${t.surface} ${t.border} border p-6 shadow-[0_14px_45px_rgba(2,6,23,0.08)] backdrop-blur`}>
-      <h2 className={`${displayFont.className} text-lg font-semibold tracking-[-0.02em] text-slate-900`}>Media gallery</h2>
-      <div className="mt-5 grid gap-4 sm:grid-cols-2">
+  const fitChips = [
+    ...(p.industries || []).map((value) => ({ group: 'Industry', value: formatToken(value) })),
+    ...(p.specialties || []).map((value) => ({ group: 'Specialty', value: formatToken(value) })),
+  ].slice(0, 4);
+  const heroServices = p.services.slice(0, 4);
+  const heroServicesOverflow = Math.max(0, p.services.length - heroServices.length);
+  const selectedWorkSection = visibleMedia.length ? (
+    <section className={`overflow-hidden rounded-[2rem] ${pageSurface} ${pageBorder} border shadow-[0_20px_70px_rgba(15,23,42,0.08)]`}>
+      <div className="px-6 py-6 md:px-8 md:py-8">
+        <div className={`text-[11px] font-medium uppercase tracking-[0.22em] ${t.mutedText}`}>Selected work</div>
+        <div className="mt-4 grid gap-4 lg:grid-cols-[minmax(0,1fr)_220px] lg:items-end">
+          <div>
+            <h2 className={`${displayFont.className} text-3xl font-semibold tracking-[-0.03em] text-slate-900 md:text-[2.35rem]`}>Recent examples of how they present the work.</h2>
+            <p className="mt-3 max-w-2xl text-sm leading-7 text-slate-700 md:text-base md:leading-8">
+              Use this section to gauge visual quality, brand polish, and whether the public-facing work feels close to what your project needs.
+            </p>
+          </div>
+          <div className={`rounded-[1.35rem] ${pageSurfaceMuted} ${pageBorder} border px-4 py-4 text-left shadow-sm lg:text-right`}>
+            <div className={`text-[11px] font-medium uppercase tracking-[0.18em] ${t.mutedText}`}>Portfolio items</div>
+            <div className="mt-2 text-2xl font-semibold tracking-[-0.03em] text-slate-900">{visibleMedia.length}</div>
+          </div>
+        </div>
+      </div>
+      <div className="grid gap-4 border-t border-slate-200/80 p-6 md:grid-cols-2 md:px-8 md:py-8">
         {visibleMedia.map((item) => {
           const media = getMediaPresentation(item);
+          const spanClass = media.kind === 'website' ? 'md:col-span-2' : '';
 
           return (
-            <div key={item.id} className={`overflow-hidden rounded-3xl ${t.surfaceMuted} ${t.border} border shadow-sm ${media.kind === 'website' ? 'sm:col-span-2' : ''}`}>
+            <div key={item.id} className={`${spanClass} overflow-hidden rounded-[1.75rem] ${pageSurfaceMuted} ${pageBorder} border shadow-sm`}>
               {media.kind === 'embed' ? (
                 <>
                   <iframe
@@ -318,7 +343,7 @@ function ProviderPageContent({ provider: p }: { provider: Provider }) {
                     referrerPolicy="strict-origin-when-cross-origin"
                     allowFullScreen
                   />
-                  <div className="border-t p-4">
+                  <div className="border-t border-slate-200/80 p-4 md:p-5">
                     <div className={`text-xs font-medium uppercase tracking-[0.18em] ${t.mutedText}`}>{media.label}</div>
                     {item.altText ? <p className="mt-3 text-sm leading-7 text-slate-700">{item.altText}</p> : null}
                     {media.label === 'Instagram embed' ? (
@@ -334,7 +359,7 @@ function ProviderPageContent({ provider: p }: { provider: Provider }) {
                 <>
                   {/* eslint-disable-next-line @next/next/no-img-element */}
                   <img src={media.src} alt={item.altText || 'Provider media'} className="h-56 w-full object-cover" />
-                  {item.altText ? <div className="p-4 text-sm leading-7 text-slate-700">{item.altText}</div> : null}
+                  {item.altText ? <div className="p-4 text-sm leading-7 text-slate-700 md:p-5">{item.altText}</div> : null}
                 </>
               ) : null}
 
@@ -348,7 +373,7 @@ function ProviderPageContent({ provider: p }: { provider: Provider }) {
                     sandbox="allow-forms allow-popups allow-same-origin allow-scripts"
                     referrerPolicy="strict-origin-when-cross-origin"
                   />
-                  <div className="border-t p-4">
+                  <div className="border-t border-slate-200/80 p-4 md:p-5">
                     <div className={`text-xs font-medium uppercase tracking-[0.18em] ${t.mutedText}`}>Website preview</div>
                     <div className="mt-3 text-sm leading-7 text-slate-700">{item.altText || `Embedded preview for ${media.hostname}`}</div>
                     <a className="mt-3 inline-block text-sm font-medium underline text-slate-900" href={media.src} target="_blank" rel="noreferrer">
@@ -360,7 +385,7 @@ function ProviderPageContent({ provider: p }: { provider: Provider }) {
               ) : null}
 
               {media.kind === 'instagramProfile' ? (
-                <div className="p-5">
+                <div className="p-5 md:p-6">
                   <div className={`text-xs font-medium uppercase tracking-[0.18em] ${t.mutedText}`}>Instagram profile</div>
                   <div className="mt-3 text-lg font-semibold text-slate-900">{media.handle}</div>
                   {item.altText ? <p className="mt-3 text-sm leading-7 text-slate-700">{item.altText}</p> : null}
@@ -371,11 +396,12 @@ function ProviderPageContent({ provider: p }: { provider: Provider }) {
               ) : null}
 
               {media.kind === 'link' ? (
-                <div className="p-4">
+                <div className="p-4 md:p-5">
                   <div className={`text-xs font-medium uppercase tracking-[0.18em] ${t.mutedText}`}>External media</div>
-                  <a className="mt-2 block break-all text-sm underline text-slate-900" href={media.href} target="_blank" rel="noreferrer">
-                    {media.href}
+                  <a className="mt-2 block break-all text-sm font-medium underline text-slate-900" href={media.href} target="_blank" rel="noreferrer">
+                    {media.label}
                   </a>
+                  <div className={`mt-2 text-xs ${t.mutedText}`}>{media.href}</div>
                   {item.altText ? <p className="mt-3 text-sm leading-7 text-slate-700">{item.altText}</p> : null}
                 </div>
               ) : null}
@@ -388,235 +414,252 @@ function ProviderPageContent({ provider: p }: { provider: Provider }) {
 
   return (
     <main className={`${bodyFont.className} ${t.pageBg} min-h-[calc(100vh-72px)]`}>
-      <div className="mx-auto max-w-6xl px-4 py-8">
-        <div className="flex flex-col gap-8">
+      <div className="mx-auto max-w-7xl px-4 py-6 md:px-6 md:py-8">
+        <div className="flex flex-col gap-6 md:gap-8">
           {p.status !== 'active' && (
-            <div className={`rounded-2xl ${t.surfaceMuted} ${t.border} border p-4 shadow-[0_14px_45px_rgba(2,6,23,0.08)]`}>
-              <div className="font-medium text-amber-900">{p.status === 'disabled' ? 'Your listing is disabled' : 'Your listing is pending approval'}</div>
+            <div className={`rounded-2xl ${pageSurfaceMuted} ${pageBorder} border p-4 shadow-[0_14px_45px_rgba(2,6,23,0.08)]`}>
+              <div className="font-medium text-slate-900">{p.status === 'disabled' ? 'Your listing is disabled' : 'Your listing is pending approval'}</div>
               {p.disabledReason && (
-                <div className="mt-1 text-sm text-amber-800">
+                <div className="mt-1 text-sm text-slate-700">
                   <span className="font-medium">Reason:</span> {p.disabledReason}
                 </div>
               )}
-              <div className="mt-2 text-xs text-amber-800">Only you can see this until it&apos;s active.</div>
+              <div className="mt-2 text-xs text-slate-600">Only you can see this until it&apos;s active.</div>
             </div>
           )}
 
-          <header className={`overflow-hidden rounded-[2rem] ${t.surface} ${t.border} border shadow-[0_24px_80px_rgba(2,6,23,0.10)] backdrop-blur`}>
-            <div className="grid gap-0 lg:grid-cols-[minmax(0,1.45fr)_minmax(320px,0.9fr)]">
-              <div className="relative overflow-hidden p-6 md:p-8">
-                <div className="absolute inset-0 bg-[radial-gradient(120%_120%_at_0%_0%,rgba(20,184,166,0.18),transparent_55%),radial-gradient(70%_70%_at_100%_0%,rgba(56,189,248,0.16),transparent_48%),linear-gradient(135deg,rgba(255,255,255,0.94),rgba(255,255,255,0.78))]" />
-                {coverMedia && getMediaPresentation(coverMedia).kind === 'image' ? (
-                  <>
-                    {/* eslint-disable-next-line @next/next/no-img-element */}
-                    <img src={coverMedia.url} alt={coverMedia.altText || `${p.businessName} cover`} className="absolute inset-y-0 right-0 hidden h-full w-[44%] object-cover opacity-20 lg:block" />
-                    <div className="absolute inset-y-0 right-0 hidden w-[44%] bg-gradient-to-r from-white/95 via-white/40 to-transparent lg:block" />
-                  </>
-                ) : null}
-
-                <div className="relative">
-                  <div className="flex items-start gap-4">
-                    {p.logo ? (
-                      // eslint-disable-next-line @next/next/no-img-element
-                      <img src={p.logo} alt={p.businessName} className="h-16 w-16 rounded-2xl border object-cover shadow-sm md:h-20 md:w-20" />
-                    ) : (
-                      <div className="flex h-16 w-16 items-center justify-center rounded-2xl border bg-gray-50 text-sm text-gray-400 shadow-sm md:h-20 md:w-20">Logo</div>
-                    )}
-
-                    <div className="flex-1">
-                      <div className="flex flex-wrap items-center gap-2">
-                        <span className={`rounded-full border ${t.border} bg-white/85 px-3 py-1 text-[11px] font-medium uppercase tracking-[0.18em] ${t.mutedText}`}>
-                          {p.verified ? 'Verified provider' : 'Marketplace provider'}
-                        </span>
-                        {p.rating ? (
-                          <span className="rounded-full border border-amber-200 bg-amber-50 px-3 py-1 text-[11px] font-medium uppercase tracking-[0.18em] text-amber-700">
-                            {p.rating.toFixed(1)} rating
-                          </span>
-                        ) : null}
-                      </div>
-                      <h1 className={`${displayFont.className} mt-4 text-4xl font-semibold tracking-[-0.03em] text-slate-900 md:text-5xl`}>{p.businessName}</h1>
-                      <div className={`mt-3 flex flex-wrap items-center gap-x-4 gap-y-2 text-sm ${t.mutedText}`}>
-                        <span>{locationLabel}</span>
-                        {p.foundedYear ? <span>Founded {p.foundedYear}</span> : null}
-                      </div>
-                      {p.tagline ? <div className="mt-4 max-w-3xl text-xl leading-8 text-slate-700">{p.tagline}</div> : null}
-                      {p.shortDescription ? <p className="mt-4 max-w-3xl text-sm leading-7 text-slate-700 md:text-base">{p.shortDescription}</p> : null}
-                    </div>
+          <header className="overflow-hidden rounded-[2rem] ml-card shadow-[0_28px_80px_rgba(23,26,31,0.10)]">
+            <div className="grid gap-6 xl:grid-cols-[minmax(0,1.12fr)_380px] xl:gap-0">
+              <div className="px-5 py-5 sm:px-6 sm:py-6 md:px-8 md:py-8">
+                <div className="space-y-5 md:space-y-7">
+                  <div className="flex flex-wrap items-center gap-2">
+                    <span className={`rounded-xl px-3 py-1 text-[11px] font-medium uppercase tracking-[0.18em] ${t.brandBadge}`}>
+                      Provider portfolio
+                    </span>
+                    {p.verified ? (
+                      <span className="ml-pill-muted rounded-xl px-3 py-1 text-[11px] font-medium uppercase tracking-[0.18em]">
+                        Verified
+                      </span>
+                    ) : null}
+                    <span className={`rounded-xl px-3 py-1 text-[11px] font-medium uppercase tracking-[0.18em] ${t.brandBadge}`}>
+                      {locationLabel}
+                    </span>
                   </div>
 
-                  {p.services.length ? (
-                    <div className="mt-6 flex flex-wrap gap-2">
-                      {p.services.map((service) => (
-                        <span key={service} className={`rounded-full border ${t.border} bg-white/80 px-3 py-1.5 text-xs font-medium ${t.mutedText} shadow-sm`}>
-                          {formatToken(service)}
-                        </span>
-                      ))}
-                    </div>
-                  ) : null}
+                  <div className="grid gap-5 lg:grid-cols-[minmax(0,1fr)_260px] lg:items-start">
+                    <div className="min-w-0">
+                      <div className="flex items-start gap-4 md:gap-5">
+                        {p.logo ? (
+                          // eslint-disable-next-line @next/next/no-img-element
+                          <img src={p.logo} alt={p.businessName} className="h-16 w-16 shrink-0 rounded-[1.1rem] border border-[rgba(var(--ml-border),0.7)] bg-white object-cover shadow-sm md:h-20 md:w-20 md:rounded-[1.35rem]" />
+                        ) : (
+                          <div className="flex h-16 w-16 shrink-0 items-center justify-center rounded-[1.1rem] border border-[rgba(var(--ml-border),0.7)] bg-white text-sm text-slate-500 shadow-sm md:h-20 md:w-20 md:rounded-[1.35rem]">Logo</div>
+                        )}
 
-                  {(visibleCertifications.length || visibleAwards.length) ? (
-                    <div className="mt-6 flex flex-wrap gap-3">
-                      {visibleCertifications.length ? (
-                        <div className={`rounded-2xl border ${t.border} bg-white/80 px-4 py-3 shadow-sm`}>
-                          <div className={`text-[11px] font-medium uppercase tracking-[0.18em] ${t.mutedText}`}>Certifications</div>
-                          <div className="mt-2 text-sm font-semibold text-slate-900">{visibleCertifications.length} active credential{visibleCertifications.length === 1 ? '' : 's'}</div>
+                        <div className="min-w-0">
+                          <h1 className={`${displayFont.className} text-3xl font-semibold tracking-[-0.05em] text-slate-950 sm:text-4xl md:text-5xl`}>{p.businessName}</h1>
+                          {p.tagline ? <p className="mt-3 max-w-3xl text-lg leading-tight tracking-[-0.03em] text-slate-800 sm:text-xl md:text-[1.75rem]">{p.tagline}</p> : null}
+                          {p.shortDescription || p.overview ? <p className="mt-4 max-w-3xl text-sm leading-7 text-slate-600 md:text-base md:leading-8">{p.shortDescription || p.overview}</p> : null}
                         </div>
-                      ) : null}
-                      {visibleAwards.length ? (
-                        <div className={`rounded-2xl border ${t.border} bg-white/80 px-4 py-3 shadow-sm`}>
-                          <div className={`text-[11px] font-medium uppercase tracking-[0.18em] ${t.mutedText}`}>Awards</div>
-                          <div className="mt-2 text-sm font-semibold text-slate-900">{visibleAwards.length} recognition{visibleAwards.length === 1 ? '' : 's'}</div>
-                        </div>
-                      ) : null}
-                    </div>
-                  ) : null}
+                      </div>
 
-                  {(p.industries?.length || p.specialties?.length) ? (
-                    <div className="mt-8 grid gap-6 md:grid-cols-2">
-                      {p.industries?.length ? (
-                        <div>
-                          <div className={`text-xs font-medium uppercase tracking-[0.18em] ${t.mutedText}`}>Industries served</div>
+                      <div className="mt-5 flex flex-col gap-3 sm:flex-row sm:flex-wrap">
+                        <a className="ml-btn-primary rounded-xl px-5 py-2.5 text-sm font-semibold text-white" href={`mailto:${p.email}`}>
+                            Start a conversation
+                          </a>
+                        {p.websiteUrl ? (
+                          <a className="ml-btn-secondary rounded-xl px-5 py-2.5 text-sm font-semibold" href={p.websiteUrl} target="_blank" rel="noreferrer">
+                            Visit website
+                          </a>
+                        ) : null}
+                      </div>
+
+                      {heroServices.length ? (
+                        <div className="mt-5">
+                          <div className="text-[11px] font-medium uppercase tracking-[0.22em] text-slate-500">Core services</div>
                           <div className="mt-3 flex flex-wrap gap-2">
-                            {p.industries.map((industry) => (
-                              <span key={industry} className={`rounded-full border ${t.border} bg-white/75 px-3 py-1 text-xs ${t.mutedText}`}>
-                                {formatToken(industry)}
+                            {heroServices.map((service) => (
+                            <span key={service} className="ml-pill rounded-xl px-3 py-1.5 text-xs font-medium shadow-sm md:px-4 md:py-2">
+                                {formatToken(service)}
                               </span>
                             ))}
+                            {heroServicesOverflow > 0 ? (
+                      <span className="ml-pill-muted rounded-xl px-3 py-1.5 text-xs font-medium shadow-sm">
+                                +{heroServicesOverflow} more
+                              </span>
+                            ) : null}
                           </div>
                         </div>
                       ) : null}
-                      {p.specialties?.length ? (
-                        <div>
-                          <div className={`text-xs font-medium uppercase tracking-[0.18em] ${t.mutedText}`}>Specialties</div>
-                          <div className="mt-3 flex flex-wrap gap-2">
-                            {p.specialties.map((specialty) => (
-                              <span key={specialty} className={`rounded-full border ${t.border} bg-white/75 px-3 py-1 text-xs ${t.mutedText}`}>
-                                {formatToken(specialty)}
-                              </span>
-                            ))}
-                          </div>
+
+                      {fitChips.length ? (
+                      <div className="mt-5 hidden flex-wrap gap-2 lg:flex">
+                          {fitChips.map((chip) => (
+                            <span key={`${chip.group}-${chip.value}`} className="ml-pill rounded-xl px-3 py-1.5 text-xs font-medium">
+                              {chip.value}
+                            </span>
+                          ))}
                         </div>
                       ) : null}
                     </div>
-                  ) : null}
+
+                    <div className="ml-dark-panel rounded-[1.75rem] px-5 py-5 text-white shadow-[0_20px_60px_rgba(23,26,31,0.18)]">
+                      <div className="text-[11px] font-medium uppercase tracking-[0.22em] text-white/60">Quick snapshot</div>
+                      <div className="mt-5 grid gap-3 sm:grid-cols-2 lg:grid-cols-1">
+                        {decisionCards.slice(0, 4).map((fact) => (
+                          <div key={fact.label} className="rounded-[1.15rem] border border-white/10 bg-white/6 px-4 py-3.5">
+                            <div className="text-[11px] font-medium uppercase tracking-[0.18em] text-white/65">{fact.label}</div>
+                            <div className="mt-2 text-base font-semibold text-white">{fact.value}</div>
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+                  </div>
                 </div>
               </div>
 
-              <div className="flex flex-col justify-between border-t border-slate-200/70 bg-slate-950/[0.03] p-6 lg:border-l lg:border-t-0 lg:p-8">
-                {quickFacts.length ? (
-                  <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-2">
-                    {quickFacts.map((fact) => (
-                      <div key={fact.label} className={`rounded-2xl ${t.surface} ${t.border} border p-4 shadow-sm`}>
-                        <div className={`text-[11px] font-medium uppercase tracking-[0.18em] ${t.mutedText}`}>{fact.label}</div>
-                        <div className="mt-3 text-sm font-semibold leading-6 text-slate-900">{fact.value}</div>
-                      </div>
-                    ))}
-                  </div>
-                ) : null}
-
-                <div className={`mt-6 rounded-3xl ${t.surface} ${t.border} border p-5 shadow-sm`}>
-                  <div className={`text-xs font-medium uppercase tracking-[0.18em] ${t.mutedText}`}>Quick contact</div>
-                  <div className="mt-4 space-y-3 text-sm text-slate-700">
-                    <div>
-                      <div className={`text-[11px] font-medium uppercase tracking-[0.18em] ${t.mutedText}`}>Website</div>
-                      {p.websiteUrl ? (
-                        <a className="mt-1 inline-block break-all underline text-slate-900" href={p.websiteUrl} target="_blank" rel="noreferrer">
-                          {p.websiteUrl}
-                        </a>
-                      ) : (
-                        <div className="mt-1 text-slate-500">Not provided</div>
-                      )}
+              <div className={`border-t ${pageBorder} ${pageSurfaceMuted} px-5 py-5 sm:px-6 sm:py-6 xl:border-l xl:border-t-0 xl:px-7`}>
+                <div className="space-y-5">
+                  {coverMedia && getMediaPresentation(coverMedia).kind === 'image' ? (
+                    <div className="overflow-hidden rounded-[1.75rem] border border-[rgba(var(--ml-border),0.7)] bg-white shadow-sm">
+                      {/* eslint-disable-next-line @next/next/no-img-element */}
+                      <img src={coverMedia.url} alt={coverMedia.altText || `${p.businessName} cover`} className="h-64 w-full object-cover" />
                     </div>
-                    {p.phone ? (
+                  ) : null}
+
+                  <div className="ml-surface rounded-[1.75rem] px-5 py-5 shadow-sm">
+                    <div className="text-[11px] font-medium uppercase tracking-[0.22em] text-slate-500">Contact details</div>
+                    <p className="mt-3 text-sm leading-7 text-slate-600">Everything a buyer usually checks before they send the first message.</p>
+                    <div className="mt-5 space-y-4 text-sm text-slate-700">
                       <div>
-                        <div className={`text-[11px] font-medium uppercase tracking-[0.18em] ${t.mutedText}`}>Phone</div>
-                        <div className="mt-1 text-slate-900">{p.phone}</div>
+                        <div className="text-[11px] font-medium uppercase tracking-[0.18em] text-slate-500">Location</div>
+                        <div className="mt-2 font-medium text-slate-900">{locationLabel}</div>
                       </div>
-                    ) : null}
-                    {(p.linkedinUrl || p.instagramUrl || p.facebookUrl) ? (
-                      <div>
-                        <div className={`text-[11px] font-medium uppercase tracking-[0.18em] ${t.mutedText}`}>Social</div>
-                        <div className="mt-2 flex flex-wrap gap-2">
-                          {p.linkedinUrl ? (
-                            <a className={`rounded-full border ${t.border} px-3 py-1 text-xs font-medium text-slate-700`} href={p.linkedinUrl} target="_blank" rel="noreferrer">
-                              LinkedIn
-                            </a>
-                          ) : null}
-                          {p.instagramUrl ? (
-                            <a className={`rounded-full border ${t.border} px-3 py-1 text-xs font-medium text-slate-700`} href={p.instagramUrl} target="_blank" rel="noreferrer">
-                              Instagram
-                            </a>
-                          ) : null}
-                          {p.facebookUrl ? (
-                            <a className={`rounded-full border ${t.border} px-3 py-1 text-xs font-medium text-slate-700`} href={p.facebookUrl} target="_blank" rel="noreferrer">
-                              Facebook
-                            </a>
-                          ) : null}
+                      {p.websiteUrl ? (
+                        <div>
+                          <div className="text-[11px] font-medium uppercase tracking-[0.18em] text-slate-500">Website</div>
+                          <a className="mt-2 inline-block break-all underline text-slate-900" href={p.websiteUrl} target="_blank" rel="noreferrer">
+                            {p.websiteUrl}
+                          </a>
                         </div>
+                      ) : null}
+                      {p.phone ? (
+                        <div>
+                          <div className="text-[11px] font-medium uppercase tracking-[0.18em] text-slate-500">Phone</div>
+                          <div className="mt-2 font-medium text-slate-900">{p.phone}</div>
+                        </div>
+                      ) : null}
+                      <div>
+                        <div className="text-[11px] font-medium uppercase tracking-[0.18em] text-slate-500">Email</div>
+                        <div className="mt-2 break-all font-medium text-slate-900">{p.email}</div>
                       </div>
-                    ) : null}
+                    </div>
                   </div>
                 </div>
               </div>
             </div>
           </header>
 
-          <div className="grid gap-8 xl:grid-cols-[minmax(0,1.55fr)_340px] xl:items-start">
-            <div className="flex min-w-0 flex-col gap-8">
-              {mediaGallerySection}
+          {visibleClients.length ? (
+            <section className={`rounded-[1.75rem] ${pageSurface} ${pageBorder} border px-6 py-5 shadow-[0_18px_50px_rgba(15,23,42,0.06)]`}>
+              <div className="grid gap-5 lg:grid-cols-[260px_minmax(0,1fr)] lg:items-start">
+                <div>
+                  <div className="text-[11px] font-medium uppercase tracking-[0.22em] text-slate-500">Trusted by</div>
+                  <p className="mt-2 text-sm text-slate-700">Representative clients and teams this provider points to when explaining fit.</p>
+                </div>
+                <div className="grid gap-x-6 gap-y-4 border-t border-slate-200/80 pt-4 sm:grid-cols-2 xl:grid-cols-3 lg:border-t-0 lg:pt-0">
+                  {visibleClients.slice(0, 6).map((client) => (
+                    <div key={client.id} className="flex items-center gap-3 border-b border-slate-200/70 pb-4 last:border-b-0">
+                      {client.logoUrl ? (
+                        // eslint-disable-next-line @next/next/no-img-element
+                        <img src={client.logoUrl} alt={client.name} className="h-9 w-9 rounded-full border object-cover" />
+                      ) : (
+                        <div className="flex h-9 w-9 items-center justify-center rounded-full border bg-white text-[10px] font-medium text-slate-500">Logo</div>
+                      )}
+                      <span className="min-w-0 text-sm font-medium text-slate-900">{client.name}</span>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            </section>
+          ) : null}
+
+          <div className="grid gap-6 xl:grid-cols-[minmax(0,1fr)_320px] xl:items-start">
+            <div className="min-w-0 space-y-8">
+              {selectedWorkSection}
 
               {(p.shortDescription || p.overview) ? (
-                <section className={`rounded-2xl ${t.surface} ${t.border} border p-6 shadow-[0_14px_45px_rgba(2,6,23,0.08)] backdrop-blur`}>
-                  <h2 className={`${displayFont.className} text-lg font-semibold tracking-[-0.02em] text-slate-900`}>About</h2>
-                  {p.overview ? <p className="mt-4 text-sm leading-7 text-slate-700 whitespace-pre-line md:text-base">{p.overview}</p> : p.shortDescription ? <p className="mt-4 text-sm leading-7 text-slate-700 md:text-base">{p.shortDescription}</p> : null}
+                <section className={`rounded-[2rem] ${pageSurface} ${pageBorder} border px-6 py-6 shadow-[0_20px_70px_rgba(15,23,42,0.08)]`}>
+                  <div className="text-[11px] font-medium uppercase tracking-[0.22em] text-slate-500">About the team</div>
+                  <div className="mt-4 grid gap-5 lg:grid-cols-[minmax(0,1fr)_220px] lg:items-start">
+                    <div>
+                      <h2 className={`${displayFont.className} text-3xl font-semibold tracking-[-0.03em] text-slate-900 md:text-[2.35rem]`}>How they approach the work.</h2>
+                      {p.overview ? (
+                        <p className="mt-4 text-sm leading-8 text-slate-700 whitespace-pre-line md:text-base">
+                          {p.overview}
+                        </p>
+                      ) : p.shortDescription ? (
+                        <p className="mt-4 text-sm leading-8 text-slate-700 md:text-base">{p.shortDescription}</p>
+                      ) : null}
+                    </div>
+                    <div className={`rounded-[1.25rem] ${pageSurfaceMuted} ${pageBorder} border px-4 py-4 lg:px-5`}>
+                      <div className={`text-[11px] font-medium uppercase tracking-[0.18em] ${t.mutedText}`}>Read this for</div>
+                      <p className="mt-2 text-sm leading-7 text-slate-700">Positioning, tone, operating style, and whether the team sounds aligned with your type of project.</p>
+                    </div>
+                  </div>
                 </section>
               ) : null}
 
               {visibleProjects.length ? (
-                <section className={`rounded-2xl ${t.surface} ${t.border} border p-6 shadow-[0_14px_45px_rgba(2,6,23,0.08)] backdrop-blur`}>
-                  <div className="flex items-center justify-between gap-4">
-                    <h2 className={`${displayFont.className} text-lg font-semibold tracking-[-0.02em] text-slate-900`}>Case studies</h2>
-                    <span className={`text-xs ${t.mutedText}`}>{visibleProjects.length} project{visibleProjects.length === 1 ? '' : 's'}</span>
+                <section className={`rounded-[2rem] ${pageSurface} ${pageBorder} border px-6 py-6 shadow-[0_20px_70px_rgba(15,23,42,0.08)]`}>
+                  <div className="flex flex-wrap items-end justify-between gap-4">
+                    <div>
+                      <div className="text-[11px] font-medium uppercase tracking-[0.22em] text-slate-500">Proof of work</div>
+                      <h2 className={`${displayFont.className} mt-3 text-3xl font-semibold tracking-[-0.03em] text-slate-900 md:text-[2.35rem]`}>Case studies</h2>
+                      <p className="mt-2 max-w-2xl text-sm leading-7 text-slate-700">A more detailed read on the brief, the response, and the outcomes the provider chooses to highlight.</p>
+                    </div>
+                    <span className={`text-xs font-medium uppercase tracking-[0.18em] ${t.mutedText}`}>{visibleProjects.length} project{visibleProjects.length === 1 ? '' : 's'}</span>
                   </div>
 
-                  <div className="mt-4 grid gap-4">
+                  <div className="mt-6 grid gap-5">
                     {visibleProjects.map((project) => (
-                      <article key={project.id} className={`overflow-hidden rounded-3xl ${t.surfaceMuted} ${t.border} border shadow-sm`}>
-                        <div className="grid gap-0 lg:grid-cols-[280px_minmax(0,1fr)]">
+                      <article key={project.id} className={`overflow-hidden rounded-[1.75rem] ${pageSurfaceMuted} ${pageBorder} border shadow-sm`}>
+                        <div className="grid gap-0 lg:grid-cols-[320px_minmax(0,1fr)]">
                           {project.coverImageUrl ? (
                             // eslint-disable-next-line @next/next/no-img-element
-                            <img src={project.coverImageUrl} alt={project.title} className="h-56 w-full object-cover lg:h-full" />
+                            <img src={project.coverImageUrl} alt={project.title} className="h-64 w-full object-cover lg:h-full" />
                           ) : (
                             <div className="hidden bg-slate-100 lg:block" />
                           )}
 
-                          <div className="p-5">
+                          <div className="px-5 py-5 md:px-6 md:py-6">
                             <div className="flex items-start justify-between gap-4">
                               <div>
-                                <h3 className={`${displayFont.className} text-xl font-semibold tracking-[-0.02em] text-slate-900`}>{project.title}</h3>
+                                <div className={`text-[11px] font-medium uppercase tracking-[0.18em] ${t.mutedText}`}>Project snapshot</div>
+                                <h3 className={`${displayFont.className} mt-2 text-2xl font-semibold tracking-[-0.02em] text-slate-900`}>{project.title}</h3>
                                 {project.summary ? <p className="mt-3 text-sm leading-7 text-slate-700">{project.summary}</p> : null}
                               </div>
-                              {project.isFeatured ? <span className="rounded-full border px-3 py-1 text-xs font-medium text-slate-700">Featured</span> : null}
+                              {project.isFeatured ? <span className="ml-pill rounded-xl px-3 py-1 text-xs font-medium">Featured</span> : null}
                             </div>
 
                             {(project.projectBudget || project.startedAt || project.completedAt) ? (
-                              <div className="mt-5 grid gap-3 md:grid-cols-3">
+                              <div className="mt-5 flex flex-wrap gap-x-6 gap-y-3 border-y border-slate-200/80 py-4 text-sm">
                                 {project.projectBudget ? (
-                                  <div className="rounded-2xl border p-3">
-                                    <div className={`text-xs font-medium uppercase tracking-[0.18em] ${t.mutedText}`}>Budget</div>
-                                    <div className="mt-2 text-sm text-slate-900">{formatMoney(project.projectBudget, p.currencyCode)}</div>
+                                  <div className="min-w-[120px]">
+                                    <div className={`text-[11px] font-medium uppercase tracking-[0.18em] ${t.mutedText}`}>Budget</div>
+                                    <div className="mt-2 text-sm font-semibold text-slate-900">{formatMoney(project.projectBudget, p.currencyCode)}</div>
                                   </div>
                                 ) : null}
                                 {project.startedAt ? (
-                                  <div className="rounded-2xl border p-3">
-                                    <div className={`text-xs font-medium uppercase tracking-[0.18em] ${t.mutedText}`}>Started</div>
-                                    <div className="mt-2 text-sm text-slate-900">{new Date(project.startedAt).toLocaleDateString()}</div>
+                                  <div className="min-w-[120px]">
+                                    <div className={`text-[11px] font-medium uppercase tracking-[0.18em] ${t.mutedText}`}>Started</div>
+                                    <div className="mt-2 text-sm font-semibold text-slate-900">{new Date(project.startedAt).toLocaleDateString()}</div>
                                   </div>
                                 ) : null}
                                 {project.completedAt ? (
-                                  <div className="rounded-2xl border p-3">
-                                    <div className={`text-xs font-medium uppercase tracking-[0.18em] ${t.mutedText}`}>Completed</div>
-                                    <div className="mt-2 text-sm text-slate-900">{new Date(project.completedAt).toLocaleDateString()}</div>
+                                  <div className="min-w-[120px]">
+                                    <div className={`text-[11px] font-medium uppercase tracking-[0.18em] ${t.mutedText}`}>Completed</div>
+                                    <div className="mt-2 text-sm font-semibold text-slate-900">{new Date(project.completedAt).toLocaleDateString()}</div>
                                   </div>
                                 ) : null}
                               </div>
@@ -638,16 +681,16 @@ function ProviderPageContent({ provider: p }: { provider: Provider }) {
                             </div>
 
                             {project.results ? (
-                              <div className="mt-5 rounded-2xl bg-white/75 p-4">
-                                <div className={`text-xs font-medium uppercase tracking-[0.18em] ${t.mutedText}`}>Results</div>
-                                <p className="mt-2 text-sm leading-7 text-slate-700 whitespace-pre-line">{project.results}</p>
+                              <div className="ml-dark-panel mt-5 rounded-2xl px-4 py-4">
+                                <div className="text-[11px] font-medium uppercase tracking-[0.18em] text-white/65">Results</div>
+                                <p className="mt-3 whitespace-pre-line text-sm leading-7 text-white/82">{project.results}</p>
                               </div>
                             ) : null}
 
                             {project.services?.length ? (
                               <div className="mt-5 flex flex-wrap gap-2">
                                 {project.services.map((service) => (
-                                  <span key={service} className={`rounded-full border ${t.border} px-3 py-1 text-xs ${t.mutedText}`}>
+                                  <span key={service} className="ml-pill rounded-xl px-3 py-1 text-xs">
                                     {formatToken(service)}
                                   </span>
                                 ))}
@@ -663,17 +706,66 @@ function ProviderPageContent({ provider: p }: { provider: Provider }) {
 
             </div>
 
-            <aside className="flex min-w-0 flex-col gap-6 xl:sticky xl:top-0">
+            <aside className="flex min-w-0 flex-col gap-6 xl:sticky xl:top-6">
+              <section className="overflow-hidden rounded-[1.75rem] border border-slate-900/85 bg-[#101a2a] shadow-[0_24px_70px_rgba(15,23,42,0.18)]">
+                <div className="border-b border-white/10 bg-[radial-gradient(120%_120%_at_0%_0%,rgba(148,163,184,0.18),transparent_42%),linear-gradient(135deg,rgba(15,23,42,0.98),rgba(30,41,59,0.94))] px-6 py-6">
+                  <div className="text-[11px] font-medium uppercase tracking-[0.22em] text-slate-400">Start a project</div>
+                  <h2 className={`${displayFont.className} mt-3 text-2xl font-semibold tracking-[-0.02em] text-white`}>Send an inquiry</h2>
+                  {p.status === 'active' ? (
+                    <p className="mt-3 text-sm leading-7 text-slate-200/78">Use the form below to ask about availability, fit, pricing, or project scope.</p>
+                  ) : (
+                    <p className="mt-3 text-sm leading-7 text-slate-200/72">Inquiry tools unlock when this listing is active.</p>
+                  )}
+
+                  <div className="mt-5 flex flex-wrap gap-2">
+                    <a className="rounded-xl bg-white px-4 py-2 text-xs font-semibold text-slate-950 shadow-sm" href={`mailto:${p.email}`}>
+                      Email provider
+                    </a>
+                    {p.phone ? (
+                      <a className="rounded-xl border border-white/12 bg-white/6 px-4 py-2 text-xs font-semibold text-white" href={`tel:${p.phone}`}>
+                        Call now
+                      </a>
+                    ) : null}
+                    {p.websiteUrl ? (
+                      <a className="rounded-xl border border-white/12 bg-white/6 px-4 py-2 text-xs font-semibold text-white" href={p.websiteUrl} target="_blank" rel="noreferrer">
+                        Visit website
+                      </a>
+                    ) : null}
+                  </div>
+                </div>
+
+                <div className="px-6 py-6">
+                  {p.status === 'active' ? <InquiryForm providerSlug={p.slug} /> : <div className="text-sm text-slate-600">Contact form will be available once this listing is active.</div>}
+                </div>
+              </section>
+
               {(p.industries?.length || p.languages?.length || p.clientSizes?.length || p.specialties?.length || p.remoteFriendly || p.servesNationwide || p.responseTimeHours) ? (
-                <section className={`rounded-2xl ${t.surface} ${t.border} border p-6 shadow-[0_14px_45px_rgba(2,6,23,0.08)] backdrop-blur`}>
-                  <h2 className={`${displayFont.className} text-lg font-semibold tracking-[-0.02em] text-slate-900`}>At a glance</h2>
-                  <div className="mt-5 space-y-5">
+                <section className={`rounded-[1.75rem] ${pageSurface} ${pageBorder} border px-6 py-6 shadow-[0_18px_50px_rgba(15,23,42,0.06)]`}>
+                  <button
+                    type="button"
+                    className="flex w-full items-center justify-between gap-4 text-left md:hidden"
+                    onClick={() => setFitOpen((value) => !value)}
+                    aria-expanded={fitOpen}
+                  >
+                    <div>
+                      <div className="text-[11px] font-medium uppercase tracking-[0.22em] text-slate-500">Team fit</div>
+                      <h2 className={`${displayFont.className} mt-3 text-2xl font-semibold tracking-[-0.02em] text-slate-900`}>At a glance</h2>
+                    </div>
+                    <span className="ml-pill rounded-xl px-4 py-2 text-sm font-medium">
+                      {fitOpen ? 'Hide' : 'Show'}
+                    </span>
+                  </button>
+                  <div className="hidden md:block">
+                    <div className="text-[11px] font-medium uppercase tracking-[0.22em] text-slate-500">Team fit</div>
+                    <h2 className={`${displayFont.className} mt-3 text-2xl font-semibold tracking-[-0.02em] text-slate-900`}>At a glance</h2>
+                  </div>
+                  <div className={`${fitOpen ? 'mt-5 block' : 'hidden'} space-y-5 md:mt-5 md:block`}>
                     {p.industries?.length ? (
                       <div>
                         <div className={`text-[11px] font-medium uppercase tracking-[0.18em] ${t.mutedText}`}>Industries</div>
                         <div className="mt-3 flex flex-wrap gap-2">
                           {p.industries.map((s) => (
-                            <span key={s} className={`rounded-full border ${t.border} px-3 py-1 text-xs ${t.mutedText}`}>{formatToken(s)}</span>
+                            <span key={s} className="ml-pill rounded-xl px-3 py-1 text-xs">{formatToken(s)}</span>
                           ))}
                         </div>
                       </div>
@@ -683,7 +775,7 @@ function ProviderPageContent({ provider: p }: { provider: Provider }) {
                         <div className={`text-[11px] font-medium uppercase tracking-[0.18em] ${t.mutedText}`}>Languages</div>
                         <div className="mt-3 flex flex-wrap gap-2">
                           {p.languages.map((s) => (
-                            <span key={s} className={`rounded-full border ${t.border} px-3 py-1 text-xs ${t.mutedText}`}>{formatToken(s)}</span>
+                            <span key={s} className="ml-pill rounded-xl px-3 py-1 text-xs">{formatToken(s)}</span>
                           ))}
                         </div>
                       </div>
@@ -693,7 +785,7 @@ function ProviderPageContent({ provider: p }: { provider: Provider }) {
                         <div className={`text-[11px] font-medium uppercase tracking-[0.18em] ${t.mutedText}`}>Client sizes</div>
                         <div className="mt-3 flex flex-wrap gap-2">
                           {p.clientSizes.map((s) => (
-                            <span key={s} className={`rounded-full border ${t.border} px-3 py-1 text-xs ${t.mutedText}`}>{formatToken(s)}</span>
+                            <span key={s} className="ml-pill rounded-xl px-3 py-1 text-xs">{formatToken(s)}</span>
                           ))}
                         </div>
                       </div>
@@ -703,16 +795,16 @@ function ProviderPageContent({ provider: p }: { provider: Provider }) {
                         <div className={`text-[11px] font-medium uppercase tracking-[0.18em] ${t.mutedText}`}>Specialties</div>
                         <div className="mt-3 flex flex-wrap gap-2">
                           {p.specialties.map((s) => (
-                            <span key={s} className={`rounded-full border ${t.border} px-3 py-1 text-xs ${t.mutedText}`}>{formatToken(s)}</span>
+                            <span key={s} className="ml-pill rounded-xl px-3 py-1 text-xs">{formatToken(s)}</span>
                           ))}
                         </div>
                       </div>
                     ) : null}
                     {(p.remoteFriendly || p.servesNationwide || p.responseTimeHours) ? (
-                      <div className={`rounded-2xl ${t.surfaceMuted} ${t.border} border p-4`}>
-                        <div className={`text-[11px] font-medium uppercase tracking-[0.18em] ${t.mutedText}`}>Coverage</div>
+                      <div className={`rounded-2xl ${pageSurfaceMuted} ${pageBorder} border px-4 py-4`}>
+                        <div className={`text-[11px] font-medium uppercase tracking-[0.18em] ${t.mutedText}`}>Working model</div>
                         <div className="mt-3 space-y-2 text-sm text-slate-700">
-                          {p.remoteFriendly ? <div>Remote friendly engagement model</div> : null}
+                          {p.remoteFriendly ? <div>Remote-friendly engagement model</div> : null}
                           {p.servesNationwide ? <div>Available for nationwide work</div> : null}
                           {p.responseTimeHours ? <div>Usually replies within {p.responseTimeHours} hours</div> : null}
                         </div>
@@ -722,47 +814,33 @@ function ProviderPageContent({ provider: p }: { provider: Provider }) {
                 </section>
               ) : null}
 
-              {visibleClients.length ? (
-                <section className={`rounded-2xl ${t.surface} ${t.border} border p-6 shadow-[0_14px_45px_rgba(2,6,23,0.08)] backdrop-blur`}>
-                  <div className="flex items-center justify-between gap-3">
-                    <h2 className={`${displayFont.className} text-lg font-semibold tracking-[-0.02em] text-slate-900`}>Featured clients</h2>
-                    <span className={`text-xs ${t.mutedText}`}>{visibleClients.length}</span>
-                  </div>
-                  <div className="mt-4 space-y-3">
-                    {visibleClients.map((client) => (
-                      <div key={client.id} className={`rounded-2xl ${t.surfaceMuted} ${t.border} border p-4`}>
-                        <div className="flex items-center gap-3">
-                          {client.logoUrl ? (
-                            // eslint-disable-next-line @next/next/no-img-element
-                            <img src={client.logoUrl} alt={client.name} className="h-11 w-11 rounded-xl border object-cover" />
-                          ) : (
-                            <div className="flex h-11 w-11 items-center justify-center rounded-xl border bg-white text-[11px] font-medium text-slate-500">Logo</div>
-                          )}
-                          <div className="min-w-0">
-                            <div className="truncate text-sm font-semibold text-slate-900">{client.name}</div>
-                            {client.websiteUrl ? (
-                              <a className="mt-1 block truncate text-xs underline text-slate-700" href={client.websiteUrl} target="_blank" rel="noreferrer">
-                                {client.websiteUrl}
-                              </a>
-                            ) : null}
-                          </div>
-                        </div>
-                      </div>
-                    ))}
-                  </div>
-                </section>
-              ) : null}
-
               {(visibleCertifications.length || visibleAwards.length) ? (
-                <section className={`rounded-2xl ${t.surface} ${t.border} border p-6 shadow-[0_14px_45px_rgba(2,6,23,0.08)] backdrop-blur`}>
-                  <h2 className={`${displayFont.className} text-lg font-semibold tracking-[-0.02em] text-slate-900`}>Credentials</h2>
-                  <div className="mt-4 space-y-4">
+                <section className={`rounded-[1.75rem] ${pageSurface} ${pageBorder} border px-6 py-6 shadow-[0_18px_50px_rgba(15,23,42,0.06)]`}>
+                  <button
+                    type="button"
+                    className="flex w-full items-center justify-between gap-4 text-left md:hidden"
+                    onClick={() => setCredentialsOpen((value) => !value)}
+                    aria-expanded={credentialsOpen}
+                  >
+                    <div>
+                      <div className="text-[11px] font-medium uppercase tracking-[0.22em] text-slate-500">Signals</div>
+                      <h2 className={`${displayFont.className} mt-3 text-2xl font-semibold tracking-[-0.02em] text-slate-900`}>Credentials</h2>
+                    </div>
+                    <span className="ml-pill rounded-xl px-4 py-2 text-sm font-medium">
+                      {credentialsOpen ? 'Hide' : 'Show'}
+                    </span>
+                  </button>
+                  <div className="hidden md:block">
+                    <div className="text-[11px] font-medium uppercase tracking-[0.22em] text-slate-500">Signals</div>
+                    <h2 className={`${displayFont.className} mt-3 text-2xl font-semibold tracking-[-0.02em] text-slate-900`}>Credentials</h2>
+                  </div>
+                  <div className={`${credentialsOpen ? 'mt-4 block' : 'hidden'} space-y-4 md:mt-4 md:block`}>
                     {visibleCertifications.length ? (
                       <div>
                         <div className={`text-[11px] font-medium uppercase tracking-[0.18em] ${t.mutedText}`}>Certifications</div>
-                        <div className="mt-3 space-y-3">
+                        <div className="mt-3 divide-y divide-slate-200/80">
                           {visibleCertifications.map((item) => (
-                            <div key={item.id} className={`rounded-2xl ${t.surfaceMuted} ${t.border} border p-4`}>
+                            <div key={item.id} className="py-4 first:pt-0 last:pb-0">
                               <div className="flex items-start gap-3">
                                 {item.badgeImageUrl ? (
                                   // eslint-disable-next-line @next/next/no-img-element
@@ -790,9 +868,9 @@ function ProviderPageContent({ provider: p }: { provider: Provider }) {
                     {visibleAwards.length ? (
                       <div>
                         <div className={`text-[11px] font-medium uppercase tracking-[0.18em] ${t.mutedText}`}>Awards</div>
-                        <div className="mt-3 space-y-3">
+                        <div className="mt-3 divide-y divide-slate-200/80">
                           {visibleAwards.map((item) => (
-                            <div key={item.id} className={`rounded-2xl ${t.surfaceMuted} ${t.border} border p-4`}>
+                            <div key={item.id} className="py-4 first:pt-0 last:pb-0">
                               <div className="flex items-start gap-3">
                                 {item.badgeImageUrl ? (
                                   // eslint-disable-next-line @next/next/no-img-element
@@ -821,20 +899,36 @@ function ProviderPageContent({ provider: p }: { provider: Provider }) {
                 </section>
               ) : null}
 
-              <section className={`rounded-2xl ${t.surface} ${t.border} border p-6 shadow-[0_14px_45px_rgba(2,6,23,0.08)] backdrop-blur`}>
-                <div className="flex items-center justify-between">
-                  <h2 className={`${displayFont.className} text-lg font-semibold tracking-[-0.02em] text-slate-900`}>Contact</h2>
-                  {p.status !== 'active' ? <span className={`text-sm ${t.mutedText}`}>Available when active</span> : null}
+              <section className={`rounded-[1.75rem] ${pageSurface} ${pageBorder} border p-6 shadow-[0_18px_50px_rgba(15,23,42,0.06)] backdrop-blur`}>
+                <button
+                  type="button"
+                  className="flex w-full items-center justify-between gap-4 text-left md:hidden"
+                  onClick={() => setContactOpen((value) => !value)}
+                  aria-expanded={contactOpen}
+                >
+                  <div>
+                    <div className="text-[11px] font-medium uppercase tracking-[0.22em] text-slate-500">Contact</div>
+                    <h2 className={`${displayFont.className} mt-3 text-2xl font-semibold tracking-[-0.02em] text-slate-900`}>Reach out</h2>
+                  </div>
+                    <span className="ml-pill rounded-xl px-4 py-2 text-sm font-medium">
+                      {contactOpen ? 'Hide' : 'Show'}
+                    </span>
+                </button>
+                <div className="hidden md:block">
+                  <div className="text-[11px] font-medium uppercase tracking-[0.22em] text-slate-500">Contact</div>
+                  <h2 className={`${displayFont.className} mt-3 text-2xl font-semibold tracking-[-0.02em] text-slate-900`}>Reach out</h2>
+                  <p className="mt-2 text-sm leading-7 text-slate-700">Use these details if you want to contact the team directly outside the inquiry flow.</p>
                 </div>
 
-                <div className="mt-5 space-y-4">
-                  <div className={`rounded-2xl ${t.surfaceMuted} ${t.border} border p-4 shadow-sm`}>
+                <div className={`${contactOpen ? 'mt-5 block' : 'hidden'} space-y-4 md:mt-5 md:block`}>
+                  <p className="text-sm leading-7 text-slate-700 md:hidden">Use these details if you want to contact the team directly outside the inquiry flow.</p>
+                  <div className={`rounded-2xl ${pageSurfaceMuted} ${pageBorder} border p-4 shadow-sm`}>
                     <div className={`text-[11px] font-medium uppercase tracking-[0.18em] ${t.mutedText}`}>Location</div>
                     <div className="mt-2 text-sm font-semibold text-slate-900">{locationLabel}</div>
                     {p.zip ? <div className="mt-1 text-sm text-slate-600">ZIP {p.zip}</div> : null}
                   </div>
 
-                  <div className={`rounded-2xl ${t.surfaceMuted} ${t.border} border p-4 shadow-sm`}>
+                  <div className={`rounded-2xl ${pageSurfaceMuted} ${pageBorder} border p-4 shadow-sm`}>
                     <div className={`text-[11px] font-medium uppercase tracking-[0.18em] ${t.mutedText}`}>Email</div>
                     <div className="mt-2 break-all text-sm text-slate-900">{p.email}</div>
                     {p.phone ? (
@@ -855,15 +949,15 @@ function ProviderPageContent({ provider: p }: { provider: Provider }) {
                       <>
                         <div className={`mt-4 text-[11px] font-medium uppercase tracking-[0.18em] ${t.mutedText}`}>Social</div>
                         <div className="mt-3 flex flex-wrap gap-2 text-sm">
-                          {p.linkedinUrl ? <a className={`rounded-full border ${t.border} px-3 py-1 text-xs font-medium text-slate-700`} href={p.linkedinUrl} target="_blank" rel="noreferrer">LinkedIn</a> : null}
-                          {p.instagramUrl ? <a className={`rounded-full border ${t.border} px-3 py-1 text-xs font-medium text-slate-700`} href={p.instagramUrl} target="_blank" rel="noreferrer">Instagram</a> : null}
-                          {p.facebookUrl ? <a className={`rounded-full border ${t.border} px-3 py-1 text-xs font-medium text-slate-700`} href={p.facebookUrl} target="_blank" rel="noreferrer">Facebook</a> : null}
+                          {p.linkedinUrl ? <a className="ml-pill rounded-xl px-3 py-1 text-xs font-medium" href={p.linkedinUrl} target="_blank" rel="noreferrer">LinkedIn</a> : null}
+                          {p.instagramUrl ? <a className="ml-pill rounded-xl px-3 py-1 text-xs font-medium" href={p.instagramUrl} target="_blank" rel="noreferrer">Instagram</a> : null}
+                          {p.facebookUrl ? <a className="ml-pill rounded-xl px-3 py-1 text-xs font-medium" href={p.facebookUrl} target="_blank" rel="noreferrer">Facebook</a> : null}
                         </div>
                       </>
                     ) : null}
                   </div>
 
-                  <div className={`overflow-hidden rounded-2xl ${t.surfaceMuted} ${t.border} border shadow-sm`}>
+                  <div className={`overflow-hidden rounded-2xl ${pageSurfaceMuted} ${pageBorder} border shadow-sm`}>
                     <iframe
                       src={mapEmbedSrc}
                       title={`${p.businessName} location map`}
@@ -873,7 +967,6 @@ function ProviderPageContent({ provider: p }: { provider: Provider }) {
                     />
                   </div>
 
-                  {p.status === 'active' ? <InquiryForm providerSlug={p.slug} /> : <div className={`text-sm ${t.mutedText}`}>Contact form will be available once this listing is active.</div>}
                 </div>
               </section>
             </aside>
@@ -883,3 +976,6 @@ function ProviderPageContent({ provider: p }: { provider: Provider }) {
     </main>
   );
 }
+
+
+

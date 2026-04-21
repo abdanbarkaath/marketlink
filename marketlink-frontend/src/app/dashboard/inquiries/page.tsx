@@ -18,23 +18,6 @@ type InquiryRow = {
   createdAt: string;
 };
 
-function Pill({ children, status, variant = 'default' }: { children: React.ReactNode; status?: InquiryStatus; variant?: 'default' | 'count' }) {
-  const { t } = useMarketLinkTheme();
-
-  const statusColors = {
-    NEW: 'bg-blue-100 text-blue-800 border-blue-200',
-    READ: 'bg-green-100 text-green-800 border-green-200',
-    ARCHIVED: 'bg-gray-100 text-gray-800 border-gray-200',
-  };
-
-  const variantStyles = {
-    default: 'bg-white/70 text-slate-700 border-slate-200/80',
-    count: `${t.surfaceMuted} ${t.border} text-slate-900 font-semibold backdrop-blur`,
-  };
-
-  return <span className={`inline-flex items-center rounded-full border px-3 py-1 text-xs font-medium ${status ? statusColors[status] : variantStyles[variant]}`}>{children}</span>;
-}
-
 function formatDate(iso: string) {
   const d = new Date(iso);
   return d.toLocaleString(undefined, {
@@ -53,7 +36,6 @@ export default function DashboardInquiriesPage() {
   const [rows, setRows] = useState<InquiryRow[]>([]);
   const [loading, setLoading] = useState(true);
   const [pageError, setPageError] = useState<string | null>(null);
-
   const [busyId, setBusyId] = useState<string | null>(null);
   const [filter, setFilter] = useState<'all' | 'new' | 'read' | 'archived'>('all');
 
@@ -80,14 +62,14 @@ export default function DashboardInquiriesPage() {
       }
 
       if (!res.ok) {
-        const body = await res.json().catch(() => ({}));
+        const body = (await res.json().catch(() => ({}))) as { error?: string };
         throw new Error(body?.error || `Failed (${res.status})`);
       }
 
-      const body = (await res.json()) as { ok: true; data: InquiryRow[] };
+      const body = (await res.json()) as { ok?: true; data?: InquiryRow[] };
       setRows(Array.isArray(body?.data) ? body.data : []);
-    } catch (e: any) {
-      setPageError(e?.message ?? 'Something went wrong');
+    } catch (e: unknown) {
+      setPageError(e instanceof Error ? e.message : 'Something went wrong');
     } finally {
       setLoading(false);
     }
@@ -100,8 +82,6 @@ export default function DashboardInquiriesPage() {
 
   async function setStatus(id: string, status: Exclude<InquiryStatus, 'NEW'>) {
     setBusyId(id);
-
-    // optimistic update
     setRows((prev) => prev.map((r) => (r.id === id ? { ...r, status } : r)));
 
     try {
@@ -114,13 +94,12 @@ export default function DashboardInquiriesPage() {
       });
 
       if (!res.ok) {
-        // rollback by reloading (simple + reliable)
         await load();
-        const body = await res.json().catch(() => ({}));
+        const body = (await res.json().catch(() => ({}))) as { error?: string };
         throw new Error(body?.error || `Failed (${res.status})`);
       }
-    } catch (e: any) {
-      setPageError(e?.message ?? 'Failed to update inquiry');
+    } catch (e: unknown) {
+      setPageError(e instanceof Error ? e.message : 'Failed to update inquiry');
     } finally {
       setBusyId(null);
     }
@@ -128,83 +107,121 @@ export default function DashboardInquiriesPage() {
 
   const total = rows.length;
   const newCount = rows.filter((r) => r.status === 'NEW').length;
+  const shellClass =
+    'rounded-[28px] border border-slate-200/80 bg-[linear-gradient(180deg,rgba(255,255,255,0.94),rgba(247,244,239,0.96))] p-5 shadow-[0_18px_50px_rgba(15,23,42,0.06)] sm:p-6';
+  const mutedCardClass =
+    'rounded-[24px] border border-slate-200/80 bg-[linear-gradient(180deg,rgba(251,250,248,0.98),rgba(243,239,234,0.72))] p-4 shadow-[0_10px_30px_rgba(15,23,42,0.04)]';
+
+  const filterButton = (value: 'all' | 'new' | 'read' | 'archived', label: string) => (
+    <button
+      type="button"
+      onClick={() => setFilter(value)}
+      className={
+        filter === value
+          ? 'rounded-full bg-slate-900 px-4 py-2.5 text-sm font-semibold text-white transition hover:bg-slate-800'
+          : 'rounded-full border border-slate-200/80 bg-white px-4 py-2.5 text-sm font-semibold text-slate-700 transition hover:border-slate-300 hover:bg-slate-50'
+      }
+    >
+      {label}
+    </button>
+  );
 
   return (
     <main className={`${t.pageBg} min-h-[calc(100vh-72px)]`}>
-      <div className="mx-auto max-w-6xl px-4 py-10">
-        <div className="flex flex-col gap-3 sm:flex-row sm:items-end sm:justify-between">
-          <div>
-            <h1 className="text-2xl font-semibold text-slate-900">Inquiries</h1>
-            <div className="mt-2 flex flex-wrap items-center gap-2 text-sm">
-              <Pill variant="count">{total} total</Pill>
-              <Pill variant="count">{newCount} new</Pill>
+      <div className="mx-auto max-w-6xl px-4 py-6 sm:px-6 sm:py-8">
+        <section className={`${shellClass} overflow-hidden`}>
+          <div className="grid gap-4 lg:grid-cols-[minmax(0,1.45fr)_320px] lg:items-stretch">
+            <div>
+              <p className="text-xs font-semibold uppercase tracking-[0.32em] text-slate-500">Leads inbox</p>
+              <h1 className="mt-2 text-3xl font-semibold tracking-tight text-slate-950 sm:text-4xl">Inquiries</h1>
+              <p className={`mt-3 text-sm ${t.mutedText}`}>Review new leads, mark conversations as handled, and keep your inbox clean.</p>
+              <div className="mt-5 flex flex-wrap gap-2">
+                <span className="rounded-full border border-slate-200/80 bg-white px-3 py-1 text-xs font-medium text-slate-600 shadow-sm">Fast inbox review</span>
+                <span className="rounded-full border border-slate-200/80 bg-white px-3 py-1 text-xs font-medium text-slate-600 shadow-sm">Mobile-first actions</span>
+                <span className="rounded-full border border-slate-200/80 bg-white px-3 py-1 text-xs font-medium text-slate-600 shadow-sm">Lead follow-up</span>
+              </div>
+            </div>
+
+            <div className={mutedCardClass}>
+              <div className="grid grid-cols-2 gap-3 sm:grid-cols-3">
+                <div className="rounded-2xl bg-slate-900 px-4 py-3 text-white shadow-[0_18px_34px_rgba(15,23,42,0.18)]">
+                  <div className="text-[11px] font-semibold uppercase tracking-[0.22em] text-slate-300">Total</div>
+                  <div className="mt-2 text-lg font-semibold">{total}</div>
+                </div>
+                <div className="rounded-2xl border border-slate-200/80 bg-white/90 px-4 py-3">
+                  <div className="text-[11px] font-semibold uppercase tracking-[0.22em] text-slate-400">New</div>
+                  <div className="mt-2 text-lg font-semibold text-slate-950">{newCount}</div>
+                </div>
+                <div className="rounded-2xl border border-slate-200/80 bg-white/90 px-4 py-3 col-span-2 sm:col-span-1">
+                  <div className="text-[11px] font-semibold uppercase tracking-[0.22em] text-slate-400">View</div>
+                  <div className="mt-2 text-lg font-semibold text-slate-950 capitalize">{filter}</div>
+                </div>
+              </div>
             </div>
           </div>
+        </section>
 
-          <div className="flex flex-wrap gap-2">
-            <button
-              type="button"
-              onClick={() => setFilter('all')}
-              className={`rounded-xl border px-3 py-2 text-sm font-medium transition ${filter === 'all' ? `${t.primaryBtn} border-transparent` : `${t.secondaryBtn} hover:bg-white/90`}`}
-            >
-              All
-            </button>
-            <button
-              type="button"
-              onClick={() => setFilter('new')}
-              className={`rounded-xl border px-3 py-2 text-sm font-medium transition ${filter === 'new' ? `${t.primaryBtn} border-transparent` : `${t.secondaryBtn} hover:bg-white/90`}`}
-            >
-              New
-            </button>
-            <button
-              type="button"
-              onClick={() => setFilter('read')}
-              className={`rounded-xl border px-3 py-2 text-sm font-medium transition ${filter === 'read' ? `${t.primaryBtn} border-transparent` : `${t.secondaryBtn} hover:bg-white/90`}`}
-            >
-              Read
-            </button>
-            <button
-              type="button"
-              onClick={() => setFilter('archived')}
-              className={`rounded-xl border px-3 py-2 text-sm font-medium transition ${filter === 'archived' ? `${t.primaryBtn} border-transparent` : `${t.secondaryBtn} hover:bg-white/90`}`}
-            >
-              Archived
-            </button>
+        <section className={`${shellClass} mt-5`}>
+          <div className="flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
+            <div>
+              <h2 className="text-lg font-semibold text-slate-900">Filter inbox</h2>
+              <p className={`mt-1 text-sm ${t.mutedText}`}>Switch views quickly without losing your place on mobile.</p>
+            </div>
+
+            <div className="flex flex-wrap gap-2">
+              {filterButton('all', 'All')}
+              {filterButton('new', 'New')}
+              {filterButton('read', 'Read')}
+              {filterButton('archived', 'Archived')}
+            </div>
           </div>
-        </div>
+        </section>
 
-        {pageError ? <div className={`mt-6 rounded-2xl ${t.surface} ${t.border} border-red-200 bg-red-50/80 backdrop-blur p-4 text-sm text-red-700`}>{pageError}</div> : null}
+        {pageError ? <div className="mt-5 rounded-2xl border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700">{pageError}</div> : null}
 
         {loading ? (
-          <div className={`mt-6 rounded-2xl ${t.surface} ${t.border} p-6 backdrop-blur`}>
-            <p className={`text-sm ${t.mutedText}`}>Loading inquiries…</p>
-          </div>
+          <section className={`${shellClass} mt-5`}>
+            <p className={`text-sm ${t.mutedText}`}>Loading inquiries...</p>
+          </section>
         ) : filtered.length === 0 ? (
-          <div className={`mt-6 rounded-2xl ${t.surface} ${t.border} p-6 backdrop-blur`}>
+          <section className={`${shellClass} mt-5`}>
             <p className={`text-sm ${t.mutedText}`}>No inquiries here yet.</p>
-          </div>
+          </section>
         ) : (
-          <div className="mt-6 space-y-3">
+          <div className="mt-5 space-y-4">
             {filtered.map((r) => {
               const busy = busyId === r.id;
+
               return (
-                <article key={r.id} className={`rounded-2xl ${t.card} ${t.cardHover} backdrop-blur`}>
-                  <div className="p-5">
+                <article key={r.id} className={shellClass}>
+                  <div className="flex flex-col gap-4">
                     <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
-                      <div>
+                      <div className="min-w-0">
                         <div className="flex flex-wrap items-center gap-2">
-                          <div className="text-sm font-semibold text-slate-900">{r.name}</div>
-                          <Pill status={r.status}>{r.status}</Pill>
+                          <div className="text-base font-semibold text-slate-900">{r.name}</div>
+                          <span
+                            className={`inline-flex items-center rounded-full border px-3 py-1 text-xs font-medium ${
+                              r.status === 'NEW'
+                                ? 'border-stone-200 bg-stone-50 text-stone-700'
+                                : r.status === 'READ'
+                                ? 'border-emerald-200 bg-emerald-50 text-emerald-800'
+                                : 'border-slate-200 bg-slate-100 text-slate-700'
+                            }`}
+                          >
+                            {r.status}
+                          </span>
                           <span className={`text-xs ${t.mutedText}`}>{formatDate(r.createdAt)}</span>
                         </div>
 
-                        <div className="mt-2 text-sm text-slate-700">
+                        <div className="mt-3 grid gap-2 text-sm text-slate-700">
                           <div>
-                            <span className={t.mutedText}>Email:</span> {r.email}
+                            <span className={`${t.mutedText} mr-1`}>Email:</span>
+                            <span className="break-all">{r.email}</span>
                           </div>
                           {r.phone ? (
                             <div>
-                              <span className={t.mutedText}>Phone:</span> {r.phone}
+                              <span className={`${t.mutedText} mr-1`}>Phone:</span>
+                              {r.phone}
                             </div>
                           ) : null}
                         </div>
@@ -216,7 +233,7 @@ export default function DashboardInquiriesPage() {
                             type="button"
                             disabled={busy}
                             onClick={() => setStatus(r.id, 'READ')}
-                            className={`rounded-xl border px-3 py-2 text-sm font-medium transition ${busy ? 'opacity-60 cursor-not-allowed' : `${t.secondaryBtn} hover:bg-white/90`}`}
+                            className="rounded-full border border-slate-200/80 bg-white px-4 py-2.5 text-sm font-semibold text-slate-700 transition hover:border-slate-300 hover:bg-slate-50 disabled:cursor-not-allowed disabled:opacity-60"
                           >
                             Mark read
                           </button>
@@ -227,7 +244,7 @@ export default function DashboardInquiriesPage() {
                             type="button"
                             disabled={busy}
                             onClick={() => setStatus(r.id, 'ARCHIVED')}
-                            className={`rounded-xl border px-3 py-2 text-sm font-medium transition ${busy ? 'opacity-60 cursor-not-allowed' : `${t.secondaryBtn} hover:bg-white/90`}`}
+                            className="rounded-full border border-slate-200/80 bg-white px-4 py-2.5 text-sm font-semibold text-slate-700 transition hover:border-slate-300 hover:bg-slate-50 disabled:cursor-not-allowed disabled:opacity-60"
                           >
                             Archive
                           </button>
@@ -235,7 +252,7 @@ export default function DashboardInquiriesPage() {
                       </div>
                     </div>
 
-                    <div className="mt-4 whitespace-pre-wrap rounded-xl border bg-slate-50/80 backdrop-blur p-3 text-sm text-slate-800">{r.message}</div>
+                    <div className={mutedCardClass + ' text-sm leading-6 text-slate-800 whitespace-pre-wrap'}>{r.message}</div>
                   </div>
                 </article>
               );
