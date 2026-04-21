@@ -2,6 +2,8 @@
 
 import React, { useEffect, useState } from 'react';
 
+type FormAction = React.ComponentProps<'form'>['action'];
+
 /** Wrap a form to show a confirm dialog before submitting, supports server actions via `action` prop. */
 export function ConfirmSubmit({
   message = 'Are you sure?',
@@ -10,13 +12,13 @@ export function ConfirmSubmit({
   children,
 }: {
   message?: string;
-  action?: (formData: FormData) => void | Promise<void>; // server action or normal
+  action?: FormAction;
   className?: string;
   children: React.ReactNode;
 }) {
   return (
     <form
-      action={action as any}
+      action={action}
       className={className}
       onSubmit={(e) => {
         const ok = window.confirm(message);

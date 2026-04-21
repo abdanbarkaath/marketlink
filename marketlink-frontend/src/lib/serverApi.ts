@@ -29,7 +29,7 @@ export async function apiFetch(path: string, init?: RequestInit) {
 }
 
 /** Convenience: fetch and parse JSON, throwing on non-2xx. */
-export async function apiJSON<T = any>(path: string, init?: RequestInit): Promise<T> {
+export async function apiJSON<T = unknown>(path: string, init?: RequestInit): Promise<T> {
   const res = await apiFetch(path, init);
   const text = await res.text();
   const data = text ? JSON.parse(text) : null;
