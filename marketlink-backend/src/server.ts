@@ -10,11 +10,33 @@ import accountRoutes from './routes/account';
 import providersRoutes from './routes/providers';
 import inquiriesRoutes from './routes/inquiries';
 
+function normalizeOrigin(raw: string) {
+  return raw.trim().replace(/\/$/, '');
+}
+
+function getAllowedOrigins() {
+  const defaults = ['http://localhost:3000', 'http://127.0.0.1:3000'];
+  const envOrigins = [process.env.WEB_URL]
+    .filter((value): value is string => typeof value === 'string' && value.trim().length > 0)
+    .map(normalizeOrigin);
+
+  return Array.from(new Set([...defaults, ...envOrigins]));
+}
+
 async function start() {
   const fastify = Fastify({ logger: true });
+  const allowedOrigins = getAllowedOrigins();
 
   await fastify.register(cors, {
-    origin: ['http://localhost:3000', 'http://127.0.0.1:3000'],
+    origin(origin, cb) {
+      if (!origin) {
+        cb(null, true);
+        return;
+      }
+
+      const normalizedOrigin = normalizeOrigin(origin);
+      cb(null, allowedOrigins.includes(normalizedOrigin));
+    },
     credentials: true,
     methods: ['GET', 'POST', 'PUT', 'PATCH', 'DELETE', 'OPTIONS'],
     allowedHeaders: ['Content-Type', 'Authorization'],

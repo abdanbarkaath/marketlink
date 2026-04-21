@@ -7,6 +7,91 @@ Quick URLs
 - Frontend (local): http://localhost:3000
 - Backend (local): http://localhost:4000
 
+Deployment (temp/staging)
+
+- Frontend: Vercel
+- Backend: Render or Railway
+- Database: Neon
+
+Recommended order
+
+1. Push the repo to GitHub
+2. Deploy `marketlink-backend`
+3. Set backend env vars
+4. Run Prisma migrations on the deployed backend
+5. Deploy `marketlink-frontend`
+6. Set frontend env vars
+7. Test public pages first, then auth/dashboard/admin
+
+Frontend deploy
+
+- Root directory: `marketlink-frontend`
+- Build command: `npm run build`
+- Start command: `npm run start`
+
+Frontend env vars
+
+```env
+NEXT_PUBLIC_API_URL=https://YOUR-BACKEND-URL
+```
+
+Backend deploy
+
+- Root directory: `marketlink-backend`
+- Build command: `npm run build`
+- Start command: `npm run start`
+
+Backend env vars
+
+```env
+DATABASE_URL=postgresql://...
+COOKIE_SECRET=replace-with-a-long-random-secret
+SESSION_TTL_DAYS=7
+WEB_URL=https://YOUR-FRONTEND-URL
+NODE_ENV=production
+RESEND_API_KEY=...
+MAIL_FROM="Marketus <onboarding@resend.dev>"
+APP_NAME=Marketus
+```
+
+Prisma on deploy
+
+Run this after the backend has the right env vars:
+
+```bash
+npx prisma migrate deploy
+npx prisma generate
+```
+
+Production auth notes
+
+- The backend now allows CORS from `WEB_URL` plus local dev origins.
+- In production, session cookies are set with:
+  - `sameSite=none`
+  - `secure=true`
+- This is required when the frontend and backend are on different domains, such as Vercel + Render.
+
+Deploy test checklist
+
+Public pages
+
+- `/`
+- `/providers`
+- `/providers/windy-city-growth`
+
+Auth and dashboards
+
+- `/login`
+- `/dashboard`
+- `/dashboard/admin`
+- `/dashboard/inquiries`
+
+Important
+
+- Do not commit real `.env` files.
+- Move all secrets into Vercel/Render env settings.
+- If any real secret was committed before, rotate it before deploy.
+
 How to start locally (backend + frontend)
 
 Backend (Fastify)

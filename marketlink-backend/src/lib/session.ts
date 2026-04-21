@@ -50,10 +50,11 @@ export function consumeMagicToken(token: string): { email: string } | null {
 const COOKIE_NAME = 'session';
 
 export function setSessionCookie(reply: FastifyReply, sessionToken: string, ttlMs = SESSION_TTL_MS) {
+  const isProduction = process.env.NODE_ENV === 'production';
   reply.setCookie(COOKIE_NAME, sessionToken, {
     httpOnly: true,
-    sameSite: 'lax',
-    secure: process.env.NODE_ENV === 'production', // keep false in dev, true in prod
+    sameSite: isProduction ? 'none' : 'lax',
+    secure: isProduction,
     path: '/',
     maxAge: Math.floor(ttlMs / 1000),
     signed: true,
