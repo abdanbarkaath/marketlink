@@ -92,6 +92,39 @@ Important
 - Move all secrets into Vercel/Render env settings.
 - If any real secret was committed before, rotate it before deploy.
 
+## Branch Naming Strategy
+
+Use one branch per ticket, not one branch per epic.
+
+Format
+
+- `e<epic-issue>-i<ticket-issue>-<short-kebab-task-name>`
+
+Examples
+
+- `e26-i43-provider-to-expert-copy-strategy`
+- `e26-i44-direct-services-guided-outcomes-nav`
+- `e27-i48-unified-expert-type-support`
+- `e30-i65-buyer-role-and-profile`
+
+Rules
+
+- Epic issue = planning container
+- Ticket issue = actual work item
+- Branch = one ticket only
+- Include both epic and ticket numbers in the branch name
+- Keep the task name short, lowercase, and kebab-case
+
+GitHub Project workflow
+
+1. Pick the epic you are working in
+2. Pick one sub-issue under that epic
+3. Create a branch using that ticket's epic number and issue number
+4. Do the work for that one ticket only
+5. Open a PR for that ticket
+6. Move the ticket through the board
+7. The epic is done when its sub-issues are done
+
 How to start locally (backend + frontend)
 
 Backend (Fastify)
