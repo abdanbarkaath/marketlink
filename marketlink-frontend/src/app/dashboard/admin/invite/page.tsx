@@ -6,7 +6,8 @@ export const dynamic = 'force-dynamic';
 
 export default async function AdminInvitePage() {
   const apiBase = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:4000';
-  const cookie = headers().get('cookie') || '';
+  const requestHeaders = await headers();
+  const cookie = requestHeaders.get('cookie') || '';
 
   const statsRes = await fetch(`${apiBase}/admin/stats`, {
     cache: 'no-store',

@@ -29,7 +29,8 @@ type Provider = {
 
 async function adminFetchJSON<T>(path: string) {
   const apiBase = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:4000';
-  const cookie = headers().get('cookie') || '';
+  const requestHeaders = await headers();
+  const cookie = requestHeaders.get('cookie') || '';
   const res = await fetch(`${apiBase}${path}`, {
     cache: 'no-store',
     headers: { 'content-type': 'application/json', cookie },
@@ -50,7 +51,8 @@ async function adminFetchJSON<T>(path: string) {
 async function adminPatch(path: string, body: unknown) {
   'use server';
   const apiBase = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:4000';
-  const cookie = headers().get('cookie') || '';
+  const requestHeaders = await headers();
+  const cookie = requestHeaders.get('cookie') || '';
 
   const res = await fetch(`${apiBase}${path}`, {
     method: 'PATCH',

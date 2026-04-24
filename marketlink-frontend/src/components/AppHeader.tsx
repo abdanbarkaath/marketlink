@@ -9,6 +9,19 @@ import { useMarketLinkTheme } from '@/components/ThemeToggle';
 const API_BASE = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:4000';
 
 type Role = 'provider' | 'admin' | '' | null | string;
+type NavItem = {
+  href: string;
+  label: string;
+  active: boolean;
+};
+
+function canAccessDashboard(role: Role) {
+  return role === 'provider' || role === 'admin';
+}
+
+function getDashboardHref(role: Role) {
+  return role === 'admin' ? '/dashboard/admin' : '/dashboard';
+}
 
 export default function AppHeader() {
   const pathname = usePathname();
@@ -57,11 +70,18 @@ export default function AppHeader() {
     setMobileOpen(false);
   }, [pathname]);
 
-  const canSeeDashboard = role === 'provider' || role === 'admin';
+  const canSeeDashboard = canAccessDashboard(role);
+  const dashboardHref = getDashboardHref(role);
+  const isHomePage = pathname === '/';
   const isProvidersPage = pathname?.startsWith('/providers');
   const isLoginPage = pathname === '/login';
   const isDashboardPage = pathname?.startsWith('/dashboard');
   const showLoginAction = !canSeeDashboard && !isLoginPage;
+  const navItems: NavItem[] = [
+    { href: '/', label: 'Home', active: isHomePage },
+    { href: '/providers', label: 'Browse experts', active: Boolean(isProvidersPage) },
+    ...(canSeeDashboard ? [{ href: dashboardHref, label: 'Dashboard', active: Boolean(isDashboardPage) }] : []),
+  ];
   const mobileMenuBaseClass = 'inline-flex min-h-12 items-center justify-between rounded-xl border px-4 text-sm font-medium transition';
   const mobileMenuRowClass = `${mobileMenuBaseClass} ${t.secondaryBtn}`;
   const mobileMenuActiveClass = `${mobileMenuBaseClass} ml-btn-primary border-transparent text-white`;
@@ -89,17 +109,11 @@ export default function AppHeader() {
         <div className="flex items-center gap-3">
           <div className="hidden lg:flex items-center gap-3">
             <nav className={desktopNavShellClass}>
-              <Link href="/" className={pathname === '/' ? desktopActiveLinkClass : desktopLinkClass}>
-                Home
-              </Link>
-              <Link href="/providers" className={isProvidersPage ? desktopActiveLinkClass : desktopLinkClass}>
-                Browse providers
-              </Link>
-              {canSeeDashboard ? (
-                <Link href="/dashboard" className={isDashboardPage ? desktopActiveLinkClass : desktopLinkClass}>
-                  Dashboard
+              {navItems.map((item) => (
+                <Link key={item.href} href={item.href} className={item.active ? desktopActiveLinkClass : desktopLinkClass}>
+                  {item.label}
                 </Link>
-              ) : null}
+              ))}
             </nav>
 
             {role === null ? (
@@ -136,32 +150,21 @@ export default function AppHeader() {
               <div className={`text-[11px] font-medium uppercase tracking-[0.26em] ${t.headerMutedText}`}>Navigate</div>
             </div>
             <div className="flex flex-col gap-3 px-4 py-4">
-              <Link
-                href="/providers"
-                className={isProvidersPage ? mobileMenuActiveClass : mobileMenuRowClass}
-              >
-                <span>Browse providers</span>
-                <span className="text-base leading-none text-current/55" aria-hidden="true">&rarr;</span>
-              </Link>
-              <Link
-                href="/"
-                className={pathname === '/' ? mobileMenuActiveClass : mobileMenuRowClass}
-              >
-                <span>Home</span>
-                <span className="text-base leading-none text-current/55" aria-hidden="true">&rarr;</span>
-              </Link>
+              {navItems.map((item) => (
+                <Link
+                  key={item.href}
+                  href={item.href}
+                  className={item.active ? mobileMenuActiveClass : mobileMenuRowClass}
+                >
+                  <span>{item.label}</span>
+                  <span className="text-base leading-none text-current/55" aria-hidden="true">&rarr;</span>
+                </Link>
+              ))}
 
               {role === null ? (
                 <div className="h-12 rounded-xl border border-white/10 bg-white/8 opacity-60" aria-hidden="true" />
               ) : canSeeDashboard ? (
               <>
-                <Link
-                  href="/dashboard"
-                  className={isDashboardPage ? mobileMenuActiveClass : mobileMenuRowClass}
-                >
-                  <span>Dashboard</span>
-                  <span className="text-base leading-none text-current/55" aria-hidden="true">&rarr;</span>
-                </Link>
                 <LogoutButton className={`${mobileMenuRowClass} justify-center`} />
               </>
             ) : showLoginAction ? (
