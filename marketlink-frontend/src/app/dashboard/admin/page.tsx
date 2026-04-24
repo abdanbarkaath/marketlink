@@ -84,7 +84,8 @@ function StatCardLink({ label, value, href, hint }: { label: string; value: numb
 async function adminPATCH(path: string, body: unknown) {
   'use server';
   const apiBase = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:4000';
-  const cookie = headers().get('cookie') || '';
+  const requestHeaders = await headers();
+  const cookie = requestHeaders.get('cookie') || '';
 
   const res = await fetch(`${apiBase}${path}`, {
     method: 'PATCH',
@@ -105,7 +106,8 @@ type AdminOverviewPageProps = {
 
 export default async function AdminOverviewPage({ searchParams }: AdminOverviewPageProps) {
   const apiBase = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:4000';
-  const cookie = headers().get('cookie') || '';
+  const requestHeaders = await headers();
+  const cookie = requestHeaders.get('cookie') || '';
   const resolvedSearchParams = await searchParams;
 
   const query = typeof resolvedSearchParams.query === 'string' ? resolvedSearchParams.query : undefined;
