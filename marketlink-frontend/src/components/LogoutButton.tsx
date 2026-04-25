@@ -35,7 +35,7 @@ export default function LogoutButton({ className = '' }: { className?: string })
       disabled={loading}
       aria-busy={loading}
     >
-      {loading ? 'Logging out...' : 'Log out'}
+      {loading ? 'Signing out...' : 'Sign out'}
     </button>
   );
 }

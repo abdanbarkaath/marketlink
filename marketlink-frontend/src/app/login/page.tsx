@@ -34,7 +34,7 @@ function LoginLoadingState({ message }: { message: string }) {
     <main className="ml-page-bg min-h-[calc(100vh-80px)]">
       <div className="mx-auto max-w-7xl px-4 py-6 sm:px-6 sm:py-10">
         <div className="ml-card rounded-[2rem] px-6 py-8 shadow-[0_18px_48px_rgba(23,26,31,0.08)]">
-          <h1 className="text-2xl font-semibold tracking-tight text-slate-900">Login</h1>
+          <h1 className="text-2xl font-semibold tracking-tight text-slate-900">Sign in</h1>
           <p className="mt-2 text-sm text-slate-600">{message}</p>
         </div>
       </div>
@@ -156,30 +156,30 @@ function LoginPageContent() {
             <div className="h-2 bg-[linear-gradient(90deg,#0f172a,#25324a,#b6bdc8)]" />
             <div className="bg-[radial-gradient(120%_120%_at_0%_0%,rgba(148,163,184,0.16),transparent_42%),linear-gradient(135deg,rgba(15,23,42,0.98),rgba(15,23,42,0.90))] px-5 py-6 sm:px-8 sm:py-10">
               <div className="inline-flex items-center rounded-xl border border-white/12 bg-white/6 px-3 py-1 text-[11px] font-medium uppercase tracking-[0.24em] text-white/65">
-                Provider and admin access
+                Expert and admin access
               </div>
               <h1 className="mt-4 max-w-xl text-3xl font-semibold tracking-[-0.05em] text-white sm:mt-5 sm:text-5xl">
-                Sign in to manage your profile, leads, and platform tools.
+                Sign in to manage your expert profile, inquiries, and platform tools.
               </h1>
               <p className="mt-3 max-w-xl text-sm leading-6 text-slate-200/78 sm:mt-4 sm:text-base sm:leading-7">
-                Use the same account flow for providers and admins. After sign-in, MarketLink will route you to the correct dashboard automatically.
+                Use the same sign-in flow for experts and admins. After sign-in, MarketLink sends you to the right dashboard automatically.
               </p>
 
               <div className="mt-5 grid gap-3 sm:mt-8 sm:grid-cols-3">
                 <div className="rounded-[1.3rem] border border-white/10 bg-white/6 px-4 py-4">
-                  <div className="text-[11px] font-medium uppercase tracking-[0.18em] text-slate-300">Providers</div>
-                  <div className="mt-2 text-sm font-semibold text-white">Update profiles</div>
-                  <p className="mt-2 text-sm leading-6 text-slate-200/72">Manage services, portfolio content, and inquiries.</p>
+                  <div className="text-[11px] font-medium uppercase tracking-[0.18em] text-slate-300">Experts</div>
+                  <div className="mt-2 text-sm font-semibold text-white">Manage your profile</div>
+                  <p className="mt-2 text-sm leading-6 text-slate-200/72">Update services, profile details, and inquiries from one place.</p>
                 </div>
                 <div className="rounded-[1.3rem] border border-white/10 bg-white/6 px-4 py-4">
                   <div className="text-[11px] font-medium uppercase tracking-[0.18em] text-slate-300">Admins</div>
-                  <div className="mt-2 text-sm font-semibold text-white">Operate safely</div>
-                  <p className="mt-2 text-sm leading-6 text-slate-200/72">Handle invites, resets, and provider controls from one place.</p>
+                  <div className="mt-2 text-sm font-semibold text-white">Run platform operations</div>
+                  <p className="mt-2 text-sm leading-6 text-slate-200/72">Handle invites, resets, and expert controls from one place.</p>
                 </div>
                 <div className="rounded-[1.3rem] border border-white/10 bg-white/6 px-4 py-4">
-                  <div className="text-[11px] font-medium uppercase tracking-[0.18em] text-slate-300">Sessions</div>
-                  <div className="mt-2 text-sm font-semibold text-white">Cookie-based</div>
-                  <p className="mt-2 text-sm leading-6 text-slate-200/72">Simple sign-in with redirect logic handled server-side.</p>
+                  <div className="text-[11px] font-medium uppercase tracking-[0.18em] text-slate-300">Redirects</div>
+                  <div className="mt-2 text-sm font-semibold text-white">Role-aware</div>
+                  <p className="mt-2 text-sm leading-6 text-slate-200/72">Experts go to their dashboard. Admins go straight to the admin workspace.</p>
                 </div>
               </div>
             </div>
@@ -188,9 +188,9 @@ function LoginPageContent() {
           <div className="ml-card order-1 rounded-[2rem] px-5 py-6 shadow-[0_18px_48px_rgba(23,26,31,0.08)] sm:px-8 sm:py-10 lg:order-2">
             <div className="flex items-start justify-between gap-4 border-b border-slate-200/80 pb-5">
               <div>
-                <div className="text-[11px] font-medium uppercase tracking-[0.22em] text-slate-500">Portal access</div>
+                <div className="text-[11px] font-medium uppercase tracking-[0.22em] text-slate-500">Account access</div>
                 <h2 className="mt-3 text-3xl font-semibold tracking-[-0.04em] text-slate-900">Sign in</h2>
-                <p className="mt-2 text-sm leading-6 text-slate-600">Enter your email and password to continue.</p>
+                <p className="mt-2 text-sm leading-6 text-slate-600">Enter your email and password to open the right dashboard.</p>
               </div>
               <span className="ml-pill rounded-xl px-4 py-2 text-sm font-medium normal-case tracking-normal">Secure</span>
             </div>
@@ -239,7 +239,7 @@ function LoginPageContent() {
               ) : null}
 
               <div className="flex flex-col gap-3 border-t border-slate-200/80 pt-4 sm:flex-row sm:items-center sm:justify-between">
-                <div className="text-sm text-slate-600">You&apos;ll be redirected to the right dashboard after sign-in.</div>
+                <div className="text-sm text-slate-600">Experts go to their dashboard. Admins go to the admin workspace.</div>
                 <button
                   type="submit"
                   disabled={submitting}
@@ -251,10 +251,10 @@ function LoginPageContent() {
 
               <div className="flex flex-col gap-2 pt-2 text-sm sm:flex-row sm:items-center sm:justify-between">
                 <Link href="/" className="font-medium text-slate-700 underline underline-offset-4 hover:text-slate-900">
-                  Continue as guest
+                  Continue without signing in
                 </Link>
                 <Link href="/providers" className="font-medium text-slate-700 underline underline-offset-4 hover:text-slate-900">
-                  View providers
+                  Browse experts
                 </Link>
               </div>
             </form>
