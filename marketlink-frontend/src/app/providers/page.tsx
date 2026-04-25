@@ -3,7 +3,7 @@ import type { Metadata } from 'next';
 import Link from 'next/link';
 
 export const metadata: Metadata = {
-  title: 'Providers | Marketlink',
+  title: 'Experts | MarketLink',
 };
 
 type Provider = {
@@ -51,12 +51,12 @@ function FiltersForm({ name, city, service, match, minRating, sort, order, limit
       <input type="hidden" name="page" value="1" />
 
       <label className={compact ? '' : 'lg:col-span-3'}>
-        <span className="mb-2 block text-sm font-medium text-slate-700">Provider name</span>
+        <span className="mb-2 block text-sm font-medium text-slate-700">Expert or business name</span>
         <input
           type="text"
           name="name"
           defaultValue={name ?? ''}
-          placeholder="Search by business name"
+          placeholder="Search by expert or business name"
           className={FIELD_CLASS}
         />
       </label>
@@ -78,7 +78,7 @@ function FiltersForm({ name, city, service, match, minRating, sort, order, limit
           type="text"
           name="service"
           defaultValue={service ?? ''}
-          placeholder="seo, ads, social"
+          placeholder="ads, social, website"
           className={FIELD_CLASS}
         />
       </label>
@@ -159,13 +159,13 @@ function FiltersForm({ name, city, service, match, minRating, sort, order, limit
             defaultChecked={verified === '1' || (verified ?? '').toLowerCase() === 'true'}
             className={CHECKBOX_CLASS}
           />
-          Verified only
+          Show verified experts only
         </label>
       </div>
 
       <div className={compact ? '' : 'lg:col-span-12'}>
         <button type="submit" className={PRIMARY_BUTTON_CLASS}>
-          Apply filters
+          Update results
         </button>
       </div>
     </form>
@@ -181,7 +181,7 @@ function ProviderCard({ provider }: { provider: Provider }) {
       : p.hourlyRateMin || p.hourlyRateMax
       ? `${p.currencyCode || 'USD'} ${p.hourlyRateMin ?? ''}${p.hourlyRateMax ? `-${p.hourlyRateMax}` : '+'}/hr`
       : 'Request quote';
-  const profileSummary = p.shortDescription ? p.shortDescription : p.tagline ? p.tagline : 'Explore services, profile fit, and pricing details.';
+  const profileSummary = p.shortDescription ? p.shortDescription : p.tagline ? p.tagline : 'Explore services, fit, pricing guidance, and contact details.';
   const sinceLabel = new Date(p.createdAt).toLocaleDateString();
 
   return (
@@ -213,7 +213,7 @@ function ProviderCard({ provider }: { provider: Provider }) {
                     ) : null}
                   </div>
 
-                  <div className="mt-2 text-[11px] font-medium uppercase tracking-[0.22em] text-slate-500">Local marketing provider</div>
+                  <div className="mt-2 text-[11px] font-medium uppercase tracking-[0.22em] text-slate-500">Local marketing expert</div>
                   <h3 className="mt-1 truncate text-[1.2rem] font-semibold tracking-tight text-slate-900 sm:text-[1.35rem]">{p.businessName}</h3>
                   <p className="mt-2 text-sm leading-6 text-slate-600 sm:max-w-2xl">{profileSummary}</p>
                 </div>
@@ -248,7 +248,7 @@ function ProviderCard({ provider }: { provider: Provider }) {
               <div className="mt-4 hidden gap-3 border-t border-slate-200/80 pt-4 sm:grid sm:grid-cols-[1.05fr_0.95fr_auto] sm:items-center">
                 <div className="ml-surface-muted rounded-[1.05rem] px-3 py-3">
                   <div className="text-[10px] font-medium uppercase tracking-[0.18em] text-slate-500">Profile status</div>
-                  <div className="mt-1 text-sm font-semibold text-slate-900">{p.verified ? 'Verified profile' : 'Live listing'}</div>
+                  <div className="mt-1 text-sm font-semibold text-slate-900">{p.verified ? 'Verified expert' : 'Live expert profile'}</div>
                 </div>
                 <div className="ml-surface-muted rounded-[1.05rem] px-3 py-3">
                   <div className="text-[10px] font-medium uppercase tracking-[0.18em] text-slate-500">Updated</div>
@@ -266,7 +266,7 @@ function ProviderCard({ provider }: { provider: Provider }) {
                   <div className="mt-1 text-sm font-semibold text-slate-900">{sinceLabel}</div>
                 </div>
                 <div className="ml-btn-primary flex items-center gap-2 rounded-xl px-4 py-2 text-sm font-semibold text-white">
-                  Open
+                  Open profile
                   <span className="text-base transition group-hover:translate-x-1" aria-hidden="true">&rarr;</span>
                 </div>
               </div>
@@ -361,8 +361,8 @@ export default async function ProvidersPage({ searchParams }: ProvidersPageProps
       <main className="ml-page-bg min-h-screen">
         <div className="mx-auto max-w-7xl px-4 py-10 sm:px-6">
           <div className="ml-card rounded-[1.8rem] px-6 py-8 shadow-sm">
-            <h1 className="text-2xl font-semibold text-slate-900">Providers</h1>
-            <p className="mt-3 text-red-600">Failed to load providers.</p>
+            <h1 className="text-2xl font-semibold text-slate-900">Experts</h1>
+            <p className="mt-3 text-red-600">Failed to load experts.</p>
           </div>
         </div>
       </main>
@@ -403,10 +403,10 @@ export default async function ProvidersPage({ searchParams }: ProvidersPageProps
         <section className={`${SECTION_CLASS} rounded-[2rem] sm:px-8 sm:py-8`}>
           <div className="flex flex-col gap-4 lg:flex-row lg:items-end lg:justify-between">
             <div className="max-w-3xl">
-              <div className="text-[11px] font-medium uppercase tracking-[0.26em] text-slate-500">Provider directory</div>
-              <h1 className="mt-3 text-[2rem] font-semibold tracking-[-0.04em] text-slate-900 sm:text-4xl">Find teams by city, fit, and service.</h1>
+              <div className="text-[11px] font-medium uppercase tracking-[0.26em] text-slate-500">Expert directory</div>
+              <h1 className="mt-3 text-[2rem] font-semibold tracking-[-0.04em] text-slate-900 sm:text-4xl">Find local experts by city, service, and fit.</h1>
               <p className="mt-3 text-sm leading-7 text-slate-600">
-                Use filters to narrow the directory quickly, then open richer provider profiles to compare services, proof of work, and contact details.
+                Use filters to narrow the list quickly, then open expert profiles to compare services, pricing guidance, and contact details.
               </p>
             </div>
             <div className="ml-dark-panel w-full rounded-[1.4rem] px-5 py-4 text-white sm:w-auto">
@@ -424,7 +424,7 @@ export default async function ProvidersPage({ searchParams }: ProvidersPageProps
             <summary className="ml-surface flex cursor-pointer list-none items-center justify-between gap-4 rounded-[1.4rem] px-4 py-4 shadow-sm">
               <div className="min-w-0">
                 <div className="text-[11px] font-medium uppercase tracking-[0.22em] text-slate-500">Filters</div>
-                <h2 className="mt-1 text-xl font-semibold tracking-tight text-slate-900">Refine the shortlist</h2>
+                <h2 className="mt-1 text-xl font-semibold tracking-tight text-slate-900">Refine results</h2>
                 <p className="mt-1 text-sm text-slate-600">
                   {activeFilters.length > 0 ? `${activeFilters.length} active filter${activeFilters.length > 1 ? 's' : ''}` : 'Open filters to narrow the list'}
                 </p>
@@ -436,9 +436,9 @@ export default async function ProvidersPage({ searchParams }: ProvidersPageProps
             </summary>
             <div className="ml-surface mt-4 rounded-[1.4rem] p-4 shadow-sm">
               <div className="mb-4 flex items-center justify-between gap-3">
-                <div className="text-sm font-medium text-slate-700">Set filters and apply when ready.</div>
+                <div className="text-sm font-medium text-slate-700">Set filters and update the results when ready.</div>
                 <Link href="/providers" className="text-sm font-medium text-slate-600 underline underline-offset-4 hover:text-slate-900">
-                  Clear
+                  Clear filters
                 </Link>
               </div>
               <FiltersForm name={name} city={city} service={service} match={match} minRating={minRating} sort={sort} order={order} limit={limit} verified={verified} compact />
@@ -448,10 +448,10 @@ export default async function ProvidersPage({ searchParams }: ProvidersPageProps
           <div className="hidden flex-col gap-3 md:flex md:flex-row md:items-end md:justify-between">
             <div>
               <div className="text-[11px] font-medium uppercase tracking-[0.22em] text-slate-500">Filters</div>
-              <h2 className="mt-2 text-2xl font-semibold tracking-tight text-slate-900">Refine the shortlist</h2>
+              <h2 className="mt-2 text-2xl font-semibold tracking-tight text-slate-900">Refine results</h2>
             </div>
             <Link href="/providers" className="text-sm font-medium text-slate-600 underline underline-offset-4 hover:text-slate-900">
-              Clear all filters
+              Clear filters
             </Link>
           </div>
 
@@ -463,7 +463,7 @@ export default async function ProvidersPage({ searchParams }: ProvidersPageProps
         <section className={`mt-6 ${SECTION_CLASS}`}>
           <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
             <div>
-              <h2 className="text-2xl font-semibold tracking-tight text-slate-900">Directory results</h2>
+              <h2 className="text-2xl font-semibold tracking-tight text-slate-900">Expert results</h2>
               <p className="mt-1 text-sm text-slate-600">
                 Showing {(meta.page - 1) * meta.limit + 1}-{Math.min(meta.page * meta.limit, meta.total)} of {meta.total}
               </p>
@@ -482,7 +482,7 @@ export default async function ProvidersPage({ searchParams }: ProvidersPageProps
 
           {data.length === 0 ? (
             <div className="ml-card mt-5 rounded-[1.5rem] p-8 text-center text-slate-600 shadow-[0_16px_40px_rgba(23,26,31,0.06)]">
-              No providers found. Try adjusting your filters.
+              No experts found. Try adjusting your filters.
             </div>
           ) : (
             <ul className="mt-5 grid grid-cols-1 gap-4 xl:grid-cols-2">
