@@ -33,7 +33,7 @@ export default function InquiryForm({ providerSlug }: { providerSlug: string }) 
 
     if (!name || !email || !message) {
       setSaving(false);
-      setError('Please fill in name, email, and message.');
+      setError('Please fill in your name, email, and inquiry details.');
       return;
     }
 
@@ -47,7 +47,7 @@ export default function InquiryForm({ providerSlug }: { providerSlug: string }) 
       });
 
       if (!res.ok) {
-        let msg = `Failed to send message (${res.status})`;
+        let msg = `Failed to send inquiry (${res.status})`;
         try {
           const body = await res.json();
           if (body?.error) msg = String(body.error);
@@ -75,15 +75,15 @@ export default function InquiryForm({ providerSlug }: { providerSlug: string }) 
     <div className="ml-card rounded-[1.35rem] p-5 shadow-[0_14px_40px_rgba(23,26,31,0.08)]">
       <div className="mb-5 flex items-start justify-between gap-4 border-b border-[#d4c6b4]/70 pb-4">
         <div>
-          <div className="text-[11px] font-medium uppercase tracking-[0.18em] text-slate-500">Inquiry form</div>
-          <p className="mt-2 text-sm leading-6 text-slate-600">Share your goals, budget range, and timeline. The provider will receive it directly.</p>
+          <div className="text-[11px] font-medium uppercase tracking-[0.18em] text-slate-500">Inquiry details</div>
+          <p className="mt-2 text-sm leading-6 text-slate-600">Share what you need help with, your timeline, and any budget guidance. The expert will receive it directly.</p>
         </div>
         <span className="ml-pill rounded-xl px-3 py-1 text-[11px] font-medium uppercase tracking-[0.18em]">
           Fast response
         </span>
       </div>
 
-      {sent ? <div className="mb-4 rounded-2xl border border-green-200 bg-green-50 px-4 py-3 text-sm text-green-800">Message sent!</div> : null}
+      {sent ? <div className="mb-4 rounded-2xl border border-green-200 bg-green-50 px-4 py-3 text-sm text-green-800">Inquiry sent!</div> : null}
 
       {error ? (
         <div role="alert" className="mb-4 rounded-2xl border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-800">
@@ -117,7 +117,7 @@ export default function InquiryForm({ providerSlug }: { providerSlug: string }) 
 
         <div className="grid gap-2">
           <label htmlFor="message" className={`text-sm font-medium ${t.mutedText}`}>
-            Message *
+            Project details *
           </label>
           <textarea
             id="message"
@@ -126,7 +126,7 @@ export default function InquiryForm({ providerSlug }: { providerSlug: string }) 
             rows={4}
             disabled={saving}
             className={`${fieldClass} min-h-[132px] resize-none`}
-            placeholder="What do you need help with?"
+            placeholder="What do you need help with, and when do you need it?"
           />
         </div>
 
@@ -137,7 +137,7 @@ export default function InquiryForm({ providerSlug }: { providerSlug: string }) 
             disabled={saving}
             className={`ml-btn-primary inline-flex min-h-11 items-center justify-center rounded-xl px-6 text-sm font-semibold text-white shadow-sm transition ${saving ? 'opacity-60' : 'hover:opacity-95'}`}
           >
-            {saving ? 'Sending...' : 'Send message'}
+            {saving ? 'Sending...' : 'Send inquiry'}
           </button>
         </div>
       </form>
