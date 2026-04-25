@@ -54,8 +54,13 @@ export default function OwnerControls({ slug }: { slug: string }) {
 
   return (
     <div className="ml-auto">
-      <Link href="/dashboard/profile" prefetch className="inline-flex items-center rounded-xl border px-3 py-2 text-sm font-medium hover:bg-gray-50" aria-label="Edit your profile">
-        ✏️ Edit profile
+      <Link
+        href="/dashboard/profile"
+        prefetch
+        className="inline-flex items-center rounded-xl border px-3 py-2 text-sm font-medium hover:bg-gray-50"
+        aria-label="Edit your expert profile"
+      >
+        Edit expert profile
       </Link>
     </div>
   );

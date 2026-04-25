@@ -1,9 +1,9 @@
 ﻿'use client';
 
 import React, { useEffect, useState } from 'react';
-import { notFound } from 'next/navigation';
 import { Figtree, Playfair_Display } from 'next/font/google';
 import InquiryForm from './InquiryForm';
+import ProviderNotFound from './not-found';
 import { useMarketLinkTheme } from '../../../components/ThemeToggle';
 
 const displayFont = Playfair_Display({
@@ -234,15 +234,22 @@ export default function ProviderPage({ params }: PageProps) {
   const resolvedParams = React.use(params);
   const [provider, setProvider] = useState<Provider | null>(null);
   const [loading, setLoading] = useState(true);
+  const [missing, setMissing] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
     async function fetchProvider() {
+      setLoading(true);
+      setMissing(false);
+      setError(null);
+      setProvider(null);
+
       try {
         const API_BASE = process.env.NEXT_PUBLIC_API_URL || 'http://127.0.0.1:4000';
         const res = await fetch(`${API_BASE}/providers/${resolvedParams.slug}`);
         if (res.status === 404) {
-          notFound();
+          setMissing(true);
+          return;
         }
         if (!res.ok) {
           throw new Error(`Failed to load expert profile: ${res.status}`);
@@ -261,6 +268,10 @@ export default function ProviderPage({ params }: PageProps) {
 
   if (loading) {
     return <div className="mx-auto max-w-4xl px-4 py-8">Loading...</div>;
+  }
+
+  if (missing) {
+    return <ProviderNotFound />;
   }
 
   if (error || !provider) {
