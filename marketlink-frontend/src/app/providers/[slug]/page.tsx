@@ -245,7 +245,7 @@ export default function ProviderPage({ params }: PageProps) {
           notFound();
         }
         if (!res.ok) {
-          throw new Error(`Failed to load provider: ${res.status}`);
+          throw new Error(`Failed to load expert profile: ${res.status}`);
         }
         const data = await res.json();
         setProvider(data);
@@ -358,7 +358,7 @@ function ProviderPageContent({ provider: p }: { provider: Provider }) {
               {media.kind === 'image' ? (
                 <>
                   {/* eslint-disable-next-line @next/next/no-img-element */}
-                  <img src={media.src} alt={item.altText || 'Provider media'} className="h-56 w-full object-cover" />
+                  <img src={media.src} alt={item.altText || 'Expert media'} className="h-56 w-full object-cover" />
                   {item.altText ? <div className="p-4 text-sm leading-7 text-slate-700 md:p-5">{item.altText}</div> : null}
                 </>
               ) : null}
@@ -418,13 +418,13 @@ function ProviderPageContent({ provider: p }: { provider: Provider }) {
         <div className="flex flex-col gap-6 md:gap-8">
           {p.status !== 'active' && (
             <div className={`rounded-2xl ${pageSurfaceMuted} ${pageBorder} border p-4 shadow-[0_14px_45px_rgba(2,6,23,0.08)]`}>
-              <div className="font-medium text-slate-900">{p.status === 'disabled' ? 'Your listing is disabled' : 'Your listing is pending approval'}</div>
+              <div className="font-medium text-slate-900">{p.status === 'disabled' ? 'Your expert profile is disabled' : 'Your expert profile is pending approval'}</div>
               {p.disabledReason && (
                 <div className="mt-1 text-sm text-slate-700">
                   <span className="font-medium">Reason:</span> {p.disabledReason}
                 </div>
               )}
-              <div className="mt-2 text-xs text-slate-600">Only you can see this until it&apos;s active.</div>
+              <div className="mt-2 text-xs text-slate-600">Only you can see this profile until it&apos;s active.</div>
             </div>
           )}
 
@@ -434,7 +434,7 @@ function ProviderPageContent({ provider: p }: { provider: Provider }) {
                 <div className="space-y-5 md:space-y-7">
                   <div className="flex flex-wrap items-center gap-2">
                     <span className={`rounded-xl px-3 py-1 text-[11px] font-medium uppercase tracking-[0.18em] ${t.brandBadge}`}>
-                      Provider portfolio
+                      Expert profile
                     </span>
                     {p.verified ? (
                       <span className="ml-pill-muted rounded-xl px-3 py-1 text-[11px] font-medium uppercase tracking-[0.18em]">
@@ -565,7 +565,7 @@ function ProviderPageContent({ provider: p }: { provider: Provider }) {
               <div className="grid gap-5 lg:grid-cols-[260px_minmax(0,1fr)] lg:items-start">
                 <div>
                   <div className="text-[11px] font-medium uppercase tracking-[0.22em] text-slate-500">Trusted by</div>
-                  <p className="mt-2 text-sm text-slate-700">Representative clients and teams this provider points to when explaining fit.</p>
+                    <p className="mt-2 text-sm text-slate-700">Representative clients and teams this expert highlights when explaining fit.</p>
                 </div>
                 <div className="grid gap-x-6 gap-y-4 border-t border-slate-200/80 pt-4 sm:grid-cols-2 xl:grid-cols-3 lg:border-t-0 lg:pt-0">
                   {visibleClients.slice(0, 6).map((client) => (
@@ -616,7 +616,7 @@ function ProviderPageContent({ provider: p }: { provider: Provider }) {
                     <div>
                       <div className="text-[11px] font-medium uppercase tracking-[0.22em] text-slate-500">Proof of work</div>
                       <h2 className={`${displayFont.className} mt-3 text-3xl font-semibold tracking-[-0.03em] text-slate-900 md:text-[2.35rem]`}>Case studies</h2>
-                      <p className="mt-2 max-w-2xl text-sm leading-7 text-slate-700">A more detailed read on the brief, the response, and the outcomes the provider chooses to highlight.</p>
+                    <p className="mt-2 max-w-2xl text-sm leading-7 text-slate-700">A more detailed read on the brief, the response, and the outcomes this expert chooses to highlight.</p>
                     </div>
                     <span className={`text-xs font-medium uppercase tracking-[0.18em] ${t.mutedText}`}>{visibleProjects.length} project{visibleProjects.length === 1 ? '' : 's'}</span>
                   </div>
@@ -709,17 +709,17 @@ function ProviderPageContent({ provider: p }: { provider: Provider }) {
             <aside className="flex min-w-0 flex-col gap-6 xl:sticky xl:top-6">
               <section className="overflow-hidden rounded-[1.75rem] border border-slate-900/85 bg-[#101a2a] shadow-[0_24px_70px_rgba(15,23,42,0.18)]">
                 <div className="border-b border-white/10 bg-[radial-gradient(120%_120%_at_0%_0%,rgba(148,163,184,0.18),transparent_42%),linear-gradient(135deg,rgba(15,23,42,0.98),rgba(30,41,59,0.94))] px-6 py-6">
-                  <div className="text-[11px] font-medium uppercase tracking-[0.22em] text-slate-400">Start a project</div>
-                  <h2 className={`${displayFont.className} mt-3 text-2xl font-semibold tracking-[-0.02em] text-white`}>Send an inquiry</h2>
+                  <div className="text-[11px] font-medium uppercase tracking-[0.22em] text-slate-400">Contact this expert</div>
+                  <h2 className={`${displayFont.className} mt-3 text-2xl font-semibold tracking-[-0.02em] text-white`}>Send your inquiry</h2>
                   {p.status === 'active' ? (
                     <p className="mt-3 text-sm leading-7 text-slate-200/78">Use the form below to ask about availability, fit, pricing, or project scope.</p>
                   ) : (
-                    <p className="mt-3 text-sm leading-7 text-slate-200/72">Inquiry tools unlock when this listing is active.</p>
+                    <p className="mt-3 text-sm leading-7 text-slate-200/72">Inquiry tools unlock when this expert profile is active.</p>
                   )}
 
                   <div className="mt-5 flex flex-wrap gap-2">
                     <a className="rounded-xl bg-white px-4 py-2 text-xs font-semibold text-slate-950 shadow-sm" href={`mailto:${p.email}`}>
-                      Email provider
+                      Email expert
                     </a>
                     {p.phone ? (
                       <a className="rounded-xl border border-white/12 bg-white/6 px-4 py-2 text-xs font-semibold text-white" href={`tel:${p.phone}`}>
@@ -735,7 +735,7 @@ function ProviderPageContent({ provider: p }: { provider: Provider }) {
                 </div>
 
                 <div className="px-6 py-6">
-                  {p.status === 'active' ? <InquiryForm providerSlug={p.slug} /> : <div className="text-sm text-slate-600">Contact form will be available once this listing is active.</div>}
+                  {p.status === 'active' ? <InquiryForm providerSlug={p.slug} /> : <div className="text-sm text-slate-600">Contact form will be available once this expert profile is active.</div>}
                 </div>
               </section>
 
@@ -917,11 +917,11 @@ function ProviderPageContent({ provider: p }: { provider: Provider }) {
                 <div className="hidden md:block">
                   <div className="text-[11px] font-medium uppercase tracking-[0.22em] text-slate-500">Contact</div>
                   <h2 className={`${displayFont.className} mt-3 text-2xl font-semibold tracking-[-0.02em] text-slate-900`}>Reach out</h2>
-                  <p className="mt-2 text-sm leading-7 text-slate-700">Use these details if you want to contact the team directly outside the inquiry flow.</p>
+                  <p className="mt-2 text-sm leading-7 text-slate-700">Use these details if you want to contact the expert directly outside the inquiry flow.</p>
                 </div>
 
                 <div className={`${contactOpen ? 'mt-5 block' : 'hidden'} space-y-4 md:mt-5 md:block`}>
-                  <p className="text-sm leading-7 text-slate-700 md:hidden">Use these details if you want to contact the team directly outside the inquiry flow.</p>
+                  <p className="text-sm leading-7 text-slate-700 md:hidden">Use these details if you want to contact the expert directly outside the inquiry flow.</p>
                   <div className={`rounded-2xl ${pageSurfaceMuted} ${pageBorder} border p-4 shadow-sm`}>
                     <div className={`text-[11px] font-medium uppercase tracking-[0.18em] ${t.mutedText}`}>Location</div>
                     <div className="mt-2 text-sm font-semibold text-slate-900">{locationLabel}</div>
