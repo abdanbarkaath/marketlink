@@ -122,7 +122,7 @@ export default function AppHeader() {
               <LogoutButton className={actionButtonClass} />
             ) : showLoginAction ? (
               <Link href="/login" className={actionButtonClass}>
-                Login
+                Sign in
               </Link>
             ) : null}
           </div>
@@ -172,7 +172,7 @@ export default function AppHeader() {
                 href="/login"
                 className={mobileMenuRowClass}
               >
-                <span>Login</span>
+                <span>Sign in</span>
                 <span className="text-base leading-none text-current/55" aria-hidden="true">&rarr;</span>
               </Link>
             ) : null}

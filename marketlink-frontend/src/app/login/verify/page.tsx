@@ -30,8 +30,8 @@ function VerifyPageBody() {
 
   return (
     <main className="mx-auto max-w-md px-4 py-12">
-      <h1 className="text-2xl font-semibold">Magic link login retired</h1>
-      <p className="mt-3 text-sm text-gray-600">Redirecting you to the login page...</p>
+      <h1 className="text-2xl font-semibold">Magic link sign-in retired</h1>
+      <p className="mt-3 text-sm text-gray-600">Redirecting you to the sign-in page...</p>
     </main>
   );
 }
@@ -39,7 +39,7 @@ function VerifyPageBody() {
 function VerifyLoadingState({ message }: { message: string }) {
   return (
     <main className="mx-auto max-w-md px-4 py-12">
-      <h1 className="text-2xl font-semibold">Magic link login retired</h1>
+      <h1 className="text-2xl font-semibold">Magic link sign-in retired</h1>
       <p className="mt-3 text-sm text-gray-600">{message}</p>
     </main>
   );
