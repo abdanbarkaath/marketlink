@@ -14,7 +14,7 @@ export default function ProviderCard({ p }: { p: Provider }) {
         <img src={p.logo ?? 'https://placehold.co/80x80'} alt={p.businessName} className="h-14 w-14 rounded-xl object-cover" />
 
         <div>
-          <Link href={`/providers/${p.slug}`} className="font-semibold hover:underline">
+          <Link href={`/experts/${p.slug}`} className="font-semibold hover:underline">
             {p.businessName}
           </Link>
           <div className={`text-sm ${t.mutedText}`}>

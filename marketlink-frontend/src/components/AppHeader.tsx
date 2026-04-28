@@ -73,13 +73,13 @@ export default function AppHeader() {
   const canSeeDashboard = canAccessDashboard(role);
   const dashboardHref = getDashboardHref(role);
   const isHomePage = pathname === '/';
-  const isProvidersPage = pathname?.startsWith('/providers');
+  const isProvidersPage = pathname?.startsWith('/providers') || pathname?.startsWith('/experts');
   const isLoginPage = pathname === '/login';
   const isDashboardPage = pathname?.startsWith('/dashboard');
   const showLoginAction = !canSeeDashboard && !isLoginPage;
   const navItems: NavItem[] = [
     { href: '/', label: 'Home', active: isHomePage },
-    { href: '/providers', label: 'Browse experts', active: Boolean(isProvidersPage) },
+    { href: '/experts', label: 'Browse experts', active: Boolean(isProvidersPage) },
     ...(canSeeDashboard ? [{ href: dashboardHref, label: 'Dashboard', active: Boolean(isDashboardPage) }] : []),
   ];
   const mobileMenuBaseClass = 'inline-flex min-h-12 items-center justify-between rounded-xl border px-4 text-sm font-medium transition';

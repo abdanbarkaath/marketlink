@@ -45,13 +45,13 @@ export default function Home() {
 
               <div className="flex flex-col gap-3 sm:flex-row sm:flex-wrap">
                 <Link
-                  href="/providers"
+                  href="/experts"
                   className={`inline-flex min-h-12 items-center justify-center rounded-xl px-6 text-sm font-semibold shadow-sm ${t.primaryBtn}`}
                 >
                   Browse local experts
                 </Link>
                 <Link
-                  href="/providers"
+                  href="/experts"
                   className={`inline-flex min-h-12 items-center justify-center rounded-xl px-6 text-sm font-medium ${t.secondaryBtn}`}
                 >
                   Search by service
@@ -115,7 +115,7 @@ export default function Home() {
             {CATEGORIES.map((c, index) => (
               <Link
                 key={c.token}
-                href={`/providers?service=${encodeURIComponent(c.token)}`}
+                href={`/experts?service=${encodeURIComponent(c.token)}`}
                 className={[
                   'group flex min-h-[190px] flex-col justify-between rounded-[1.75rem] p-4 transition sm:min-h-[220px] sm:p-5',
                   t.card,
@@ -173,7 +173,7 @@ export default function Home() {
                 </p>
               </div>
               <Link
-                href="/providers"
+                href="/experts"
                 className="ml-btn-secondary inline-flex min-h-12 items-center justify-center rounded-xl px-6 text-sm font-semibold transition"
               >
                 Open directory

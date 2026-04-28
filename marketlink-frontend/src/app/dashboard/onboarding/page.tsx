@@ -65,7 +65,7 @@ export default function OnboardingPage() {
       const slug = (data?.expert?.slug || data?.provider?.slug) as string | undefined;
 
       if (slug) {
-        router.replace(`/providers/${slug}`);
+        router.replace(`/experts/${slug}`);
         return;
       }
 
