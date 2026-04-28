@@ -22,54 +22,58 @@ model User {
 }
 
 model Expert {
-  id                String                @id @default(cuid())
-  email             String                @unique
-  businessName      String
-  slug              String                @unique
-  tagline           String?
-  shortDescription  String?
-  overview          String?
-  websiteUrl        String?
-  phone             String?
-  linkedinUrl       String?
-  instagramUrl      String?
-  facebookUrl       String?
-  foundedYear       Int?
-  hourlyRateMin     Int?
-  hourlyRateMax     Int?
-  minProjectBudget  Int?
-  currencyCode      String                @default("USD")
-  languages         String[]              @default([])
-  industries        String[]              @default([])
-  clientSizes       String[]              @default([])
-  specialties       String[]              @default([])
-  remoteFriendly    Boolean               @default(false)
-  servesNationwide  Boolean               @default(false)
-  responseTimeHours Int?
-  featured          Boolean               @default(false)
-  completionScore   Int                   @default(0)
-  city              String                @db.Citext
-  state             String                @db.Citext
-  zip               String?
-  rating            Float                 @default(0)
-  verified          Boolean               @default(false)
-  logo              String?
-  services          String[]              @default([])
-  createdAt         DateTime              @default(now())
-  updatedAt         DateTime              @updatedAt
-  planTier          PlanTier              @default(free)
-  userId            String?
-  disabledReason    String?
-  notes             String?
-  status            ExpertStatus          @default(active)
-  adminActions      AdminAction[]
-  owner             User?                 @relation(fields: [userId], references: [id])
-  projects          ExpertProject[]
-  clients           ExpertClient[]
-  media             ExpertMedia[]
-  reviews           ExpertReview[]
-  certifications    ExpertCertification[]
-  awards            ExpertAward[]
+  id                  String                @id @default(cuid())
+  email               String                @unique
+  businessName        String
+  slug                String                @unique
+  expertType          ExpertType?
+  tagline             String?
+  shortDescription    String?
+  overview            String?
+  websiteUrl          String?
+  phone               String?
+  linkedinUrl         String?
+  instagramUrl        String?
+  facebookUrl         String?
+  creatorPlatforms    String[]              @default([])
+  creatorAudienceSize Int?
+  creatorProofSummary String?
+  foundedYear         Int?
+  hourlyRateMin       Int?
+  hourlyRateMax       Int?
+  minProjectBudget    Int?
+  currencyCode        String                @default("USD")
+  languages           String[]              @default([])
+  industries          String[]              @default([])
+  clientSizes         String[]              @default([])
+  specialties         String[]              @default([])
+  remoteFriendly      Boolean               @default(false)
+  servesNationwide    Boolean               @default(false)
+  responseTimeHours   Int?
+  featured            Boolean               @default(false)
+  completionScore     Int                   @default(0)
+  city                String                @db.Citext
+  state               String                @db.Citext
+  zip                 String?
+  rating              Float                 @default(0)
+  verified            Boolean               @default(false)
+  logo                String?
+  services            String[]              @default([])
+  createdAt           DateTime              @default(now())
+  updatedAt           DateTime              @updatedAt
+  planTier            PlanTier              @default(free)
+  userId              String?
+  disabledReason      String?
+  notes               String?
+  status              ExpertStatus          @default(active)
+  adminActions        AdminAction[]
+  owner               User?                 @relation(fields: [userId], references: [id])
+  projects            ExpertProject[]
+  clients             ExpertClient[]
+  media               ExpertMedia[]
+  reviews             ExpertReview[]
+  certifications      ExpertCertification[]
+  awards              ExpertAward[]
 
   // Inquiry / lead records attached to this expert
   inquiries Inquiry[]
@@ -120,6 +124,13 @@ enum UserRole {
 enum PlanTier {
   free
   pro
+}
+
+enum ExpertType {
+  agency
+  freelancer
+  creator
+  specialist
 }
 
 ///
