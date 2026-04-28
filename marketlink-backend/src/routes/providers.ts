@@ -2,7 +2,7 @@ import type { FastifyPluginAsync } from 'fastify';
 import type { Prisma } from '@prisma/client';
 import { prisma } from '../lib/prisma';
 import { getUserFromRequest } from '../lib/session';
-import { ProviderMediaType, ProviderStatus } from '@prisma/client';
+import { ExpertMediaType, ExpertStatus } from '@prisma/client';
 
 type SortKey = 'newest' | 'name' | 'rating' | 'verified';
 type OrderDir = 'asc' | 'desc';
@@ -75,7 +75,7 @@ const parseOptionalDate = (raw: unknown): Date | null | undefined => {
   return d;
 };
 
-const providerProjectSelect = {
+const expertProjectSelect = {
   id: true,
   title: true,
   summary: true,
@@ -91,9 +91,9 @@ const providerProjectSelect = {
   sortOrder: true,
   createdAt: true,
   updatedAt: true,
-} satisfies Prisma.ProviderProjectSelect;
+} satisfies Prisma.ExpertProjectSelect;
 
-const providerClientSelect = {
+const expertClientSelect = {
   id: true,
   name: true,
   logoUrl: true,
@@ -102,9 +102,9 @@ const providerClientSelect = {
   sortOrder: true,
   createdAt: true,
   updatedAt: true,
-} satisfies Prisma.ProviderClientSelect;
+} satisfies Prisma.ExpertClientSelect;
 
-const providerMediaSelect = {
+const expertMediaSelect = {
   id: true,
   type: true,
   url: true,
@@ -112,9 +112,9 @@ const providerMediaSelect = {
   sortOrder: true,
   createdAt: true,
   updatedAt: true,
-} satisfies Prisma.ProviderMediaSelect;
+} satisfies Prisma.ExpertMediaSelect;
 
-const providerReviewSelect = {
+const expertReviewSelect = {
   id: true,
   reviewerName: true,
   company: true,
@@ -131,9 +131,9 @@ const providerReviewSelect = {
   sortOrder: true,
   createdAt: true,
   updatedAt: true,
-} satisfies Prisma.ProviderReviewSelect;
+} satisfies Prisma.ExpertReviewSelect;
 
-const providerCertificationSelect = {
+const expertCertificationSelect = {
   id: true,
   title: true,
   issuer: true,
@@ -143,9 +143,9 @@ const providerCertificationSelect = {
   sortOrder: true,
   createdAt: true,
   updatedAt: true,
-} satisfies Prisma.ProviderCertificationSelect;
+} satisfies Prisma.ExpertCertificationSelect;
 
-const providerAwardSelect = {
+const expertAwardSelect = {
   id: true,
   title: true,
   issuer: true,
@@ -155,7 +155,7 @@ const providerAwardSelect = {
   sortOrder: true,
   createdAt: true,
   updatedAt: true,
-} satisfies Prisma.ProviderAwardSelect;
+} satisfies Prisma.ExpertAwardSelect;
 
 // ---- Fastify JSON schema for query validation ----
 const listQuerySchema = {
@@ -177,7 +177,7 @@ const listQuerySchema = {
 } as const;
 
 // ---- Reusable Prisma selects ----
-const providerDetailSelect = {
+const expertDetailSelect = {
   id: true,
   slug: true,
   businessName: true,
@@ -216,32 +216,32 @@ const providerDetailSelect = {
   createdAt: true,
   updatedAt: true,
   projects: {
-    select: providerProjectSelect,
+    select: expertProjectSelect,
     orderBy: [{ sortOrder: 'asc' }, { createdAt: 'asc' }],
   },
   clients: {
-    select: providerClientSelect,
+    select: expertClientSelect,
     orderBy: [{ sortOrder: 'asc' }, { createdAt: 'asc' }],
   },
   media: {
-    select: providerMediaSelect,
+    select: expertMediaSelect,
     orderBy: [{ sortOrder: 'asc' }, { createdAt: 'asc' }],
   },
   reviews: {
-    select: providerReviewSelect,
+    select: expertReviewSelect,
     orderBy: [{ sortOrder: 'asc' }, { publishedAt: 'desc' }, { createdAt: 'desc' }],
   },
   certifications: {
-    select: providerCertificationSelect,
+    select: expertCertificationSelect,
     orderBy: [{ sortOrder: 'asc' }, { year: 'desc' }, { createdAt: 'asc' }],
   },
   awards: {
-    select: providerAwardSelect,
+    select: expertAwardSelect,
     orderBy: [{ sortOrder: 'asc' }, { year: 'desc' }, { createdAt: 'asc' }],
   },
-} satisfies Prisma.ProviderSelect;
+} satisfies Prisma.ExpertSelect;
 
-const providerEditorSelect = {
+const expertEditorSelect = {
   id: true,
   slug: true,
   businessName: true,
@@ -273,23 +273,27 @@ const providerEditorSelect = {
   status: true,
   disabledReason: true,
   projects: {
-    select: providerProjectSelect,
+    select: expertProjectSelect,
     orderBy: [{ sortOrder: 'asc' }, { createdAt: 'asc' }],
   },
   clients: {
-    select: providerClientSelect,
+    select: expertClientSelect,
     orderBy: [{ sortOrder: 'asc' }, { createdAt: 'asc' }],
   },
   media: {
-    select: providerMediaSelect,
+    select: expertMediaSelect,
     orderBy: [{ sortOrder: 'asc' }, { createdAt: 'asc' }],
   },
-} satisfies Prisma.ProviderSelect;
+} satisfies Prisma.ExpertSelect;
 
-const providersRoutes: FastifyPluginAsync = async (fastify) => {
-  // LIST: GET /providers (public ACTIVE only)
-  fastify.get(
-    '/providers',
+const expertCollectionPaths = ['/experts', '/providers'] as const;
+const expertDetailPaths = ['/experts/:slug', '/providers/:slug'] as const;
+
+const expertsRoutes: FastifyPluginAsync = async (fastify) => {
+  // LIST: GET /experts (with /providers kept as a compatibility alias)
+  for (const path of expertCollectionPaths) {
+    fastify.get(
+      path,
     {
       schema: {
         querystring: listQuerySchema,
@@ -316,7 +320,7 @@ const providersRoutes: FastifyPluginAsync = async (fastify) => {
         },
       },
     },
-    async (req, reply) => {
+      async (req, reply) => {
       const {
         name,
         city,
@@ -348,7 +352,7 @@ const providersRoutes: FastifyPluginAsync = async (fastify) => {
       const skip = (pageNum - 1) * limitNum;
       const take = limitNum;
 
-      const andFilters: Prisma.ProviderWhereInput[] = [];
+      const andFilters: Prisma.ExpertWhereInput[] = [];
 
       if (city && city.trim()) {
         andFilters.push({ city: { startsWith: city.trim(), mode: 'insensitive' } });
@@ -387,26 +391,26 @@ const providersRoutes: FastifyPluginAsync = async (fastify) => {
         if (v === '0' || v === 'false') andFilters.push({ verified: false });
       }
 
-      const baseFilter: Prisma.ProviderWhereInput = { status: ProviderStatus.active };
-      const where: Prisma.ProviderWhereInput = andFilters.length ? { AND: [...andFilters, baseFilter] } : baseFilter;
+      const baseFilter: Prisma.ExpertWhereInput = { status: ExpertStatus.active };
+      const where: Prisma.ExpertWhereInput = andFilters.length ? { AND: [...andFilters, baseFilter] } : baseFilter;
 
       const sortKey = asSortKey(sortRaw);
       const primaryOrder: OrderDir = asOrder(orderRaw, sortKey);
 
-      const primaryOrderBy: Prisma.ProviderOrderByWithRelationInput =
+      const primaryOrderBy: Prisma.ExpertOrderByWithRelationInput =
         sortKey === 'newest' ? { createdAt: primaryOrder } : sortKey === 'name' ? { businessName: primaryOrder } : sortKey === 'rating' ? { rating: primaryOrder } : { verified: primaryOrder };
 
-      const orderBy: Prisma.ProviderOrderByWithRelationInput[] = [primaryOrderBy];
+      const orderBy: Prisma.ExpertOrderByWithRelationInput[] = [primaryOrderBy];
 
-      const hasPrimary = (k: keyof Prisma.ProviderOrderByWithRelationInput) => k in primaryOrderBy;
+      const hasPrimary = (k: keyof Prisma.ExpertOrderByWithRelationInput) => k in primaryOrderBy;
       if (!hasPrimary('rating')) orderBy.push({ rating: 'desc' });
       if (!hasPrimary('verified')) orderBy.push({ verified: 'desc' });
       if (!hasPrimary('businessName')) orderBy.push({ businessName: 'asc' });
       if (!hasPrimary('createdAt')) orderBy.push({ createdAt: 'desc' });
 
       const [total, rows] = await Promise.all([
-        prisma.provider.count({ where }),
-        prisma.provider.findMany({
+        prisma.expert.count({ where }),
+        prisma.expert.findMany({
           where,
           orderBy,
           skip,
@@ -445,49 +449,53 @@ const providersRoutes: FastifyPluginAsync = async (fastify) => {
         },
         data: rows,
       });
-    },
-  );
+      },
+    );
+  }
 
-  // DETAIL: GET /providers/:slug
-  fastify.get('/providers/:slug', async (req, reply) => {
-    const { slug } = req.params as { slug: string };
+  // DETAIL: GET /experts/:slug (with /providers/:slug kept as a compatibility alias)
+  for (const path of expertDetailPaths) {
+    fastify.get(path, async (req, reply) => {
+      const { slug } = req.params as { slug: string };
 
-    const active = await prisma.provider.findFirst({
-      where: { slug, status: ProviderStatus.active },
-      select: providerDetailSelect,
+      const active = await prisma.expert.findFirst({
+        where: { slug, status: ExpertStatus.active },
+        select: expertDetailSelect,
+      });
+      if (active) return reply.send(active);
+
+      const nonActive = await prisma.expert.findUnique({
+        where: { slug },
+        select: {
+          ...expertDetailSelect,
+          userId: true,
+        } satisfies Prisma.ExpertSelect,
+      });
+
+      if (!nonActive) {
+        reply.code(404).send({ error: 'Not found' });
+        return;
+      }
+
+      const user = await getUserFromRequest(fastify, req);
+      if (!user || user.id !== (nonActive as any).userId) {
+        reply.code(404).send({ error: 'Not found' });
+        return;
+      }
+
+      const { userId, ...ownerVisible } = nonActive as any;
+      return reply.send(ownerVisible);
     });
-    if (active) return reply.send(active);
+  }
 
-    const nonActive = await prisma.provider.findUnique({
-      where: { slug },
-      select: {
-        ...providerDetailSelect,
-        userId: true,
-      } satisfies Prisma.ProviderSelect,
-    });
-
-    if (!nonActive) {
-      reply.code(404).send({ error: 'Not found' });
-      return;
-    }
-
-    const user = await getUserFromRequest(fastify, req);
-    if (!user || user.id !== (nonActive as any).userId) {
-      reply.code(404).send({ error: 'Not found' });
-      return;
-    }
-
-    const { userId, ...ownerVisible } = nonActive as any;
-    return reply.send(ownerVisible);
-  });
-
-  // CREATE: POST /providers (owner = logged-in user)
-  fastify.post('/providers', async (req, reply) => {
+  // CREATE: POST /experts (with /providers kept as a compatibility alias)
+  for (const path of expertCollectionPaths) {
+    fastify.post(path, async (req, reply) => {
     const user = await getUserFromRequest(fastify, req);
     if (!user) return reply.code(401).send({ error: 'Not authenticated' });
 
-    const existing = await prisma.provider.findFirst({ where: { userId: user.id } });
-    if (existing) return reply.code(409).send({ error: 'You already have a provider profile.' });
+    const existing = await prisma.expert.findFirst({ where: { userId: user.id } });
+    if (existing) return reply.code(409).send({ error: 'You already have an expert profile.' });
 
     const body = (req.body || {}) as {
       businessName?: string;
@@ -574,15 +582,15 @@ const providersRoutes: FastifyPluginAsync = async (fastify) => {
         .replace(/[^a-z0-9]+/g, '-')
         .replace(/(^-|-$)/g, '');
 
-    const base = slugify(businessName) || `provider-${Date.now()}`;
+    const base = slugify(businessName) || `expert-${Date.now()}`;
     let slug = base;
     let i = 2;
-    while (await prisma.provider.findUnique({ where: { slug } })) {
+    while (await prisma.expert.findUnique({ where: { slug } })) {
       slug = `${base}-${i++}`;
     }
 
     try {
-      const created = await prisma.provider.create({
+      const created = await prisma.expert.create({
         data: {
           userId: user.id,
           email: user.email,
@@ -606,23 +614,25 @@ const providersRoutes: FastifyPluginAsync = async (fastify) => {
         },
       });
 
-      return reply.code(201).send({ ok: true, provider: created });
+      return reply.code(201).send({ ok: true, expert: created, provider: created });
     } catch (e: any) {
       if (e?.code === 'P2002') {
-        return reply.code(409).send({ error: 'A provider with this email or slug already exists.' });
+        return reply.code(409).send({ error: 'An expert with this email or slug already exists.' });
       }
-      req.log.error({ err: e }, 'create-provider.failed');
-      return reply.code(500).send({ error: 'Failed to create provider' });
+      req.log.error({ err: e }, 'create-expert.failed');
+      return reply.code(500).send({ error: 'Failed to create expert' });
     }
-  });
+    });
+  }
 
-  // UPDATE: PUT /providers (owner-only profile edits)
-  fastify.put('/providers', async (req, reply) => {
+  // UPDATE: PUT /experts (with /providers kept as a compatibility alias)
+  for (const path of expertCollectionPaths) {
+    fastify.put(path, async (req, reply) => {
     const user = await getUserFromRequest(fastify, req);
     if (!user) return reply.code(401).send({ error: 'Not authenticated' });
 
-    const provider = await prisma.provider.findFirst({ where: { userId: user.id } });
-    if (!provider) return reply.code(404).send({ error: "You don't have a provider profile yet." });
+    const expert = await prisma.expert.findFirst({ where: { userId: user.id } });
+    if (!expert) return reply.code(404).send({ error: "You don't have an expert profile yet." });
 
     const body = (req.body || {}) as {
       businessName?: string;
@@ -680,10 +690,10 @@ const providersRoutes: FastifyPluginAsync = async (fastify) => {
       }>;
     };
 
-    const data: Prisma.ProviderUpdateInput = {};
-    let projectCreates: Prisma.ProviderProjectCreateManyProviderInput[] | undefined;
-    let clientCreates: Prisma.ProviderClientCreateManyProviderInput[] | undefined;
-    let mediaCreates: Prisma.ProviderMediaCreateManyProviderInput[] | undefined;
+    const data: Prisma.ExpertUpdateInput = {};
+    let projectCreates: Prisma.ExpertProjectCreateManyExpertInput[] | undefined;
+    let clientCreates: Prisma.ExpertClientCreateManyExpertInput[] | undefined;
+    let mediaCreates: Prisma.ExpertMediaCreateManyExpertInput[] | undefined;
 
     if (typeof body.businessName === 'string') {
       const v = body.businessName.trim();
@@ -882,8 +892,8 @@ const providersRoutes: FastifyPluginAsync = async (fastify) => {
         const type = String(item.type || '')
           .trim()
           .toLowerCase();
-        if (!type || !Object.values(ProviderMediaType).includes(type as ProviderMediaType)) {
-          return reply.code(400).send({ error: `media[${i}].type must be one of: ${Object.values(ProviderMediaType).join(', ')}.` });
+        if (!type || !Object.values(ExpertMediaType).includes(type as ExpertMediaType)) {
+          return reply.code(400).send({ error: `media[${i}].type must be one of: ${Object.values(ExpertMediaType).join(', ')}.` });
         }
         const url = String(item.url || '').trim();
         if (!url) return reply.code(400).send({ error: `media[${i}].url is required.` });
@@ -891,7 +901,7 @@ const providersRoutes: FastifyPluginAsync = async (fastify) => {
         if (Number.isNaN(sortOrder)) return reply.code(400).send({ error: `media[${i}].sortOrder must be a number.` });
 
         mediaCreates.push({
-          type: type as ProviderMediaType,
+          type: type as ExpertMediaType,
           url,
           altText: String(item.altText || '').trim() || null,
           sortOrder: typeof sortOrder === 'undefined' || sortOrder === null ? i : sortOrder,
@@ -906,51 +916,52 @@ const providersRoutes: FastifyPluginAsync = async (fastify) => {
     try {
       const updated = await prisma.$transaction(async (tx) => {
         if (Object.keys(data).length > 0) {
-          await tx.provider.update({
-            where: { id: provider.id },
+          await tx.expert.update({
+            where: { id: expert.id },
             data,
           });
         }
 
         if (typeof projectCreates !== 'undefined') {
-          await tx.providerProject.deleteMany({ where: { providerId: provider.id } });
+          await tx.expertProject.deleteMany({ where: { expertId: expert.id } });
           if (projectCreates.length) {
-            await tx.providerProject.createMany({
-              data: projectCreates.map((item) => ({ ...item, providerId: provider.id })),
+            await tx.expertProject.createMany({
+              data: projectCreates.map((item) => ({ ...item, expertId: expert.id })),
             });
           }
         }
 
         if (typeof clientCreates !== 'undefined') {
-          await tx.providerClient.deleteMany({ where: { providerId: provider.id } });
+          await tx.expertClient.deleteMany({ where: { expertId: expert.id } });
           if (clientCreates.length) {
-            await tx.providerClient.createMany({
-              data: clientCreates.map((item) => ({ ...item, providerId: provider.id })),
+            await tx.expertClient.createMany({
+              data: clientCreates.map((item) => ({ ...item, expertId: expert.id })),
             });
           }
         }
 
         if (typeof mediaCreates !== 'undefined') {
-          await tx.providerMedia.deleteMany({ where: { providerId: provider.id } });
+          await tx.expertMedia.deleteMany({ where: { expertId: expert.id } });
           if (mediaCreates.length) {
-            await tx.providerMedia.createMany({
-              data: mediaCreates.map((item) => ({ ...item, providerId: provider.id })),
+            await tx.expertMedia.createMany({
+              data: mediaCreates.map((item) => ({ ...item, expertId: expert.id })),
             });
           }
         }
 
-        return tx.provider.findUniqueOrThrow({
-          where: { id: provider.id },
-          select: providerEditorSelect,
+        return tx.expert.findUniqueOrThrow({
+          where: { id: expert.id },
+          select: expertEditorSelect,
         });
       });
 
-      return reply.send({ ok: true, provider: updated });
+      return reply.send({ ok: true, expert: updated, provider: updated });
     } catch (e: any) {
-      req.log.error({ err: e }, 'update-provider.failed');
-      return reply.code(500).send({ error: 'Failed to update provider' });
+      req.log.error({ err: e }, 'update-expert.failed');
+      return reply.code(500).send({ error: 'Failed to update expert' });
     }
-  });
+    });
+  }
 };
 
-export default providersRoutes;
+export default expertsRoutes;

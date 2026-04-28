@@ -7,7 +7,7 @@ import rateLimit from '@fastify/rate-limit';
 import adminRoutes from './routes/admin';
 import authRoutes from './routes/auth';
 import accountRoutes from './routes/account';
-import providersRoutes from './routes/providers';
+import expertsRoutes from './routes/providers';
 import inquiriesRoutes from './routes/inquiries';
 
 function normalizeOrigin(raw: string) {
@@ -57,7 +57,7 @@ async function start() {
 
   await fastify.register(authRoutes);
   await fastify.register(accountRoutes);
-  await fastify.register(providersRoutes);
+  await fastify.register(expertsRoutes);
   await fastify.register(inquiriesRoutes);
   await fastify.register(adminRoutes);
 

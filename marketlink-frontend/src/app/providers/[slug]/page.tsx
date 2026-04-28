@@ -246,7 +246,7 @@ export default function ProviderPage({ params }: PageProps) {
 
       try {
         const API_BASE = process.env.NEXT_PUBLIC_API_URL || 'http://127.0.0.1:4000';
-        const res = await fetch(`${API_BASE}/providers/${resolvedParams.slug}`);
+        const res = await fetch(`${API_BASE}/experts/${resolvedParams.slug}`);
         if (res.status === 404) {
           setMissing(true);
           return;
@@ -746,7 +746,7 @@ function ProviderPageContent({ provider: p }: { provider: Provider }) {
                 </div>
 
                 <div className="px-6 py-6">
-                  {p.status === 'active' ? <InquiryForm providerSlug={p.slug} /> : <div className="text-sm text-slate-600">Contact form will be available once this expert profile is active.</div>}
+                  {p.status === 'active' ? <InquiryForm expertSlug={p.slug} /> : <div className="text-sm text-slate-600">Contact form will be available once this expert profile is active.</div>}
                 </div>
               </section>
 

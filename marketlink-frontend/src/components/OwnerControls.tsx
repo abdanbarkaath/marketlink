@@ -9,6 +9,7 @@ type MeSummary =
   | {
       ok: true;
       user: { id: string; email: string; role: 'provider' | 'admin' };
+      expert: { id: string; slug: string } | null;
       provider: { id: string; slug: string } | null;
     }
   | { ok: false };
@@ -35,7 +36,8 @@ export default function OwnerControls({ slug }: { slug: string }) {
         if (cancelled) return;
 
         if (data.ok) {
-          setOwns(Boolean(data.provider && data.provider.slug === slug));
+          const ownedProfile = data.expert ?? data.provider;
+          setOwns(Boolean(ownedProfile && ownedProfile.slug === slug));
         } else {
           setOwns(false);
         }

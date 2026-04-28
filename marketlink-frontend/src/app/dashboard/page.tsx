@@ -9,7 +9,7 @@ const API_BASE = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:4000';
 
 type User = { id: string; email: string; role: 'provider' | 'admin' };
 
-type ProviderSummary = {
+type ExpertSummary = {
   id: string;
   slug: string;
   businessName: string;
@@ -37,8 +37,8 @@ export default function DashboardPage() {
     return <h2 className="text-sm font-semibold text-slate-900">{children}</h2>;
   }
 
-  const [user, setUser] = useState<User | null>(null);
-  const [provider, setProvider] = useState<ProviderSummary>(null);
+const [user, setUser] = useState<User | null>(null);
+  const [expert, setExpert] = useState<ExpertSummary>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [inquiryCount, setInquiryCount] = useState<number | null>(null);
@@ -61,7 +61,7 @@ export default function DashboardPage() {
           throw new Error(body?.error || `Failed (${res.status})`);
         }
 
-        const data = (await res.json()) as { user?: User; provider?: ProviderSummary };
+        const data = (await res.json()) as { user?: User; expert?: ExpertSummary; provider?: ExpertSummary };
 
         if (data?.user?.role === 'admin') {
           router.replace('/dashboard/admin');
@@ -69,7 +69,7 @@ export default function DashboardPage() {
         }
 
         setUser(data.user ?? null);
-        setProvider(data.provider ?? null);
+        setExpert(data.expert ?? data.provider ?? null);
       } catch (e: unknown) {
         setError(e instanceof Error ? e.message : 'Something went wrong');
       } finally {
@@ -79,7 +79,7 @@ export default function DashboardPage() {
   }, [router]);
 
   useEffect(() => {
-    if (!provider) return;
+    if (!expert) return;
 
     (async () => {
       try {
@@ -98,7 +98,7 @@ export default function DashboardPage() {
         // ignore inquiry count failures on dashboard
       }
     })();
-  }, [provider]);
+  }, [expert]);
 
   const shellClass = 'ml-card rounded-[28px] p-5 shadow-[0_18px_50px_rgba(23,26,31,0.06)] sm:p-6';
   const mutedCardClass = 'ml-surface-muted rounded-2xl p-4';
@@ -131,7 +131,7 @@ export default function DashboardPage() {
 
   if (!user) return null;
 
-  const providerLocation = provider ? `${provider.city}, ${provider.state}` : 'Create your profile to get listed.';
+  const expertLocation = expert ? `${expert.city}, ${expert.state}` : 'Create your profile to get listed.';
 
   return (
     <main className={`${t.pageBg} min-h-[calc(100vh-72px)]`}>
@@ -145,15 +145,15 @@ export default function DashboardPage() {
               <div className="mt-3 flex flex-wrap items-center gap-2 text-sm">
                 <span className="font-medium text-slate-900">{user.email}</span>
                 <Pill>{user.role}</Pill>
-                {provider ? <Pill>{provider.status}</Pill> : <Pill>Setup</Pill>}
+                {expert ? <Pill>{expert.status}</Pill> : <Pill>Setup</Pill>}
               </div>
-              <p className={`${t.mutedText} mt-3 text-sm`}>{provider ? `${provider.businessName} • ${providerLocation}` : providerLocation}</p>
+              <p className={`${t.mutedText} mt-3 text-sm`}>{expert ? `${expert.businessName} • ${expertLocation}` : expertLocation}</p>
             </div>
 
             <div className="grid grid-cols-2 gap-3 sm:grid-cols-3">
               <div className={mutedCardClass}>
                 <div className="text-xs font-semibold uppercase tracking-[0.26em] text-slate-400">Profile</div>
-                <div className="mt-2 text-base font-semibold text-slate-900">{provider ? provider.businessName : 'Not created'}</div>
+                <div className="mt-2 text-base font-semibold text-slate-900">{expert ? expert.businessName : 'Not created'}</div>
               </div>
               <div className={mutedCardClass}>
                 <div className="text-xs font-semibold uppercase tracking-[0.26em] text-slate-400">Inquiries</div>
@@ -169,7 +169,7 @@ export default function DashboardPage() {
 
         <div className="mt-5 grid gap-5 xl:grid-cols-[minmax(0,1.35fr)_360px]">
           <div className="order-1 space-y-5">
-            {!provider ? (
+            {!expert ? (
               <section className={shellClass}>
                 <div className="flex flex-col gap-5">
                   <div className="flex items-start justify-between gap-4">
@@ -209,9 +209,9 @@ export default function DashboardPage() {
                   <div className="flex items-start justify-between gap-4">
                     <div>
                       <h2 className="text-xl font-semibold text-slate-900">{provider.businessName}</h2>
-                      <p className={`mt-2 text-sm ${t.mutedText}`}>{providerLocation}</p>
+                      <p className={`mt-2 text-sm ${t.mutedText}`}>{expertLocation}</p>
                     </div>
-                    <Pill>{provider.status}</Pill>
+                    <Pill>{expert.status}</Pill>
                   </div>
 
                   <div className="flex flex-col gap-3 sm:flex-row sm:flex-wrap">
@@ -245,13 +245,13 @@ export default function DashboardPage() {
             <section className={shellClass}>
               <div className="flex items-start justify-between gap-4">
                 <SectionTitle>Quick actions</SectionTitle>
-                {provider ? <Pill>{inquiryCount === null ? 'Loading...' : `${inquiryCount} total`}</Pill> : <Pill>Setup first</Pill>}
+                {expert ? <Pill>{inquiryCount === null ? 'Loading...' : `${inquiryCount} total`}</Pill> : <Pill>Setup first</Pill>}
               </div>
 
               <div className="mt-4 grid gap-3 sm:grid-cols-2">
-                <Link href={provider ? '/dashboard/inquiries' : '/dashboard/onboarding'} className={`${mutedCardClass} transition ${t.cardHover}`} aria-disabled={!provider}>
+                <Link href={expert ? '/dashboard/inquiries' : '/dashboard/onboarding'} className={`${mutedCardClass} transition ${t.cardHover}`} aria-disabled={!expert}>
                   <div className="text-sm font-semibold text-slate-900">Inquiries</div>
-                  <p className={`mt-1 text-sm ${t.mutedText}`}>{provider ? 'View and respond to leads.' : 'Create a profile first to receive leads.'}</p>
+                  <p className={`mt-1 text-sm ${t.mutedText}`}>{expert ? 'View and respond to leads.' : 'Create a profile first to receive leads.'}</p>
                 </Link>
 
                 <div className={mutedCardClass}>

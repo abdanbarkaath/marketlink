@@ -5,7 +5,7 @@ import { useMarketLinkTheme } from '../../../components/ThemeToggle';
 
 const API_BASE = process.env.NEXT_PUBLIC_API_URL || 'http://127.0.0.1:4000';
 
-export default function InquiryForm({ providerSlug }: { providerSlug: string }) {
+export default function InquiryForm({ expertSlug }: { expertSlug: string }) {
   const { t } = useMarketLinkTheme();
   const [saving, setSaving] = useState(false);
   const [sent, setSent] = useState(false);
@@ -43,7 +43,7 @@ export default function InquiryForm({ providerSlug }: { providerSlug: string }) 
         headers: { 'Content-Type': 'application/json' },
         credentials: 'include',
         cache: 'no-store',
-        body: JSON.stringify({ providerSlug, name, email, phone, message }),
+        body: JSON.stringify({ expertSlug, name, email, phone, message }),
       });
 
       if (!res.ok) {

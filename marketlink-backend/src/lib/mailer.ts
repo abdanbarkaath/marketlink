@@ -69,6 +69,8 @@ export async function sendMagicLinkEmail(to: string, verifyUrl: string): Promise
 }
 
 export async function sendInviteEmail(to: string, tempPassword: string, loginUrl: string, role: 'provider' | 'admin'): Promise<SendResult> {
+  const displayRole = role === 'provider' ? 'expert' : role;
+
   if (!RESEND_API_KEY || !MAIL_FROM) {
     console.log('[mailer] Missing RESEND_API_KEY or MAIL_FROM; logging invite instead:', {
       to,
@@ -83,7 +85,7 @@ export async function sendInviteEmail(to: string, tempPassword: string, loginUrl
   const text = [
     `Hi,`,
     ``,
-    `An admin created a ${role} account for you.`,
+    `An admin created an ${displayRole} account for you.`,
     `Email: ${to}`,
     `Temporary password: ${tempPassword}`,
     ``,
@@ -97,7 +99,7 @@ export async function sendInviteEmail(to: string, tempPassword: string, loginUrl
   const html = `
     <div style="font-family:ui-sans-serif,-apple-system,BlinkMacSystemFont,Segoe UI,Roboto,Helvetica,Arial;">
       <p>Hi,</p>
-      <p>An admin created a <strong>${role}</strong> account for you.</p>
+      <p>An admin created an <strong>${displayRole}</strong> account for you.</p>
       <p><strong>Email:</strong> ${to}</p>
       <p><strong>Temporary password:</strong> ${tempPassword}</p>
       <p>

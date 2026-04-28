@@ -17,68 +17,69 @@ model User {
   mustChangePassword Boolean       @default(true)
   passwordHash       String?
   adminActions       AdminAction[]
-  providers          Provider[]
+  experts            Expert[]
   sessions           Session[]
 }
 
-model Provider {
-  id             String         @id @default(cuid())
-  email          String         @unique
-  businessName   String
-  slug           String         @unique
-  tagline        String?
-  shortDescription String?
-  overview       String?
-  websiteUrl     String?
-  phone          String?
-  linkedinUrl    String?
-  instagramUrl   String?
-  facebookUrl    String?
-  foundedYear    Int?
-  hourlyRateMin  Int?
-  hourlyRateMax  Int?
-  minProjectBudget Int?
-  currencyCode   String         @default("USD")
-  languages      String[]       @default([])
-  industries     String[]       @default([])
-  clientSizes    String[]       @default([])
-  specialties    String[]       @default([])
-  remoteFriendly Boolean        @default(false)
-  servesNationwide Boolean      @default(false)
+model Expert {
+  id                String                @id @default(cuid())
+  email             String                @unique
+  businessName      String
+  slug              String                @unique
+  tagline           String?
+  shortDescription  String?
+  overview          String?
+  websiteUrl        String?
+  phone             String?
+  linkedinUrl       String?
+  instagramUrl      String?
+  facebookUrl       String?
+  foundedYear       Int?
+  hourlyRateMin     Int?
+  hourlyRateMax     Int?
+  minProjectBudget  Int?
+  currencyCode      String                @default("USD")
+  languages         String[]              @default([])
+  industries        String[]              @default([])
+  clientSizes       String[]              @default([])
+  specialties       String[]              @default([])
+  remoteFriendly    Boolean               @default(false)
+  servesNationwide  Boolean               @default(false)
   responseTimeHours Int?
-  featured       Boolean        @default(false)
-  completionScore Int           @default(0)
-  city           String         @db.Citext
-  state          String         @db.Citext
-  zip            String?
-  rating         Float          @default(0)
-  verified       Boolean        @default(false)
-  logo           String?
-  services       String[]       @default([])
-  createdAt      DateTime       @default(now())
-  updatedAt      DateTime       @updatedAt
-  planTier       PlanTier       @default(free)
-  userId         String?
-  disabledReason String?
-  notes          String?
-  status         ProviderStatus @default(active)
-  AdminAction    AdminAction[]
-  owner          User?          @relation(fields: [userId], references: [id])
-  projects       ProviderProject[]
-  clients        ProviderClient[]
-  media          ProviderMedia[]
-  reviews        ProviderReview[]
-  certifications ProviderCertification[]
-  awards         ProviderAward[]
+  featured          Boolean               @default(false)
+  completionScore   Int                   @default(0)
+  city              String                @db.Citext
+  state             String                @db.Citext
+  zip               String?
+  rating            Float                 @default(0)
+  verified          Boolean               @default(false)
+  logo              String?
+  services          String[]              @default([])
+  createdAt         DateTime              @default(now())
+  updatedAt         DateTime              @updatedAt
+  planTier          PlanTier              @default(free)
+  userId            String?
+  disabledReason    String?
+  notes             String?
+  status            ExpertStatus          @default(active)
+  adminActions      AdminAction[]
+  owner             User?                 @relation(fields: [userId], references: [id])
+  projects          ExpertProject[]
+  clients           ExpertClient[]
+  media             ExpertMedia[]
+  reviews           ExpertReview[]
+  certifications    ExpertCertification[]
+  awards            ExpertAward[]
 
-  // ✅ New: inquiries/leads for this provider
-  inquiries      Inquiry[]
+  // Inquiry / lead records attached to this expert
+  inquiries Inquiry[]
 
   @@index([status, createdAt])
   @@index([status, verified])
   @@index([status, city])
   @@index([status, rating])
   @@index([status, businessName])
+  @@map("Provider")
 }
 
 model Session {
@@ -101,14 +102,14 @@ model Session {
 model AdminAction {
   id          String          @id @default(cuid())
   adminUserId String?
-  providerId  String
+  expertId    String          @map("providerId")
   type        AdminActionType
   metadata    Json?
   createdAt   DateTime        @default(now())
   admin       User?           @relation(fields: [adminUserId], references: [id])
-  provider    Provider        @relation(fields: [providerId], references: [id], onDelete: Cascade)
+  expert      Expert          @relation(fields: [expertId], references: [id], onDelete: Cascade)
 
-  @@index([providerId, createdAt])
+  @@index([expertId, createdAt])
 }
 
 enum UserRole {
@@ -122,11 +123,13 @@ enum PlanTier {
 }
 
 ///
-/// New: Provider status for moderation
-enum ProviderStatus {
+/// Expert status used for moderation while preserving the existing DB enum mapping
+enum ExpertStatus {
   pending
   active
   disabled
+
+  @@map("ProviderStatus")
 }
 
 ///
@@ -149,12 +152,12 @@ enum InquiryStatus {
 }
 
 ///
-/// ✅ New: inquiry/messages sent by business owners to a provider
+/// Inquiry / lead submitted by a business owner to an expert
 model Inquiry {
   id String @id @default(cuid())
 
-  providerId String
-  provider   Provider @relation(fields: [providerId], references: [id], onDelete: Cascade)
+  expertId String @map("providerId")
+  expert   Expert @relation(fields: [expertId], references: [id], onDelete: Cascade)
 
   name    String
   email   String
@@ -164,36 +167,37 @@ model Inquiry {
   status    InquiryStatus @default(NEW)
   createdAt DateTime      @default(now())
 
-  @@index([providerId, createdAt])
+  @@index([expertId, createdAt])
   @@index([status, createdAt])
 }
 
-model ProviderProject {
-  id            String   @id @default(cuid())
-  providerId    String
+model ExpertProject {
+  id            String    @id @default(cuid())
+  expertId      String    @map("providerId")
   title         String
   summary       String?
   challenge     String?
   solution      String?
   results       String?
-  services      String[] @default([])
+  services      String[]  @default([])
   projectBudget Int?
   startedAt     DateTime?
   completedAt   DateTime?
-  isFeatured    Boolean  @default(false)
+  isFeatured    Boolean   @default(false)
   coverImageUrl String?
-  sortOrder     Int      @default(0)
-  createdAt     DateTime @default(now())
-  updatedAt     DateTime @updatedAt
-  provider      Provider @relation(fields: [providerId], references: [id], onDelete: Cascade)
+  sortOrder     Int       @default(0)
+  createdAt     DateTime  @default(now())
+  updatedAt     DateTime  @updatedAt
+  expert        Expert    @relation(fields: [expertId], references: [id], onDelete: Cascade)
 
-  @@index([providerId, sortOrder, createdAt])
-  @@index([providerId, isFeatured])
+  @@index([expertId, sortOrder, createdAt])
+  @@index([expertId, isFeatured])
+  @@map("ProviderProject")
 }
 
-model ProviderClient {
+model ExpertClient {
   id         String   @id @default(cuid())
-  providerId String
+  expertId   String   @map("providerId")
   name       String
   logoUrl    String?
   websiteUrl String?
@@ -201,85 +205,92 @@ model ProviderClient {
   sortOrder  Int      @default(0)
   createdAt  DateTime @default(now())
   updatedAt  DateTime @updatedAt
-  provider   Provider @relation(fields: [providerId], references: [id], onDelete: Cascade)
+  expert     Expert   @relation(fields: [expertId], references: [id], onDelete: Cascade)
 
-  @@index([providerId, sortOrder, createdAt])
-  @@index([providerId, isFeatured])
+  @@index([expertId, sortOrder, createdAt])
+  @@index([expertId, isFeatured])
+  @@map("ProviderClient")
 }
 
-model ProviderMedia {
-  id         String            @id @default(cuid())
-  providerId String
-  type       ProviderMediaType
-  url        String
-  altText    String?
-  sortOrder  Int               @default(0)
-  createdAt  DateTime          @default(now())
-  updatedAt  DateTime          @updatedAt
-  provider   Provider          @relation(fields: [providerId], references: [id], onDelete: Cascade)
+model ExpertMedia {
+  id        String          @id @default(cuid())
+  expertId  String          @map("providerId")
+  type      ExpertMediaType
+  url       String
+  altText   String?
+  sortOrder Int             @default(0)
+  createdAt DateTime        @default(now())
+  updatedAt DateTime        @updatedAt
+  expert    Expert          @relation(fields: [expertId], references: [id], onDelete: Cascade)
 
-  @@index([providerId, type, sortOrder, createdAt])
+  @@index([expertId, type, sortOrder, createdAt])
+  @@map("ProviderMedia")
 }
 
-enum ProviderMediaType {
+enum ExpertMediaType {
   logo
   cover
   gallery
   video
+
+  @@map("ProviderMediaType")
 }
 
-model ProviderReview {
-  id                    String   @id @default(cuid())
-  providerId            String
-  reviewerName          String
-  company               String?
-  rating                Float
-  communicationRating   Float?
-  qualityRating         Float?
-  valueRating           Float?
-  title                 String?
-  body                  String
-  projectSummary        String?
-  verified              Boolean  @default(false)
-  source                String?
-  publishedAt           DateTime?
-  sortOrder             Int      @default(0)
-  createdAt             DateTime @default(now())
-  updatedAt             DateTime @updatedAt
-  provider              Provider @relation(fields: [providerId], references: [id], onDelete: Cascade)
+model ExpertReview {
+  id                  String    @id @default(cuid())
+  expertId            String    @map("providerId")
+  reviewerName        String
+  company             String?
+  rating              Float
+  communicationRating Float?
+  qualityRating       Float?
+  valueRating         Float?
+  title               String?
+  body                String
+  projectSummary      String?
+  verified            Boolean   @default(false)
+  source              String?
+  publishedAt         DateTime?
+  sortOrder           Int       @default(0)
+  createdAt           DateTime  @default(now())
+  updatedAt           DateTime  @updatedAt
+  expert              Expert    @relation(fields: [expertId], references: [id], onDelete: Cascade)
 
-  @@index([providerId, sortOrder, createdAt])
-  @@index([providerId, verified, publishedAt])
+  @@index([expertId, sortOrder, createdAt])
+  @@index([expertId, verified, publishedAt])
+  @@map("ProviderReview")
 }
 
-model ProviderCertification {
-  id           String   @id @default(cuid())
-  providerId   String
-  title        String
-  issuer       String
-  year         Int?
-  url          String?
+model ExpertCertification {
+  id            String   @id @default(cuid())
+  expertId      String   @map("providerId")
+  title         String
+  issuer        String
+  year          Int?
+  url           String?
   badgeImageUrl String?
-  sortOrder    Int      @default(0)
-  createdAt    DateTime @default(now())
-  updatedAt    DateTime @updatedAt
-  provider     Provider @relation(fields: [providerId], references: [id], onDelete: Cascade)
+  sortOrder     Int      @default(0)
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+  expert        Expert   @relation(fields: [expertId], references: [id], onDelete: Cascade)
 
-  @@index([providerId, sortOrder, createdAt])
+  @@index([expertId, sortOrder, createdAt])
+  @@map("ProviderCertification")
 }
 
-model ProviderAward {
-  id           String   @id @default(cuid())
-  providerId   String
-  title        String
-  issuer       String
-  year         Int?
-  url          String?
+model ExpertAward {
+  id            String   @id @default(cuid())
+  expertId      String   @map("providerId")
+  title         String
+  issuer        String
+  year          Int?
+  url           String?
   badgeImageUrl String?
-  sortOrder    Int      @default(0)
-  createdAt    DateTime @default(now())
-  updatedAt    DateTime @updatedAt
-  provider     Provider @relation(fields: [providerId], references: [id], onDelete: Cascade)
+  sortOrder     Int      @default(0)
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+  expert        Expert   @relation(fields: [expertId], references: [id], onDelete: Cascade)
 
-  @@index([providerId, sortOrder, createdAt])
+  @@index([expertId, sortOrder, createdAt])
+  @@map("ProviderAward")
 }

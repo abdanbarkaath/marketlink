@@ -81,6 +81,11 @@ type Provider = {
 
 type MeSummaryResponse = {
   user?: { role?: Role };
+  expert?: Partial<Provider> & {
+    projects?: Array<Partial<ProviderProject>>;
+    clients?: Array<Partial<ProviderClient>>;
+    media?: Array<Partial<ProviderMedia>>;
+  };
   provider?: Partial<Provider> & {
     projects?: Array<Partial<ProviderProject>>;
     clients?: Array<Partial<ProviderClient>>;
@@ -138,9 +143,8 @@ export default function ProfileEditorPage() {
         const meRole = (me?.user?.role || 'provider') as Role;
         setRole(meRole);
 
-        if (!me.provider) return router.replace('/dashboard/onboarding');
-
-        const p = me.provider;
+        const p = me.expert ?? me.provider;
+        if (!p) return router.replace('/dashboard/onboarding');
 
         setData({
           slug: p.slug ?? '',
@@ -432,7 +436,7 @@ export default function ProfileEditorPage() {
         basePayload.disabledReason = basePayload.status === 'disabled' ? String(data.disabledReason || '').trim() : null;
       }
 
-      const res = await fetch(`${API_BASE}/providers`, {
+      const res = await fetch(`${API_BASE}/experts`, {
         method: 'PUT',
         headers: { 'Content-Type': 'application/json' },
         credentials: 'include',

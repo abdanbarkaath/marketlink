@@ -351,7 +351,7 @@ export default async function ProvidersPage({ searchParams }: ProvidersPageProps
 
   const apiBase = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:4000';
 
-  const res = await fetch(`${apiBase}/providers?${qs}`, {
+  const res = await fetch(`${apiBase}/experts?${qs}`, {
     cache: 'no-store',
     headers: { 'content-type': 'application/json' },
   });
