@@ -1,17 +1,18 @@
 import type { FastifyPluginAsync } from 'fastify';
 import { prisma } from '../lib/prisma';
 import { getUserFromRequest } from '../lib/session';
-import { InquiryStatus, ProviderStatus } from '@prisma/client';
+import { ExpertStatus, InquiryStatus } from '@prisma/client';
 
 const isEmail = (v: string) => /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(v);
 
 const inquiriesRoutes: FastifyPluginAsync = async (fastify) => {
   /**
    * POST /inquiries (public)
-   * Body: { providerSlug, name, email, phone?, message }
+   * Body: { expertSlug?, providerSlug?, name, email, phone?, message }
    */
   fastify.post('/inquiries', async (req, reply) => {
     const body = (req.body || {}) as {
+      expertSlug?: string;
       providerSlug?: string;
       name?: string;
       email?: string;
@@ -19,7 +20,7 @@ const inquiriesRoutes: FastifyPluginAsync = async (fastify) => {
       message?: string;
     };
 
-    const providerSlug = String(body.providerSlug || '').trim();
+    const expertSlug = String(body.expertSlug || body.providerSlug || '').trim();
     const name = String(body.name || '').trim();
     const email = String(body.email || '')
       .trim()
@@ -27,7 +28,7 @@ const inquiriesRoutes: FastifyPluginAsync = async (fastify) => {
     const phone = String(body.phone || '').trim() || null;
     const message = String(body.message || '').trim();
 
-    if (!providerSlug) return reply.code(400).send({ ok: false, error: 'providerSlug is required' });
+    if (!expertSlug) return reply.code(400).send({ ok: false, error: 'expertSlug is required' });
     if (!name) return reply.code(400).send({ ok: false, error: 'name is required' });
     if (!email || !isEmail(email)) return reply.code(400).send({ ok: false, error: 'valid email is required' });
     if (!message) return reply.code(400).send({ ok: false, error: 'message is required' });
@@ -38,18 +39,18 @@ const inquiriesRoutes: FastifyPluginAsync = async (fastify) => {
     if (phone && phone.length > 40) return reply.code(400).send({ ok: false, error: 'phone is too long' });
     if (message.length > 2000) return reply.code(400).send({ ok: false, error: 'message is too long' });
 
-    // Only allow inquiries to ACTIVE providers (matches public listing rules)
-    const provider = await prisma.provider.findFirst({
-      where: { slug: providerSlug, status: ProviderStatus.active },
+    // Only allow inquiries to ACTIVE experts (matches public listing rules)
+    const expert = await prisma.expert.findFirst({
+      where: { slug: expertSlug, status: ExpertStatus.active },
       select: { id: true },
     });
 
-    if (!provider) return reply.code(404).send({ ok: false, error: 'Provider not found' });
+    if (!expert) return reply.code(404).send({ ok: false, error: 'Expert not found' });
 
     try {
       const created = await prisma.inquiry.create({
         data: {
-          providerId: provider.id,
+          expertId: expert.id,
           name,
           email,
           phone: phone || undefined,
@@ -68,21 +69,21 @@ const inquiriesRoutes: FastifyPluginAsync = async (fastify) => {
 
   /**
    * GET /inquiries (owner-only)
-   * Lists inquiries for the provider owned by the logged-in user
+   * Lists inquiries for the expert owned by the logged-in user
    */
   fastify.get('/inquiries', async (req, reply) => {
     const user = await getUserFromRequest(fastify, req);
     if (!user) return reply.code(401).send({ error: 'Not authenticated' });
 
-    const provider = await prisma.provider.findFirst({
+    const expert = await prisma.expert.findFirst({
       where: { userId: user.id },
       select: { id: true },
     });
 
-    if (!provider) return reply.code(404).send({ error: "You don't have a provider profile yet." });
+    if (!expert) return reply.code(404).send({ error: "You don't have an expert profile yet." });
 
     const rows = await prisma.inquiry.findMany({
-      where: { providerId: provider.id },
+      where: { expertId: expert.id },
       orderBy: { createdAt: 'desc' },
       take: 100,
       select: {
@@ -119,15 +120,15 @@ const inquiriesRoutes: FastifyPluginAsync = async (fastify) => {
       return reply.code(400).send({ ok: false, error: 'status must be NEW, READ, or ARCHIVED' });
     }
 
-    const provider = await prisma.provider.findFirst({
+    const expert = await prisma.expert.findFirst({
       where: { userId: user.id },
       select: { id: true },
     });
 
-    if (!provider) return reply.code(404).send({ ok: false, error: "You don't have a provider profile yet." });
+    if (!expert) return reply.code(404).send({ ok: false, error: "You don't have an expert profile yet." });
 
     const existing = await prisma.inquiry.findFirst({
-      where: { id, providerId: provider.id },
+      where: { id, expertId: expert.id },
       select: { id: true, status: true },
     });
 

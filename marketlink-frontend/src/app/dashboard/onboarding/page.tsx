@@ -41,7 +41,7 @@ export default function OnboardingPage() {
       if (!city.trim()) throw new Error('City is required.');
       if (!state.trim()) throw new Error('State is required.');
 
-      const res = await fetch(`${API_BASE}/providers`, {
+      const res = await fetch(`${API_BASE}/experts`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         credentials: 'include',
@@ -62,7 +62,7 @@ export default function OnboardingPage() {
       }
 
       const data = await res.json();
-      const slug = data?.provider?.slug as string | undefined;
+      const slug = (data?.expert?.slug || data?.provider?.slug) as string | undefined;
 
       if (slug) {
         router.replace(`/providers/${slug}`);
