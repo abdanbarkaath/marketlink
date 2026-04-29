@@ -13,6 +13,10 @@ type ExpertSummary = {
   id: string;
   slug: string;
   businessName: string;
+  expertType?: 'agency' | 'freelancer' | 'creator' | 'specialist' | null;
+  creatorPlatforms?: string[];
+  creatorAudienceSize?: number | null;
+  creatorProofSummary?: string | null;
   city: string;
   state: string;
   status: 'active' | 'pending' | 'disabled';
