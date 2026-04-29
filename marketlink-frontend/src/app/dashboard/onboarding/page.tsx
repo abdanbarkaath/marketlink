@@ -13,6 +13,13 @@ const SERVICE_OPTIONS = [
   { value: 'print', label: 'Print' },
 ];
 
+const EXPERT_TYPE_OPTIONS = [
+  { value: 'agency', label: 'Agency' },
+  { value: 'freelancer', label: 'Freelancer' },
+  { value: 'creator', label: 'Creator' },
+  { value: 'specialist', label: 'Specialist' },
+];
+
 export default function OnboardingPage() {
   const router = useRouter();
 
@@ -22,6 +29,10 @@ export default function OnboardingPage() {
   const [zip, setZip] = useState('');
   const [tagline, setTagline] = useState('');
   const [logo, setLogo] = useState('');
+  const [expertType, setExpertType] = useState('');
+  const [creatorPlatforms, setCreatorPlatforms] = useState<string[]>([]);
+  const [creatorAudienceSize, setCreatorAudienceSize] = useState('');
+  const [creatorProofSummary, setCreatorProofSummary] = useState('');
   const [services, setServices] = useState<string[]>([]);
 
   const [status, setStatus] = useState<'idle' | 'submitting' | 'error'>('idle');
@@ -29,6 +40,17 @@ export default function OnboardingPage() {
 
   function toggleService(val: string) {
     setServices((prev) => (prev.includes(val) ? prev.filter((v) => v !== val) : [...prev, val]));
+  }
+
+  function parseTokenInput(raw: string) {
+    return Array.from(
+      new Set(
+        raw
+          .split(',')
+          .map((s) => s.trim().toLowerCase())
+          .filter(Boolean),
+      ),
+    );
   }
 
   async function handleSubmit(e: React.FormEvent) {
@@ -52,6 +74,10 @@ export default function OnboardingPage() {
           zip: zip.trim() || undefined,
           tagline: tagline.trim() || undefined,
           logo: logo.trim() || undefined,
+          expertType: expertType || undefined,
+          creatorPlatforms: expertType === 'creator' ? creatorPlatforms : undefined,
+          creatorAudienceSize: expertType === 'creator' ? creatorAudienceSize.trim() || undefined : undefined,
+          creatorProofSummary: expertType === 'creator' ? creatorProofSummary.trim() || undefined : undefined,
           services,
         }),
       });
@@ -122,6 +148,59 @@ export default function OnboardingPage() {
               <label className="mb-1 block text-sm font-medium text-slate-700">Tagline</label>
               <input className={fieldClass} value={tagline} onChange={(e) => setTagline(e.target.value)} placeholder="Meta + Google Ads for local" />
             </div>
+
+            <div>
+              <label className="mb-1 block text-sm font-medium text-slate-700">Expert type</label>
+              <select className={fieldClass} value={expertType} onChange={(e) => setExpertType(e.target.value)}>
+                <option value="">Select the best fit</option>
+                {EXPERT_TYPE_OPTIONS.map((opt) => (
+                  <option key={opt.value} value={opt.value}>
+                    {opt.label}
+                  </option>
+                ))}
+              </select>
+            </div>
+
+            {expertType === 'creator' ? (
+              <div className="grid gap-4 rounded-3xl border border-slate-200/80 bg-[linear-gradient(180deg,rgba(248,250,252,0.98),rgba(226,232,240,0.72))] p-4 shadow-[0_10px_30px_rgba(15,23,42,0.04)]">
+                <div>
+                  <div className="text-sm font-semibold text-slate-900">Creator proof</div>
+                  <p className="mt-1 text-xs text-slate-500">Add the channels and audience signals that help buyers understand your creator reach.</p>
+                </div>
+
+                <div>
+                  <label className="mb-1 block text-sm font-medium text-slate-700">Platforms (comma separated)</label>
+                  <input
+                    className={fieldClass}
+                    value={creatorPlatforms.join(', ')}
+                    onChange={(e) => setCreatorPlatforms(parseTokenInput(e.target.value))}
+                    placeholder="instagram, tiktok, youtube"
+                  />
+                </div>
+
+                <div>
+                  <label className="mb-1 block text-sm font-medium text-slate-700">Audience size</label>
+                  <input
+                    type="number"
+                    min="0"
+                    className={fieldClass}
+                    value={creatorAudienceSize}
+                    onChange={(e) => setCreatorAudienceSize(e.target.value)}
+                    placeholder="e.g. 50000"
+                  />
+                </div>
+
+                <div>
+                  <label className="mb-1 block text-sm font-medium text-slate-700">Proof summary</label>
+                  <textarea
+                    className={`${fieldClass} min-h-[112px]`}
+                    value={creatorProofSummary}
+                    onChange={(e) => setCreatorProofSummary(e.target.value)}
+                    placeholder="Describe your audience, content niche, and the proof buyers should know."
+                  />
+                </div>
+              </div>
+            ) : null}
 
             <div>
               <label className="mb-1 block text-sm font-medium text-slate-700">Logo URL</label>

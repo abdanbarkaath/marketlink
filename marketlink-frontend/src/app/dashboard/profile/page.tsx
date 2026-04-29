@@ -105,6 +105,13 @@ const SERVICE_OPTIONS = [
   { value: 'print', label: 'Print' },
 ];
 
+const EXPERT_TYPE_OPTIONS = [
+  { value: 'agency', label: 'Agency' },
+  { value: 'freelancer', label: 'Freelancer' },
+  { value: 'creator', label: 'Creator' },
+  { value: 'specialist', label: 'Specialist' },
+];
+
 const MEDIA_TYPE_OPTIONS: Array<{ value: MediaType; label: string }> = [
   { value: 'cover', label: 'Cover' },
   { value: 'gallery', label: 'Gallery' },
@@ -153,6 +160,7 @@ export default function ProfileEditorPage() {
         setData({
           slug: p.slug ?? '',
           businessName: p.businessName ?? '',
+          expertType: p.expertType ?? null,
           shortDescription: p.shortDescription ?? '',
           overview: p.overview ?? '',
           websiteUrl: p.websiteUrl ?? '',
@@ -160,6 +168,9 @@ export default function ProfileEditorPage() {
           linkedinUrl: p.linkedinUrl ?? '',
           instagramUrl: p.instagramUrl ?? '',
           facebookUrl: p.facebookUrl ?? '',
+          creatorPlatforms: Array.isArray(p.creatorPlatforms) ? p.creatorPlatforms : [],
+          creatorAudienceSize: p.creatorAudienceSize ?? '',
+          creatorProofSummary: p.creatorProofSummary ?? '',
           foundedYear: p.foundedYear ?? '',
           hourlyRateMin: p.hourlyRateMin ?? '',
           hourlyRateMax: p.hourlyRateMax ?? '',
@@ -385,6 +396,7 @@ export default function ProfileEditorPage() {
         zip: (data.zip || '').trim(),
         tagline: (data.tagline || '').trim(),
         logo: (data.logo || '').trim(),
+        expertType: data.expertType || '',
         services: Array.from(new Set(data.services.map((s) => s.trim()).filter(Boolean))),
         shortDescription: (data.shortDescription || '').trim(),
         overview: (data.overview || '').trim(),
@@ -393,6 +405,10 @@ export default function ProfileEditorPage() {
         linkedinUrl: (data.linkedinUrl || '').trim(),
         instagramUrl: (data.instagramUrl || '').trim(),
         facebookUrl: (data.facebookUrl || '').trim(),
+        creatorPlatforms:
+          data.expertType === 'creator' ? Array.from(new Set((data.creatorPlatforms || []).map((s) => s.trim().toLowerCase()).filter(Boolean))) : [],
+        creatorAudienceSize: data.expertType === 'creator' ? data.creatorAudienceSize ?? '' : '',
+        creatorProofSummary: data.expertType === 'creator' ? (data.creatorProofSummary || '').trim() : '',
         foundedYear: data.foundedYear ?? '',
         hourlyRateMin: data.hourlyRateMin ?? '',
         hourlyRateMax: data.hourlyRateMax ?? '',
@@ -677,9 +693,62 @@ export default function ProfileEditorPage() {
             </div>
 
             <div>
+              <label className="mb-1 block text-sm font-medium text-slate-700">Expert type</label>
+              <select className={fieldClass} value={data.expertType ?? ''} onChange={(e) => setField('expertType', (e.target.value || null) as Provider['expertType'])}>
+                <option value="">Select the best fit</option>
+                {EXPERT_TYPE_OPTIONS.map((opt) => (
+                  <option key={opt.value} value={opt.value}>
+                    {opt.label}
+                  </option>
+                ))}
+              </select>
+            </div>
+
+            <div>
               <label className="mb-1 block text-sm font-medium text-slate-700">Overview</label>
               <textarea className={`${fieldClass} min-h-[144px]`} value={data.overview ?? ''} onChange={(e) => setField('overview', e.target.value)} placeholder="Describe your agency, focus areas, and approach." />
             </div>
+
+            {data.expertType === 'creator' ? (
+              <div className="grid gap-4 rounded-3xl border border-slate-200/80 bg-[linear-gradient(180deg,rgba(248,250,252,0.98),rgba(226,232,240,0.72))] p-4 shadow-[0_10px_30px_rgba(15,23,42,0.04)]">
+                <div>
+                  <div className="text-sm font-semibold text-slate-900">Creator proof</div>
+                  <p className="mt-1 text-xs text-slate-500">Show the channels, audience size, and context that make your creator profile credible.</p>
+                </div>
+
+                <div>
+                  <label className="mb-1 block text-sm font-medium text-slate-700">Platforms (comma separated)</label>
+                  <input
+                    className={fieldClass}
+                    value={(data.creatorPlatforms || []).join(', ')}
+                    onChange={(e) => setField('creatorPlatforms', parseTokenInput(e.target.value))}
+                    placeholder="instagram, tiktok, youtube"
+                  />
+                </div>
+
+                <div>
+                  <label className="mb-1 block text-sm font-medium text-slate-700">Audience size</label>
+                  <input
+                    type="number"
+                    min="0"
+                    className={fieldClass}
+                    value={data.creatorAudienceSize ?? ''}
+                    onChange={(e) => setField('creatorAudienceSize', e.target.value)}
+                    placeholder="e.g. 50000"
+                  />
+                </div>
+
+                <div>
+                  <label className="mb-1 block text-sm font-medium text-slate-700">Proof summary</label>
+                  <textarea
+                    className={`${fieldClass} min-h-[112px]`}
+                    value={data.creatorProofSummary ?? ''}
+                    onChange={(e) => setField('creatorProofSummary', e.target.value)}
+                    placeholder="Describe your audience, niche, or proof points buyers should know."
+                  />
+                </div>
+              </div>
+            ) : null}
 
             <div>
               <label className="mb-1 block text-sm font-medium text-slate-700">Logo URL</label>
