@@ -47,6 +47,7 @@ type ProviderMedia = {
 type Provider = {
   slug: string;
   businessName: string;
+  expertType?: 'agency' | 'freelancer' | 'creator' | 'specialist' | null;
   shortDescription?: string | null;
   overview?: string | null;
   websiteUrl?: string | null;
@@ -54,6 +55,9 @@ type Provider = {
   linkedinUrl?: string | null;
   instagramUrl?: string | null;
   facebookUrl?: string | null;
+  creatorPlatforms?: string[];
+  creatorAudienceSize?: number | string | null;
+  creatorProofSummary?: string | null;
   foundedYear?: number | string | null;
   hourlyRateMin?: number | string | null;
   hourlyRateMax?: number | string | null;

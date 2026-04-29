@@ -21,6 +21,7 @@ type Provider = {
   slug: string;
   businessName: string;
   email: string;
+  expertType?: 'agency' | 'freelancer' | 'creator' | 'specialist' | null;
   tagline: string | null;
   shortDescription?: string | null;
   overview?: string | null;
@@ -29,6 +30,9 @@ type Provider = {
   linkedinUrl?: string | null;
   instagramUrl?: string | null;
   facebookUrl?: string | null;
+  creatorPlatforms?: string[];
+  creatorAudienceSize?: number | null;
+  creatorProofSummary?: string | null;
   foundedYear?: number | null;
   hourlyRateMin?: number | null;
   hourlyRateMax?: number | null;

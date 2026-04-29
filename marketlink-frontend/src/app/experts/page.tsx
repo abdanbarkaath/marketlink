@@ -10,6 +10,7 @@ type Provider = {
   id: string;
   slug: string;
   businessName: string;
+  expertType?: 'agency' | 'freelancer' | 'creator' | 'specialist' | null;
   tagline: string | null;
   shortDescription?: string | null;
   city: string;
@@ -17,6 +18,9 @@ type Provider = {
   verified: boolean;
   logo: string | null;
   services: string[];
+  creatorPlatforms?: string[];
+  creatorAudienceSize?: number | null;
+  creatorProofSummary?: string | null;
   rating: number;
   hourlyRateMin?: number | null;
   hourlyRateMax?: number | null;
