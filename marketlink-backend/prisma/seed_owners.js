@@ -3,37 +3,35 @@ const { PrismaClient } = require('@prisma/client');
 const prisma = new PrismaClient();
 
 async function main() {
-  const providers = await prisma.provider.findMany();
-  console.log(`Found ${providers.length} providers to link…`);
+  const experts = await prisma.expert.findMany();
+  console.log(`Found ${experts.length} experts to link...`);
 
   let linked = 0;
 
-  for (const p of providers) {
-    // Create or find a user for this provider's email
+  for (const expert of experts) {
     const user = await prisma.user.upsert({
-      where: { email: p.email },
-      update: {}, // no updates for now
+      where: { email: expert.email },
+      update: {},
       create: {
-        email: p.email,
+        email: expert.email,
         role: 'provider',
       },
     });
 
-    // Link provider to the user (ownership)
-    await prisma.provider.update({
-      where: { id: p.id },
+    await prisma.expert.update({
+      where: { id: expert.id },
       data: { userId: user.id },
     });
 
     linked++;
   }
 
-  console.log(`✅ Linked ${linked} provider(s) to user accounts`);
+  console.log(`Linked ${linked} expert(s) to user accounts`);
 }
 
 main()
   .catch((e) => {
-    console.error('❌ Seed owners failed:', e);
+    console.error('Seed owners failed:', e);
     process.exit(1);
   })
   .finally(async () => {

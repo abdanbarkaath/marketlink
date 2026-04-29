@@ -1,36 +1,37 @@
 // prisma/seed.js
-const { PrismaClient } = require("@prisma/client");
+const { PrismaClient } = require('@prisma/client');
 const prisma = new PrismaClient();
 
 async function main() {
   const sample = [
     {
-      email: "contact@windycitygrowth.com",
-      businessName: "Windy City Growth",
-      slug: "windy-city-growth",
-      tagline: "Meta + Google Ads for local",
-      city: "Chicago",
-      state: "IL",
+      email: 'contact@windycitygrowth.com',
+      businessName: 'Windy City Growth',
+      slug: 'windy-city-growth',
+      expertType: 'agency',
+      tagline: 'Meta + Google Ads for local',
+      city: 'Chicago',
+      state: 'IL',
       rating: 4.7,
       verified: true,
-      logo: "https://placehold.co/80x80",
-      services: ["seo", "ads", "social"],
-      shortDescription: "Performance marketing for local services.",
-      overview: "We help local businesses grow with a mix of paid media, SEO, and landing page optimization.",
-      websiteUrl: "https://windycitygrowth.com",
-      phone: "(312) 555-0188",
-      linkedinUrl: "https://linkedin.com/company/windy-city-growth",
-      instagramUrl: "https://instagram.com/windycitygrowth",
-      facebookUrl: "https://facebook.com/windycitygrowth",
+      logo: 'https://placehold.co/80x80',
+      services: ['seo', 'ads', 'social'],
+      shortDescription: 'Performance marketing for local services.',
+      overview: 'We help local businesses grow with a mix of paid media, SEO, and landing page optimization.',
+      websiteUrl: 'https://windycitygrowth.com',
+      phone: '(312) 555-0188',
+      linkedinUrl: 'https://linkedin.com/company/windy-city-growth',
+      instagramUrl: 'https://instagram.com/windycitygrowth',
+      facebookUrl: 'https://facebook.com/windycitygrowth',
       foundedYear: 2016,
       hourlyRateMin: 85,
       hourlyRateMax: 145,
       minProjectBudget: 5000,
-      currencyCode: "USD",
-      languages: ["english", "spanish"],
-      industries: ["home-services", "healthcare"],
-      clientSizes: ["smb", "mid-market"],
-      specialties: ["lead gen", "conversion rate"],
+      currencyCode: 'USD',
+      languages: ['english', 'spanish'],
+      industries: ['home-services', 'healthcare'],
+      clientSizes: ['smb', 'mid-market'],
+      specialties: ['lead gen', 'conversion rate'],
       remoteFriendly: true,
       servesNationwide: true,
       responseTimeHours: 24,
@@ -38,97 +39,98 @@ async function main() {
       completionScore: 82,
       projects: [
         {
-          title: "Regional clinic paid search rebuild",
-          summary: "Rebuilt fragmented Google Ads campaigns into a single conversion-focused account.",
-          challenge: "Lead volume was flat and campaign structure made reporting unreliable.",
-          solution: "Consolidated campaigns, rewrote landing pages, and introduced call tracking.",
-          results: "Qualified leads increased by 38% in 90 days while cost per lead dropped by 21%.",
-          services: ["ads", "seo"],
+          title: 'Regional clinic paid search rebuild',
+          summary: 'Rebuilt fragmented Google Ads campaigns into a single conversion-focused account.',
+          challenge: 'Lead volume was flat and campaign structure made reporting unreliable.',
+          solution: 'Consolidated campaigns, rewrote landing pages, and introduced call tracking.',
+          results: 'Qualified leads increased by 38% in 90 days while cost per lead dropped by 21%.',
+          services: ['ads', 'seo'],
           projectBudget: 18000,
-          startedAt: "2025-01-15",
-          completedAt: "2025-04-15",
+          startedAt: '2025-01-15',
+          completedAt: '2025-04-15',
           isFeatured: true,
-          coverImageUrl: "https://placehold.co/1200x700?text=Clinic+Growth",
+          coverImageUrl: 'https://placehold.co/1200x700?text=Clinic+Growth',
         },
       ],
       clients: [
         {
-          name: "Northside Dental Group",
-          logoUrl: "https://placehold.co/120x120?text=ND",
-          websiteUrl: "https://example.com/northside-dental",
+          name: 'Northside Dental Group',
+          logoUrl: 'https://placehold.co/120x120?text=ND',
+          websiteUrl: 'https://example.com/northside-dental',
           isFeatured: true,
         },
       ],
       media: [
         {
-          type: "cover",
-          url: "https://placehold.co/1200x700?text=Windy+City+Growth+Cover",
-          altText: "Campaign dashboard overview for Windy City Growth",
+          type: 'cover',
+          url: 'https://placehold.co/1200x700?text=Windy+City+Growth+Cover',
+          altText: 'Campaign dashboard overview for Windy City Growth',
         },
         {
-          type: "gallery",
-          url: "https://windycitygrowth.com",
-          altText: "Windy City Growth website preview",
+          type: 'gallery',
+          url: 'https://windycitygrowth.com',
+          altText: 'Windy City Growth website preview',
         },
         {
-          type: "video",
-          url: "https://www.instagram.com/windycitygrowth/",
-          altText: "Windy City Growth Instagram profile",
+          type: 'video',
+          url: 'https://www.instagram.com/windycitygrowth/',
+          altText: 'Windy City Growth Instagram profile',
         },
       ],
       certifications: [
         {
-          title: "Google Ads Search Certification",
-          issuer: "Google",
+          title: 'Google Ads Search Certification',
+          issuer: 'Google',
           year: 2025,
-          url: "https://skillshop.credential.net/",
-          badgeImageUrl: "https://placehold.co/120x120?text=Google",
+          url: 'https://skillshop.credential.net/',
+          badgeImageUrl: 'https://placehold.co/120x120?text=Google',
         },
         {
-          title: "Meta Certified Media Buying Professional",
-          issuer: "Meta",
+          title: 'Meta Certified Media Buying Professional',
+          issuer: 'Meta',
           year: 2024,
-          url: "https://www.facebook.com/business/learn/certification",
-          badgeImageUrl: "https://placehold.co/120x120?text=Meta",
+          url: 'https://www.facebook.com/business/learn/certification',
+          badgeImageUrl: 'https://placehold.co/120x120?text=Meta',
         },
       ],
       awards: [
         {
-          title: "Top Local Paid Media Partner",
-          issuer: "Chicago Growth Awards",
+          title: 'Top Local Paid Media Partner',
+          issuer: 'Chicago Growth Awards',
           year: 2025,
-          url: "https://example.com/chicago-growth-awards",
-          badgeImageUrl: "https://placehold.co/120x120?text=Award",
+          url: 'https://example.com/chicago-growth-awards',
+          badgeImageUrl: 'https://placehold.co/120x120?text=Award',
         },
       ],
     },
     {
-      email: "hello@napervilledigitalboost.com",
-      businessName: "Naperville Digital Boost",
-      slug: "naperville-digital-boost",
-      tagline: "SEO & content that compounds",
-      city: "Naperville",
-      state: "IL",
+      email: 'hello@napervilledigitalboost.com',
+      businessName: 'Naperville Digital Boost',
+      slug: 'naperville-digital-boost',
+      expertType: 'freelancer',
+      tagline: 'SEO & content that compounds',
+      city: 'Naperville',
+      state: 'IL',
       rating: 4.5,
       verified: false,
-      logo: "https://placehold.co/80x80",
-      services: ["seo"],
-      shortDescription: "SEO and content for long-term growth.",
-      overview: "We build sustainable SEO programs focused on content, technical fixes, and local visibility.",
-      websiteUrl: "https://napervilledigitalboost.com",
-      phone: "(630) 555-0134",
-      linkedinUrl: "https://linkedin.com/company/naperville-digital-boost",
-      instagramUrl: "https://instagram.com/napervilledigitalboost",
-      facebookUrl: "https://facebook.com/napervilledigitalboost",
+      logo: 'https://placehold.co/80x80',
+      services: ['seo'],
+      shortDescription: 'SEO and content for long-term growth.',
+      overview: 'We build sustainable SEO programs focused on content, technical fixes, and local visibility.',
+      websiteUrl: 'https://napervilledigitalboost.com',
+      phone: '(630) 555-0134',
+      linkedinUrl: 'https://linkedin.com/company/naperville-digital-boost',
+      instagramUrl: 'https://instagram.com/napervilledigitalboost',
+      facebookUrl: 'https://facebook.com/napervilledigitalboost',
       foundedYear: 2019,
       hourlyRateMin: 70,
       hourlyRateMax: 120,
       minProjectBudget: 3000,
-      currencyCode: "USD",
-      languages: ["english"],
-      industries: ["retail", "professional-services"],
-      clientSizes: ["smb"],
-      specialties: ["local seo", "content marketing"],
+      currencyCode: 'USD',
+      languages: ['english'],
+      industries: ['retail', 'professional-services'],
+      clientSizes: ['smb'],
+      specialties: ['local seo', 'content marketing'],
       remoteFriendly: true,
       servesNationwide: false,
       responseTimeHours: 36,
@@ -136,77 +138,81 @@ async function main() {
       completionScore: 68,
       projects: [
         {
-          title: "Local SEO relaunch for suburban retailer",
-          summary: "Built a location-led content plan and fixed technical issues blocking map visibility.",
-          challenge: "The site had duplicate local pages and weak rankings outside branded searches.",
-          solution: "Reworked city pages, improved internal linking, and expanded review capture.",
-          results: "Non-branded local clicks grew 52% over two quarters.",
-          services: ["seo", "content marketing"],
+          title: 'Local SEO relaunch for suburban retailer',
+          summary: 'Built a location-led content plan and fixed technical issues blocking map visibility.',
+          challenge: 'The site had duplicate local pages and weak rankings outside branded searches.',
+          solution: 'Reworked city pages, improved internal linking, and expanded review capture.',
+          results: 'Non-branded local clicks grew 52% over two quarters.',
+          services: ['seo', 'content marketing'],
           projectBudget: 9000,
-          startedAt: "2025-02-01",
-          completedAt: "2025-07-01",
+          startedAt: '2025-02-01',
+          completedAt: '2025-07-01',
           isFeatured: true,
-          coverImageUrl: "https://placehold.co/1200x700?text=SEO+Relaunch",
+          coverImageUrl: 'https://placehold.co/1200x700?text=SEO+Relaunch',
         },
       ],
       clients: [
         {
-          name: "Downtown Home & Patio",
-          logoUrl: "https://placehold.co/120x120?text=DH",
-          websiteUrl: "https://example.com/downtown-home-patio",
+          name: 'Downtown Home & Patio',
+          logoUrl: 'https://placehold.co/120x120?text=DH',
+          websiteUrl: 'https://example.com/downtown-home-patio',
           isFeatured: true,
         },
       ],
       media: [
         {
-          type: "gallery",
-          url: "https://placehold.co/1000x700?text=SEO+Content+Hub",
-          altText: "SEO content hub design and navigation example",
+          type: 'gallery',
+          url: 'https://placehold.co/1000x700?text=SEO+Content+Hub',
+          altText: 'SEO content hub design and navigation example',
         },
         {
-          type: "video",
-          url: "https://www.instagram.com/napervilledigitalboost/",
-          altText: "Naperville Digital Boost Instagram profile",
+          type: 'video',
+          url: 'https://www.instagram.com/napervilledigitalboost/',
+          altText: 'Naperville Digital Boost Instagram profile',
         },
       ],
       certifications: [
         {
-          title: "Google Analytics Certification",
-          issuer: "Google",
+          title: 'Google Analytics Certification',
+          issuer: 'Google',
           year: 2025,
-          url: "https://skillshop.credential.net/",
-          badgeImageUrl: "https://placehold.co/120x120?text=GA4",
+          url: 'https://skillshop.credential.net/',
+          badgeImageUrl: 'https://placehold.co/120x120?text=GA4',
         },
       ],
       awards: [],
     },
     {
-      email: "team@evanstonsociallab.com",
-      businessName: "Evanston Social Lab",
-      slug: "evanston-social-lab",
-      tagline: "Short-form video + socials",
-      city: "Evanston",
-      state: "IL",
+      email: 'team@evanstonsociallab.com',
+      businessName: 'Evanston Social Lab',
+      slug: 'evanston-social-lab',
+      expertType: 'creator',
+      tagline: 'Short-form video + socials',
+      city: 'Evanston',
+      state: 'IL',
       rating: 4.2,
       verified: true,
-      logo: "https://placehold.co/80x80",
-      services: ["social", "video"],
-      shortDescription: "Short-form social content that converts.",
-      overview: "We plan, shoot, and edit reels plus run paid social to grow your audience.",
-      websiteUrl: "https://evanstonsociallab.com",
-      phone: "(847) 555-0199",
-      linkedinUrl: "https://linkedin.com/company/evanston-social-lab",
-      instagramUrl: "https://instagram.com/evanstonsociallab",
-      facebookUrl: "https://facebook.com/evanstonsociallab",
+      logo: 'https://placehold.co/80x80',
+      services: ['social', 'video'],
+      shortDescription: 'Short-form social content that converts.',
+      overview: 'We plan, shoot, and edit reels plus run paid social to grow your audience.',
+      websiteUrl: 'https://evanstonsociallab.com',
+      phone: '(847) 555-0199',
+      linkedinUrl: 'https://linkedin.com/company/evanston-social-lab',
+      instagramUrl: 'https://instagram.com/evanstonsociallab',
+      facebookUrl: 'https://facebook.com/evanstonsociallab',
+      creatorPlatforms: ['instagram', 'tiktok', 'youtube'],
+      creatorAudienceSize: 185000,
+      creatorProofSummary: 'Audience built through hospitality and retail creator campaigns with repeat local brand sponsorships.',
       foundedYear: 2018,
       hourlyRateMin: 90,
       hourlyRateMax: 160,
       minProjectBudget: 6000,
-      currencyCode: "USD",
-      languages: ["english"],
-      industries: ["hospitality", "retail"],
-      clientSizes: ["smb", "mid-market"],
-      specialties: ["video production", "paid social"],
+      currencyCode: 'USD',
+      languages: ['english'],
+      industries: ['hospitality', 'retail'],
+      clientSizes: ['smb', 'mid-market'],
+      specialties: ['video production', 'paid social'],
       remoteFriendly: false,
       servesNationwide: true,
       responseTimeHours: 18,
@@ -214,85 +220,86 @@ async function main() {
       completionScore: 77,
       projects: [
         {
-          title: "Restaurant reels and paid social sprint",
-          summary: "Produced a month-long short-form video campaign around new menu launches.",
-          challenge: "The brand had strong walk-in traffic but weak repeat engagement on social.",
-          solution: "Delivered weekly reels, creator-style edits, and promotion-based paid social targeting.",
-          results: "Follower growth doubled and promoted offers drove a 27% lift in tracked redemptions.",
-          services: ["social", "video"],
+          title: 'Restaurant reels and paid social sprint',
+          summary: 'Produced a month-long short-form video campaign around new menu launches.',
+          challenge: 'The brand had strong walk-in traffic but weak repeat engagement on social.',
+          solution: 'Delivered weekly reels, creator-style edits, and promotion-based paid social targeting.',
+          results: 'Follower growth doubled and promoted offers drove a 27% lift in tracked redemptions.',
+          services: ['social', 'video'],
           projectBudget: 14000,
-          startedAt: "2025-03-10",
-          completedAt: "2025-05-20",
+          startedAt: '2025-03-10',
+          completedAt: '2025-05-20',
           isFeatured: true,
-          coverImageUrl: "https://placehold.co/1200x700?text=Restaurant+Reels",
+          coverImageUrl: 'https://placehold.co/1200x700?text=Restaurant+Reels',
         },
       ],
       clients: [
         {
-          name: "Lakefront Bistro",
-          logoUrl: "https://placehold.co/120x120?text=LB",
-          websiteUrl: "https://example.com/lakefront-bistro",
+          name: 'Lakefront Bistro',
+          logoUrl: 'https://placehold.co/120x120?text=LB',
+          websiteUrl: 'https://example.com/lakefront-bistro',
           isFeatured: true,
         },
       ],
       media: [
         {
-          type: "video",
-          url: "https://www.instagram.com/evanstonsociallab/",
-          altText: "Evanston Social Lab Instagram profile",
+          type: 'video',
+          url: 'https://www.instagram.com/evanstonsociallab/',
+          altText: 'Evanston Social Lab Instagram profile',
         },
         {
-          type: "gallery",
-          url: "https://placehold.co/1000x700?text=Storyboard+Frames",
-          altText: "Storyboard frames from a social video shoot",
+          type: 'gallery',
+          url: 'https://placehold.co/1000x700?text=Storyboard+Frames',
+          altText: 'Storyboard frames from a social video shoot',
         },
       ],
       certifications: [
         {
-          title: "Meta Certified Creative Strategy Professional",
-          issuer: "Meta",
+          title: 'Meta Certified Creative Strategy Professional',
+          issuer: 'Meta',
           year: 2024,
-          url: "https://www.facebook.com/business/learn/certification",
-          badgeImageUrl: "https://placehold.co/120x120?text=Meta",
+          url: 'https://www.facebook.com/business/learn/certification',
+          badgeImageUrl: 'https://placehold.co/120x120?text=Meta',
         },
       ],
       awards: [
         {
-          title: "Best Social Campaign Concept",
-          issuer: "North Shore Marketing Awards",
+          title: 'Best Social Campaign Concept',
+          issuer: 'North Shore Marketing Awards',
           year: 2025,
-          url: "https://example.com/north-shore-awards",
-          badgeImageUrl: "https://placehold.co/120x120?text=NS",
+          url: 'https://example.com/north-shore-awards',
+          badgeImageUrl: 'https://placehold.co/120x120?text=NS',
         },
       ],
     },
     {
-      email: "print@oakparkprintco.com",
-      businessName: "Oak Park Print Co.",
-      slug: "oak-park-print-co",
-      tagline: "Flyers, menus, window wraps",
-      city: "Oak Park",
-      state: "IL",
+      email: 'print@oakparkprintco.com',
+      businessName: 'Oak Park Print Co.',
+      slug: 'oak-park-print-co',
+      expertType: 'specialist',
+      tagline: 'Flyers, menus, window wraps',
+      city: 'Oak Park',
+      state: 'IL',
       rating: 4.0,
       verified: false,
-      logo: "https://placehold.co/80x80",
-      services: ["print"],
-      shortDescription: "Print design and production for local brands.",
-      overview: "We handle design, layout, and fast print turnaround for restaurants and shops.",
-      websiteUrl: "https://oakparkprintco.com",
-      phone: "(708) 555-0121",
-      linkedinUrl: "https://linkedin.com/company/oak-park-print-co",
-      instagramUrl: "https://instagram.com/oakparkprintco",
-      facebookUrl: "https://facebook.com/oakparkprintco",
+      logo: 'https://placehold.co/80x80',
+      services: ['print'],
+      shortDescription: 'Print design and production for local brands.',
+      overview: 'We handle design, layout, and fast print turnaround for restaurants and shops.',
+      websiteUrl: 'https://oakparkprintco.com',
+      phone: '(708) 555-0121',
+      linkedinUrl: 'https://linkedin.com/company/oak-park-print-co',
+      instagramUrl: 'https://instagram.com/oakparkprintco',
+      facebookUrl: 'https://facebook.com/oakparkprintco',
       foundedYear: 2012,
       hourlyRateMin: 60,
       hourlyRateMax: 110,
       minProjectBudget: 1500,
-      currencyCode: "USD",
-      languages: ["english"],
-      industries: ["restaurant", "retail"],
-      clientSizes: ["smb"],
-      specialties: ["print design", "brand collateral"],
+      currencyCode: 'USD',
+      languages: ['english'],
+      industries: ['restaurant', 'retail'],
+      clientSizes: ['smb'],
+      specialties: ['print design', 'brand collateral'],
       remoteFriendly: false,
       servesNationwide: false,
       responseTimeHours: 48,
@@ -300,37 +307,37 @@ async function main() {
       completionScore: 61,
       projects: [
         {
-          title: "Restaurant print collateral refresh",
-          summary: "Refreshed menus, storefront posters, and takeout inserts for a neighborhood group.",
-          challenge: "Brand materials were inconsistent across locations and seasonal offers were slow to launch.",
-          solution: "Created reusable templates and a faster approval workflow for print production.",
-          results: "Turnaround time for new promotions dropped from two weeks to four days.",
-          services: ["print", "brand collateral"],
+          title: 'Restaurant print collateral refresh',
+          summary: 'Refreshed menus, storefront posters, and takeout inserts for a neighborhood group.',
+          challenge: 'Brand materials were inconsistent across locations and seasonal offers were slow to launch.',
+          solution: 'Created reusable templates and a faster approval workflow for print production.',
+          results: 'Turnaround time for new promotions dropped from two weeks to four days.',
+          services: ['print', 'brand collateral'],
           projectBudget: 4500,
-          startedAt: "2025-01-05",
-          completedAt: "2025-02-14",
+          startedAt: '2025-01-05',
+          completedAt: '2025-02-14',
           isFeatured: false,
-          coverImageUrl: "https://placehold.co/1200x700?text=Print+Collateral",
+          coverImageUrl: 'https://placehold.co/1200x700?text=Print+Collateral',
         },
       ],
       clients: [
         {
-          name: "Union Pizza House",
-          logoUrl: "https://placehold.co/120x120?text=UP",
-          websiteUrl: "https://example.com/union-pizza-house",
+          name: 'Union Pizza House',
+          logoUrl: 'https://placehold.co/120x120?text=UP',
+          websiteUrl: 'https://example.com/union-pizza-house',
           isFeatured: true,
         },
       ],
       media: [
         {
-          type: "gallery",
-          url: "https://placehold.co/1000x700?text=Menu+Suite",
-          altText: "Printed menu suite and window poster set",
+          type: 'gallery',
+          url: 'https://placehold.co/1000x700?text=Menu+Suite',
+          altText: 'Printed menu suite and window poster set',
         },
         {
-          type: "video",
-          url: "https://www.instagram.com/oakparkprintco/",
-          altText: "Oak Park Print Co. Instagram profile",
+          type: 'video',
+          url: 'https://www.instagram.com/oakparkprintco/',
+          altText: 'Oak Park Print Co. Instagram profile',
         },
       ],
       certifications: [],
@@ -338,26 +345,26 @@ async function main() {
     },
   ];
 
-  for (const p of sample) {
-    const { projects = [], clients = [], media = [], reviews = [], certifications = [], awards = [], ...providerData } = p;
+  for (const expertSeed of sample) {
+    const { projects = [], clients = [], media = [], reviews = [], certifications = [], awards = [], ...expertData } = expertSeed;
 
-    const provider = await prisma.provider.upsert({
-      where: { slug: p.slug },
-      update: providerData,
-      create: providerData,
+    const expert = await prisma.expert.upsert({
+      where: { slug: expertSeed.slug },
+      update: expertData,
+      create: expertData,
     });
 
-    await prisma.providerProject.deleteMany({ where: { providerId: provider.id } });
-    await prisma.providerClient.deleteMany({ where: { providerId: provider.id } });
-    await prisma.providerMedia.deleteMany({ where: { providerId: provider.id } });
-    await prisma.providerReview.deleteMany({ where: { providerId: provider.id } });
-    await prisma.providerCertification.deleteMany({ where: { providerId: provider.id } });
-    await prisma.providerAward.deleteMany({ where: { providerId: provider.id } });
+    await prisma.expertProject.deleteMany({ where: { expertId: expert.id } });
+    await prisma.expertClient.deleteMany({ where: { expertId: expert.id } });
+    await prisma.expertMedia.deleteMany({ where: { expertId: expert.id } });
+    await prisma.expertReview.deleteMany({ where: { expertId: expert.id } });
+    await prisma.expertCertification.deleteMany({ where: { expertId: expert.id } });
+    await prisma.expertAward.deleteMany({ where: { expertId: expert.id } });
 
     if (projects.length) {
-      await prisma.providerProject.createMany({
+      await prisma.expertProject.createMany({
         data: projects.map((project, index) => ({
-          providerId: provider.id,
+          expertId: expert.id,
           title: project.title,
           summary: project.summary,
           challenge: project.challenge,
@@ -375,9 +382,9 @@ async function main() {
     }
 
     if (clients.length) {
-      await prisma.providerClient.createMany({
+      await prisma.expertClient.createMany({
         data: clients.map((client, index) => ({
-          providerId: provider.id,
+          expertId: expert.id,
           name: client.name,
           logoUrl: client.logoUrl ?? null,
           websiteUrl: client.websiteUrl ?? null,
@@ -388,9 +395,9 @@ async function main() {
     }
 
     if (media.length) {
-      await prisma.providerMedia.createMany({
+      await prisma.expertMedia.createMany({
         data: media.map((item, index) => ({
-          providerId: provider.id,
+          expertId: expert.id,
           type: item.type,
           url: item.url,
           altText: item.altText ?? null,
@@ -400,9 +407,9 @@ async function main() {
     }
 
     if (reviews.length) {
-      await prisma.providerReview.createMany({
+      await prisma.expertReview.createMany({
         data: reviews.map((review, index) => ({
-          providerId: provider.id,
+          expertId: expert.id,
           reviewerName: review.reviewerName,
           company: review.company ?? null,
           rating: review.rating,
@@ -421,9 +428,9 @@ async function main() {
     }
 
     if (certifications.length) {
-      await prisma.providerCertification.createMany({
+      await prisma.expertCertification.createMany({
         data: certifications.map((item, index) => ({
-          providerId: provider.id,
+          expertId: expert.id,
           title: item.title,
           issuer: item.issuer,
           year: item.year ?? null,
@@ -435,9 +442,9 @@ async function main() {
     }
 
     if (awards.length) {
-      await prisma.providerAward.createMany({
+      await prisma.expertAward.createMany({
         data: awards.map((item, index) => ({
-          providerId: provider.id,
+          expertId: expert.id,
           title: item.title,
           issuer: item.issuer,
           year: item.year ?? null,
@@ -449,12 +456,12 @@ async function main() {
     }
   }
 
-  console.log(`✅ Seeded ${sample.length} providers`);
+  console.log(`Seeded ${sample.length} experts`);
 }
 
 main()
   .catch((e) => {
-    console.error("❌ Seed failed:", e);
+    console.error('Seed failed:', e);
     process.exit(1);
   })
   .finally(async () => {
