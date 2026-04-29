@@ -2,7 +2,7 @@ import type { FastifyPluginAsync } from 'fastify';
 import type { Prisma } from '@prisma/client';
 import { prisma } from '../lib/prisma';
 import { getUserFromRequest } from '../lib/session';
-import { ExpertMediaType, ExpertStatus } from '@prisma/client';
+import { ExpertMediaType, ExpertStatus, ExpertType } from '@prisma/client';
 
 type SortKey = 'newest' | 'name' | 'rating' | 'verified';
 type OrderDir = 'asc' | 'desc';
@@ -64,6 +64,16 @@ const parseOptionalBool = (raw: unknown): boolean | undefined => {
   if (s === 'true' || s === '1') return true;
   if (s === 'false' || s === '0') return false;
   return undefined;
+};
+
+const parseOptionalExpertType = (raw: unknown): ExpertType | null | undefined | 'invalid' => {
+  if (typeof raw === 'undefined') return undefined;
+  if (raw === null) return null;
+  if (typeof raw !== 'string') return 'invalid';
+
+  const value = raw.trim().toLowerCase();
+  if (!value) return null;
+  return Object.values(ExpertType).includes(value as ExpertType) ? (value as ExpertType) : 'invalid';
 };
 
 const parseOptionalDate = (raw: unknown): Date | null | undefined => {
@@ -524,6 +534,10 @@ const expertsRoutes: FastifyPluginAsync = async (fastify) => {
       linkedinUrl?: string;
       instagramUrl?: string;
       facebookUrl?: string;
+      expertType?: string | null;
+      creatorPlatforms?: string[] | string;
+      creatorAudienceSize?: number | string;
+      creatorProofSummary?: string | null;
       foundedYear?: number | string;
       hourlyRateMin?: number | string;
       hourlyRateMax?: number | string;
@@ -571,11 +585,15 @@ const expertsRoutes: FastifyPluginAsync = async (fastify) => {
     const zip = (body.zip || '').trim() || null;
     const tagline = (body.tagline || '').trim() || null;
     const logo = (body.logo || '').trim() || null;
+    const expertType = parseOptionalExpertType(body.expertType);
 
     if (!businessName) return reply.code(400).send({ error: 'businessName is required' });
     if (!city) return reply.code(400).send({ error: 'city is required' });
     if (!state) return reply.code(400).send({ error: 'state is required' });
     if (state.length < 2) return reply.code(400).send({ error: 'state must be at least 2 characters' });
+    if (expertType === 'invalid') {
+      return reply.code(400).send({ error: `expertType must be one of: ${Object.values(ExpertType).join(', ')}.` });
+    }
 
     let services: string[] = [];
     if (Array.isArray(body.services)) {
@@ -585,6 +603,30 @@ const expertsRoutes: FastifyPluginAsync = async (fastify) => {
         .split(',')
         .map((s) => s.trim().toLowerCase())
         .filter(Boolean);
+    }
+
+    const creatorPlatforms = normalizeTokenArray(body.creatorPlatforms);
+    if (creatorPlatforms === null) {
+      return reply.code(400).send({ error: 'creatorPlatforms must be an array or comma-separated string.' });
+    }
+
+    const creatorAudienceSize = parseOptionalInt(body.creatorAudienceSize);
+    if (Number.isNaN(creatorAudienceSize)) {
+      return reply.code(400).send({ error: 'creatorAudienceSize must be a number.' });
+    }
+    if (creatorAudienceSize !== null && typeof creatorAudienceSize === 'number' && creatorAudienceSize < 0) {
+      return reply.code(400).send({ error: 'creatorAudienceSize cannot be negative.' });
+    }
+
+    let creatorProofSummary: string | null | undefined;
+    if (typeof body.creatorProofSummary !== 'undefined') {
+      if (body.creatorProofSummary === null) {
+        creatorProofSummary = null;
+      } else if (typeof body.creatorProofSummary === 'string') {
+        creatorProofSummary = body.creatorProofSummary.trim() || null;
+      } else {
+        return reply.code(400).send({ error: 'creatorProofSummary must be a string.' });
+      }
     }
 
     const slugify = (str: string) =>
@@ -608,20 +650,28 @@ const expertsRoutes: FastifyPluginAsync = async (fastify) => {
           email: user.email,
           businessName,
           slug,
+          expertType: expertType === null ? undefined : expertType,
           tagline,
           city,
           state,
           zip: zip || undefined,
           services,
           logo: logo || undefined,
+          creatorPlatforms: creatorPlatforms || undefined,
+          creatorAudienceSize: typeof creatorAudienceSize === 'undefined' ? undefined : creatorAudienceSize,
+          creatorProofSummary: typeof creatorProofSummary === 'undefined' ? undefined : creatorProofSummary,
         },
         select: {
           id: true,
           slug: true,
           businessName: true,
+          expertType: true,
           city: true,
           state: true,
           services: true,
+          creatorPlatforms: true,
+          creatorAudienceSize: true,
+          creatorProofSummary: true,
           status: true,
         },
       });
@@ -661,6 +711,10 @@ const expertsRoutes: FastifyPluginAsync = async (fastify) => {
       linkedinUrl?: string;
       instagramUrl?: string;
       facebookUrl?: string;
+      expertType?: string | null;
+      creatorPlatforms?: string[] | string;
+      creatorAudienceSize?: number | string;
+      creatorProofSummary?: string | null;
       foundedYear?: number | string;
       hourlyRateMin?: number | string;
       hourlyRateMax?: number | string;
@@ -761,6 +815,33 @@ const expertsRoutes: FastifyPluginAsync = async (fastify) => {
     if (typeof body.facebookUrl === 'string') {
       const v = body.facebookUrl.trim();
       (data as any).facebookUrl = v || null;
+    }
+    if (typeof body.expertType !== 'undefined') {
+      const expertType = parseOptionalExpertType(body.expertType);
+      if (expertType === 'invalid') {
+        return reply.code(400).send({ error: `expertType must be one of: ${Object.values(ExpertType).join(', ')}.` });
+      }
+      (data as any).expertType = expertType;
+    }
+    const creatorPlatforms = normalizeTokenArray(body.creatorPlatforms);
+    if (creatorPlatforms === null) return reply.code(400).send({ error: 'creatorPlatforms must be an array or comma-separated string.' });
+    if (typeof creatorPlatforms !== 'undefined') (data as any).creatorPlatforms = creatorPlatforms;
+
+    const creatorAudienceSize = parseOptionalInt(body.creatorAudienceSize);
+    if (typeof creatorAudienceSize !== 'undefined') {
+      if (Number.isNaN(creatorAudienceSize)) return reply.code(400).send({ error: 'creatorAudienceSize must be a number.' });
+      if (creatorAudienceSize !== null && creatorAudienceSize < 0) return reply.code(400).send({ error: 'creatorAudienceSize cannot be negative.' });
+      (data as any).creatorAudienceSize = creatorAudienceSize;
+    }
+    if (typeof body.creatorProofSummary !== 'undefined') {
+      if (body.creatorProofSummary === null) {
+        (data as any).creatorProofSummary = null;
+      } else if (typeof body.creatorProofSummary === 'string') {
+        const v = body.creatorProofSummary.trim();
+        (data as any).creatorProofSummary = v || null;
+      } else {
+        return reply.code(400).send({ error: 'creatorProofSummary must be a string.' });
+      }
     }
     if (typeof body.currencyCode === 'string') {
       const v = body.currencyCode.trim().toUpperCase();
