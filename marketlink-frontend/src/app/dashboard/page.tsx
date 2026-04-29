@@ -212,7 +212,7 @@ const [user, setUser] = useState<User | null>(null);
                 <div className="flex flex-col gap-5">
                   <div className="flex items-start justify-between gap-4">
                     <div>
-                      <h2 className="text-xl font-semibold text-slate-900">{provider.businessName}</h2>
+                      <h2 className="text-xl font-semibold text-slate-900">{expert.businessName}</h2>
                       <p className={`mt-2 text-sm ${t.mutedText}`}>{expertLocation}</p>
                     </div>
                     <Pill>{expert.status}</Pill>
@@ -284,17 +284,17 @@ const [user, setUser] = useState<User | null>(null);
             <section className={shellClass}>
               <SectionTitle>Status</SectionTitle>
               <p className={`mt-3 text-sm ${t.mutedText}`}>
-                {!provider
+                {!expert
                   ? 'You are not listed yet. Complete setup to get discovered.'
-                  : provider.status === 'active'
+                  : expert.status === 'active'
                   ? 'Your profile is live and visible in search.'
-                  : provider.status === 'pending'
+                  : expert.status === 'pending'
                   ? 'Your profile is pending review and not visible in search yet.'
-                  : provider.status === 'disabled'
-                  ? `Your profile is disabled and hidden from search.${provider.disabledReason ? ` Reason: ${provider.disabledReason}` : ''}`
+                  : expert.status === 'disabled'
+                  ? `Your profile is disabled and hidden from search.${expert.disabledReason ? ` Reason: ${expert.disabledReason}` : ''}`
                   : 'Your profile status is unknown.'}
               </p>
-              {provider?.status === 'pending' ? <p className={`mt-3 text-xs ${t.mutedText}`}>Tip: make sure your services and city are accurate.</p> : null}
+              {expert?.status === 'pending' ? <p className={`mt-3 text-xs ${t.mutedText}`}>Tip: make sure your services and city are accurate.</p> : null}
             </section>
           </div>
         </div>
