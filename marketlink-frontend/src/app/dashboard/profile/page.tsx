@@ -99,10 +99,13 @@ type MeSummaryResponse = {
 
 const SERVICE_OPTIONS = [
   { value: 'seo', label: 'SEO' },
-  { value: 'ads', label: 'Ads' },
   { value: 'social', label: 'Social' },
+  { value: 'ads', label: 'Ads' },
+  { value: 'web', label: 'Websites' },
+  { value: 'branding', label: 'Branding' },
+  { value: 'email', label: 'Email' },
+  { value: 'content', label: 'Content' },
   { value: 'video', label: 'Video' },
-  { value: 'print', label: 'Print' },
 ];
 
 const EXPERT_TYPE_OPTIONS = [
@@ -389,6 +392,12 @@ export default function ProfileEditorPage() {
     setError(null);
 
     try {
+      if (!data.businessName.trim()) throw new Error('Business name is required.');
+      if (!data.city.trim()) throw new Error('City is required.');
+      if (!data.state.trim()) throw new Error('State is required.');
+      if (!data.expertType) throw new Error('Expert type is required.');
+      if (!data.services.map((s) => s.trim()).filter(Boolean).length) throw new Error('Select at least one service.');
+
       const basePayload: Record<string, unknown> = {
         businessName: data.businessName.trim(),
         city: data.city.trim(),
@@ -572,7 +581,7 @@ export default function ProfileEditorPage() {
         <div className="px-5 py-6 sm:px-7 sm:py-8">
         <div className="flex flex-col gap-5 lg:flex-row lg:items-end lg:justify-between">
           <div className="max-w-2xl">
-            <p className="text-xs font-semibold uppercase tracking-[0.32em] text-slate-500">Provider workspace</p>
+            <p className="text-xs font-semibold uppercase tracking-[0.32em] text-slate-500">Expert workspace</p>
             <h1 className="mt-3 text-3xl font-semibold tracking-tight text-slate-950 sm:text-4xl">Edit profile</h1>
             <p className="mt-3 max-w-xl text-sm leading-6 text-slate-600 sm:text-base">
               Update the parts buyers notice first: positioning, services, contact details, and proof of work.
@@ -588,9 +597,6 @@ export default function ProfileEditorPage() {
           </div>
 
           <div className="flex flex-col gap-3 sm:flex-row">
-            <button type="button" onClick={() => setPwOpen(true)} className="rounded-full border border-slate-200/80 bg-white px-4 py-2.5 text-sm font-medium text-slate-700 transition hover:border-slate-300 hover:bg-slate-50">
-              Change password
-            </button>
             <button type="button" onClick={() => router.replace('/dashboard')} className="rounded-full bg-slate-900 px-4 py-2.5 text-sm font-medium text-white transition hover:bg-slate-800">
               Back to dashboard
             </button>
@@ -600,7 +606,7 @@ export default function ProfileEditorPage() {
         <div className="mt-6 grid gap-3 sm:grid-cols-3">
           <div className="rounded-[24px] border border-slate-200/80 bg-[linear-gradient(180deg,rgba(248,250,252,0.98),rgba(226,232,240,0.72))] p-4 shadow-[0_10px_30px_rgba(15,23,42,0.04)]">
             <div className="text-xs font-semibold uppercase tracking-[0.28em] text-slate-400">Business</div>
-            <div className="mt-2 text-base font-semibold text-slate-900">{data.businessName || 'Your provider name'}</div>
+            <div className="mt-2 text-base font-semibold text-slate-900">{data.businessName || 'Your expert name'}</div>
             <div className="mt-1 text-sm text-slate-600">
               {[data.city, data.state].filter(Boolean).join(', ') || 'Location not set'}
             </div>
@@ -650,15 +656,15 @@ export default function ProfileEditorPage() {
             ) : null}
           </div>
 
-          <p className="mt-3 text-xs text-slate-500">Pending and disabled providers may 404 on the public page by design.</p>
+          <p className="mt-3 text-xs text-slate-500">Pending and disabled experts may 404 on the public page by design.</p>
         </section>
       ) : null}
 
       <form id="profile-editor-form" onSubmit={handleSave} className="mt-5 grid gap-5 pb-24 md:pb-8">
         <section className={sectionClass}>
           <div className="flex flex-col gap-1">
-            <h2 className="text-lg font-semibold text-slate-900">Identity and location</h2>
-            <p className="text-sm text-slate-500">Keep the top-level profile information crisp. This is what shapes first impressions.</p>
+            <h2 className="text-lg font-semibold text-slate-900">Core info</h2>
+            <p className="text-sm text-slate-500">Keep the public-facing basics crisp. This is the part buyers scan before they read deeper proof.</p>
           </div>
 
           <div className="mt-5 grid gap-4">
@@ -709,47 +715,6 @@ export default function ProfileEditorPage() {
               <textarea className={`${fieldClass} min-h-[144px]`} value={data.overview ?? ''} onChange={(e) => setField('overview', e.target.value)} placeholder="Describe your agency, focus areas, and approach." />
             </div>
 
-            {data.expertType === 'creator' ? (
-              <div className="grid gap-4 rounded-3xl border border-slate-200/80 bg-[linear-gradient(180deg,rgba(248,250,252,0.98),rgba(226,232,240,0.72))] p-4 shadow-[0_10px_30px_rgba(15,23,42,0.04)]">
-                <div>
-                  <div className="text-sm font-semibold text-slate-900">Creator proof</div>
-                  <p className="mt-1 text-xs text-slate-500">Show the channels, audience size, and context that make your creator profile credible.</p>
-                </div>
-
-                <div>
-                  <label className="mb-1 block text-sm font-medium text-slate-700">Platforms (comma separated)</label>
-                  <input
-                    className={fieldClass}
-                    value={(data.creatorPlatforms || []).join(', ')}
-                    onChange={(e) => setField('creatorPlatforms', parseTokenInput(e.target.value))}
-                    placeholder="instagram, tiktok, youtube"
-                  />
-                </div>
-
-                <div>
-                  <label className="mb-1 block text-sm font-medium text-slate-700">Audience size</label>
-                  <input
-                    type="number"
-                    min="0"
-                    className={fieldClass}
-                    value={data.creatorAudienceSize ?? ''}
-                    onChange={(e) => setField('creatorAudienceSize', e.target.value)}
-                    placeholder="e.g. 50000"
-                  />
-                </div>
-
-                <div>
-                  <label className="mb-1 block text-sm font-medium text-slate-700">Proof summary</label>
-                  <textarea
-                    className={`${fieldClass} min-h-[112px]`}
-                    value={data.creatorProofSummary ?? ''}
-                    onChange={(e) => setField('creatorProofSummary', e.target.value)}
-                    placeholder="Describe your audience, niche, or proof points buyers should know."
-                  />
-                </div>
-              </div>
-            ) : null}
-
             <div>
               <label className="mb-1 block text-sm font-medium text-slate-700">Logo URL</label>
               <input autoComplete="url" className={fieldClass} value={data.logo ?? ''} onChange={(e) => setField('logo', e.target.value)} placeholder="https://..." />
@@ -760,6 +725,31 @@ export default function ProfileEditorPage() {
                   <div className="text-sm text-slate-600">Logo preview</div>
                 </div>
               ) : null}
+            </div>
+
+            <div>
+              <label className="mb-2 block text-sm font-medium text-slate-700">Services</label>
+              <div className="flex flex-wrap gap-3">
+                {SERVICE_OPTIONS.map((opt) => (
+                  <label key={opt.value} className="inline-flex cursor-pointer items-center gap-2 rounded-full border border-slate-200/80 bg-[linear-gradient(180deg,rgba(248,250,252,0.98),rgba(226,232,240,0.72))] px-4 py-2.5 text-sm text-slate-700">
+                    <input type="checkbox" className={checkboxClass} checked={data.services.includes(opt.value)} onChange={() => toggleService(opt.value)} />
+                    {opt.label}
+                  </label>
+                ))}
+              </div>
+
+              {extraServices.length > 0 && (
+                <div className="mt-3">
+                  <div className="text-xs font-medium uppercase tracking-[0.24em] text-slate-400">Other services already on your profile</div>
+                  <div className="mt-2 flex flex-wrap gap-2">
+                    {extraServices.map((s) => (
+                      <span key={s} className="rounded-full border border-slate-200/80 bg-white px-3 py-1.5 text-xs text-slate-600 shadow-sm">
+                        {s}
+                      </span>
+                    ))}
+                  </div>
+                </div>
+              )}
             </div>
           </div>
         </section>
@@ -868,32 +858,59 @@ export default function ProfileEditorPage() {
                 Serves nationwide
               </label>
             </div>
+          </div>
+        </section>
 
-            <div>
-              <label className="mb-2 block text-sm font-medium text-slate-700">Services</label>
-              <div className="flex flex-wrap gap-3">
-                {SERVICE_OPTIONS.map((opt) => (
-                  <label key={opt.value} className="inline-flex cursor-pointer items-center gap-2 rounded-full border border-slate-200/80 bg-[linear-gradient(180deg,rgba(248,250,252,0.98),rgba(226,232,240,0.72))] px-4 py-2.5 text-sm text-slate-700">
-                    <input type="checkbox" className={checkboxClass} checked={data.services.includes(opt.value)} onChange={() => toggleService(opt.value)} />
-                    {opt.label}
-                  </label>
-                ))}
+        <section className={sectionClass}>
+          <div className="flex flex-col gap-1">
+            <h2 className="text-lg font-semibold text-slate-900">Proof and trust</h2>
+            <p className="text-sm text-slate-500">Group the credibility signals buyers use to decide whether your profile feels real, relevant, and worth contacting.</p>
+          </div>
+
+          {data.expertType === 'creator' ? (
+            <div className="mt-5 grid gap-4 rounded-3xl border border-slate-200/80 bg-[linear-gradient(180deg,rgba(248,250,252,0.98),rgba(226,232,240,0.72))] p-4 shadow-[0_10px_30px_rgba(15,23,42,0.04)]">
+              <div>
+                <div className="text-sm font-semibold text-slate-900">Creator proof</div>
+                <p className="mt-1 text-xs text-slate-500">Show the channels, audience size, and context that make your creator profile credible.</p>
               </div>
 
-              {extraServices.length > 0 && (
-                <div className="mt-3">
-                  <div className="text-xs font-medium uppercase tracking-[0.24em] text-slate-400">Other services already on your profile</div>
-                  <div className="mt-2 flex flex-wrap gap-2">
-                    {extraServices.map((s) => (
-                      <span key={s} className="rounded-full border border-slate-200/80 bg-white px-3 py-1.5 text-xs text-slate-600 shadow-sm">
-                        {s}
-                      </span>
-                    ))}
-                  </div>
-                </div>
-              )}
+              <div>
+                <label className="mb-1 block text-sm font-medium text-slate-700">Platforms (comma separated)</label>
+                <input
+                  className={fieldClass}
+                  value={(data.creatorPlatforms || []).join(', ')}
+                  onChange={(e) => setField('creatorPlatforms', parseTokenInput(e.target.value))}
+                  placeholder="instagram, tiktok, youtube"
+                />
+              </div>
+
+              <div>
+                <label className="mb-1 block text-sm font-medium text-slate-700">Audience size</label>
+                <input
+                  type="number"
+                  min="0"
+                  className={fieldClass}
+                  value={data.creatorAudienceSize ?? ''}
+                  onChange={(e) => setField('creatorAudienceSize', e.target.value)}
+                  placeholder="e.g. 50000"
+                />
+              </div>
+
+              <div>
+                <label className="mb-1 block text-sm font-medium text-slate-700">Proof summary</label>
+                <textarea
+                  className={`${fieldClass} min-h-[112px]`}
+                  value={data.creatorProofSummary ?? ''}
+                  onChange={(e) => setField('creatorProofSummary', e.target.value)}
+                  placeholder="Describe your audience, niche, or proof points buyers should know."
+                />
+              </div>
             </div>
-          </div>
+          ) : (
+            <div className="mt-5 rounded-2xl border border-dashed border-slate-300 p-4 text-sm text-slate-500">
+              Case studies, featured clients, and media below are the main proof surfaces for this expert type.
+            </div>
+          )}
         </section>
 
         <section className={sectionClass}>
@@ -1110,8 +1127,20 @@ export default function ProfileEditorPage() {
           </div>
         </section>
 
+        <section className={sectionClass}>
+          <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
+            <div>
+              <h2 className="text-lg font-semibold text-slate-900">Password and access</h2>
+              <p className="mt-1 text-sm text-slate-500">Keep account access separate from profile content changes.</p>
+            </div>
+            <button type="button" onClick={() => setPwOpen(true)} className={subtleButtonClass}>
+              Change password
+            </button>
+          </div>
+        </section>
+
         <div className="hidden md:flex md:flex-wrap md:items-center md:justify-between md:gap-4">
-          <p className="text-sm text-slate-500">Changes save to your live provider profile after validation.</p>
+          <p className="text-sm text-slate-500">Changes save to your live expert profile after validation.</p>
           <button type="submit" disabled={disableSave} className={primaryButtonClass}>
             {saving ? 'Saving...' : 'Save changes'}
           </button>

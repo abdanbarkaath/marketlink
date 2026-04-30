@@ -83,7 +83,6 @@ model Expert {
   @@index([status, city])
   @@index([status, rating])
   @@index([status, businessName])
-  @@map("Provider")
 }
 
 model Session {
@@ -106,7 +105,7 @@ model Session {
 model AdminAction {
   id          String          @id @default(cuid())
   adminUserId String?
-  expertId    String          @map("providerId")
+  expertId    String
   type        AdminActionType
   metadata    Json?
   createdAt   DateTime        @default(now())
@@ -134,13 +133,11 @@ enum ExpertType {
 }
 
 ///
-/// Expert status used for moderation while preserving the existing DB enum mapping
+/// Expert status used for moderation
 enum ExpertStatus {
   pending
   active
   disabled
-
-  @@map("ProviderStatus")
 }
 
 ///
@@ -167,7 +164,7 @@ enum InquiryStatus {
 model Inquiry {
   id String @id @default(cuid())
 
-  expertId String @map("providerId")
+  expertId String
   expert   Expert @relation(fields: [expertId], references: [id], onDelete: Cascade)
 
   name    String
@@ -184,7 +181,7 @@ model Inquiry {
 
 model ExpertProject {
   id            String    @id @default(cuid())
-  expertId      String    @map("providerId")
+  expertId      String
   title         String
   summary       String?
   challenge     String?
@@ -203,12 +200,11 @@ model ExpertProject {
 
   @@index([expertId, sortOrder, createdAt])
   @@index([expertId, isFeatured])
-  @@map("ProviderProject")
 }
 
 model ExpertClient {
   id         String   @id @default(cuid())
-  expertId   String   @map("providerId")
+  expertId   String
   name       String
   logoUrl    String?
   websiteUrl String?
@@ -220,12 +216,11 @@ model ExpertClient {
 
   @@index([expertId, sortOrder, createdAt])
   @@index([expertId, isFeatured])
-  @@map("ProviderClient")
 }
 
 model ExpertMedia {
   id        String          @id @default(cuid())
-  expertId  String          @map("providerId")
+  expertId  String
   type      ExpertMediaType
   url       String
   altText   String?
@@ -235,7 +230,6 @@ model ExpertMedia {
   expert    Expert          @relation(fields: [expertId], references: [id], onDelete: Cascade)
 
   @@index([expertId, type, sortOrder, createdAt])
-  @@map("ProviderMedia")
 }
 
 enum ExpertMediaType {
@@ -243,13 +237,11 @@ enum ExpertMediaType {
   cover
   gallery
   video
-
-  @@map("ProviderMediaType")
 }
 
 model ExpertReview {
   id                  String    @id @default(cuid())
-  expertId            String    @map("providerId")
+  expertId            String
   reviewerName        String
   company             String?
   rating              Float
@@ -269,12 +261,11 @@ model ExpertReview {
 
   @@index([expertId, sortOrder, createdAt])
   @@index([expertId, verified, publishedAt])
-  @@map("ProviderReview")
 }
 
 model ExpertCertification {
   id            String   @id @default(cuid())
-  expertId      String   @map("providerId")
+  expertId      String
   title         String
   issuer        String
   year          Int?
@@ -286,12 +277,11 @@ model ExpertCertification {
   expert        Expert   @relation(fields: [expertId], references: [id], onDelete: Cascade)
 
   @@index([expertId, sortOrder, createdAt])
-  @@map("ProviderCertification")
 }
 
 model ExpertAward {
   id            String   @id @default(cuid())
-  expertId      String   @map("providerId")
+  expertId      String
   title         String
   issuer        String
   year          Int?
@@ -303,5 +293,4 @@ model ExpertAward {
   expert        Expert   @relation(fields: [expertId], references: [id], onDelete: Cascade)
 
   @@index([expertId, sortOrder, createdAt])
-  @@map("ProviderAward")
 }

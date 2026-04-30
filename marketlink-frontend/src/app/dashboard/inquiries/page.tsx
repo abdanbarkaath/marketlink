@@ -80,7 +80,7 @@ export default function DashboardInquiriesPage() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
-  async function setStatus(id: string, status: Exclude<InquiryStatus, 'NEW'>) {
+  async function setStatus(id: string, status: InquiryStatus) {
     setBusyId(id);
     setRows((prev) => prev.map((r) => (r.id === id ? { ...r, status } : r)));
 
@@ -132,13 +132,13 @@ export default function DashboardInquiriesPage() {
         <section className={`${shellClass} overflow-hidden`}>
           <div className="grid gap-4 lg:grid-cols-[minmax(0,1.45fr)_320px] lg:items-stretch">
             <div>
-              <p className="text-xs font-semibold uppercase tracking-[0.32em] text-slate-500">Leads inbox</p>
-              <h1 className="mt-2 text-3xl font-semibold tracking-tight text-slate-950 sm:text-4xl">Inquiries</h1>
-              <p className={`mt-3 text-sm ${t.mutedText}`}>Review new leads, mark conversations as handled, and keep your inbox clean.</p>
+              <p className="text-xs font-semibold uppercase tracking-[0.32em] text-slate-500">Buyer inquiries</p>
+              <h1 className="mt-2 text-3xl font-semibold tracking-tight text-slate-950 sm:text-4xl">Inbox</h1>
+              <p className={`mt-3 text-sm ${t.mutedText}`}>Review buyer messages, move them through the inbox, and keep the active conversations easy to spot.</p>
               <div className="mt-5 flex flex-wrap gap-2">
-                <span className="rounded-full border border-slate-200/80 bg-white px-3 py-1 text-xs font-medium text-slate-600 shadow-sm">Fast inbox review</span>
+                <span className="rounded-full border border-slate-200/80 bg-white px-3 py-1 text-xs font-medium text-slate-600 shadow-sm">New → Read → Archived</span>
                 <span className="rounded-full border border-slate-200/80 bg-white px-3 py-1 text-xs font-medium text-slate-600 shadow-sm">Mobile-first actions</span>
-                <span className="rounded-full border border-slate-200/80 bg-white px-3 py-1 text-xs font-medium text-slate-600 shadow-sm">Lead follow-up</span>
+                <span className="rounded-full border border-slate-200/80 bg-white px-3 py-1 text-xs font-medium text-slate-600 shadow-sm">Buyer follow-up</span>
               </div>
             </div>
 
@@ -165,7 +165,7 @@ export default function DashboardInquiriesPage() {
           <div className="flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
             <div>
               <h2 className="text-lg font-semibold text-slate-900">Filter inbox</h2>
-              <p className={`mt-1 text-sm ${t.mutedText}`}>Switch views quickly without losing your place on mobile.</p>
+              <p className={`mt-1 text-sm ${t.mutedText}`}>Switch views quickly as inquiries move from new to read to archived.</p>
             </div>
 
             <div className="flex flex-wrap gap-2">
@@ -239,6 +239,17 @@ export default function DashboardInquiriesPage() {
                           </button>
                         ) : null}
 
+                        {r.status === 'READ' ? (
+                          <button
+                            type="button"
+                            disabled={busy}
+                            onClick={() => setStatus(r.id, 'NEW')}
+                            className="rounded-full border border-slate-200/80 bg-white px-4 py-2.5 text-sm font-semibold text-slate-700 transition hover:border-slate-300 hover:bg-slate-50 disabled:cursor-not-allowed disabled:opacity-60"
+                          >
+                            Mark new
+                          </button>
+                        ) : null}
+
                         {r.status !== 'ARCHIVED' ? (
                           <button
                             type="button"
@@ -247,6 +258,17 @@ export default function DashboardInquiriesPage() {
                             className="rounded-full border border-slate-200/80 bg-white px-4 py-2.5 text-sm font-semibold text-slate-700 transition hover:border-slate-300 hover:bg-slate-50 disabled:cursor-not-allowed disabled:opacity-60"
                           >
                             Archive
+                          </button>
+                        ) : null}
+
+                        {r.status === 'ARCHIVED' ? (
+                          <button
+                            type="button"
+                            disabled={busy}
+                            onClick={() => setStatus(r.id, 'READ')}
+                            className="rounded-full border border-slate-200/80 bg-white px-4 py-2.5 text-sm font-semibold text-slate-700 transition hover:border-slate-300 hover:bg-slate-50 disabled:cursor-not-allowed disabled:opacity-60"
+                          >
+                            Restore
                           </button>
                         ) : null}
                       </div>
