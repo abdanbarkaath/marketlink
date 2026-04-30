@@ -1,6 +1,12 @@
 // marketlink-frontend/src/app/experts/page.tsx
 import type { Metadata } from 'next';
 import Link from 'next/link';
+import {
+  getDiscoveryProblemById,
+  getDiscoveryServicePathHrefForProblem,
+  getDiscoveryServicePathsForProblem,
+} from '@/lib/discovery';
+import type { DiscoveryProblemCard } from '@/lib/discovery';
 
 export const metadata: Metadata = {
   title: 'Experts | MarketLink',
@@ -33,6 +39,7 @@ type FiltersFormProps = {
   name?: string;
   city?: string;
   service?: string;
+  problemId?: string;
   match: 'any' | 'all';
   minRating?: string;
   sort: 'newest' | 'name' | 'rating' | 'verified';
@@ -73,10 +80,11 @@ function formatAudienceSize(value: number | null | undefined) {
   }).format(value);
 }
 
-function FiltersForm({ name, city, service, match, minRating, sort, order, limit, verified, compact = false }: FiltersFormProps) {
+function FiltersForm({ name, city, service, problemId, match, minRating, sort, order, limit, verified, compact = false }: FiltersFormProps) {
   return (
     <form method="GET" className={`grid gap-4 ${compact ? '' : 'lg:grid-cols-12'}`}>
       <input type="hidden" name="page" value="1" />
+      {problemId ? <input type="hidden" name="problem" value={problemId} /> : null}
 
       <label className={compact ? '' : 'lg:col-span-3'}>
         <span className="mb-2 block text-sm font-medium text-slate-700">Expert or business name</span>
@@ -327,6 +335,52 @@ function ProviderCard({ provider }: { provider: Provider }) {
   );
 }
 
+function ProblemContextPanel({ problem }: { problem: DiscoveryProblemCard }) {
+  const suggestedPaths = getDiscoveryServicePathsForProblem(problem);
+
+  return (
+    <section data-testid="problem-context-panel" className={`${SECTION_CLASS} mt-6`}>
+      <div className="flex flex-col gap-5 lg:flex-row lg:items-start lg:justify-between">
+        <div className="max-w-2xl">
+          <div className="text-[11px] font-medium uppercase tracking-[0.24em] text-slate-500">Problem context</div>
+          <h2 className="mt-2 text-2xl font-semibold tracking-tight text-slate-900">
+            You&apos;re looking for help with: {problem.problemTitle}
+          </h2>
+          <p className="mt-3 text-sm leading-7 text-slate-600">
+            {problem.customerLanguage} {problem.outcomePromise}
+          </p>
+        </div>
+
+        <Link href="/experts" className="ml-btn-secondary inline-flex min-h-11 items-center justify-center rounded-xl px-5 text-sm font-semibold">
+          Browse all experts
+        </Link>
+      </div>
+
+      <div className="mt-5 grid gap-3 lg:grid-cols-3">
+        {suggestedPaths.slice(0, 3).map((path) => (
+          <Link
+            key={path.id}
+            href={getDiscoveryServicePathHrefForProblem(path, problem)}
+            data-testid="problem-context-service-link"
+            className="group rounded-[1.35rem] bg-white px-4 py-4 shadow-sm ring-1 ring-slate-200/80 transition hover:-translate-y-0.5 hover:shadow-md"
+          >
+            <div className="flex items-start justify-between gap-4">
+              <div>
+                <h3 className="text-base font-semibold tracking-tight text-slate-900">{path.plainLabel}</h3>
+                <div className="mt-1 text-[11px] font-medium uppercase tracking-[0.18em] text-slate-500">{path.technicalLabel}</div>
+              </div>
+              <span className="text-lg text-slate-400 transition group-hover:translate-x-1 group-hover:text-slate-700" aria-hidden="true">
+                &rarr;
+              </span>
+            </div>
+            <p className="mt-3 text-sm leading-6 text-slate-600">{path.shortHelp}</p>
+          </Link>
+        ))}
+      </div>
+    </section>
+  );
+}
+
 type ProvidersResponse = {
   meta: {
     total: number;
@@ -376,6 +430,8 @@ export default async function ProvidersPage({ searchParams }: ProvidersPageProps
   const name = typeof resolvedSearchParams.name === 'string' ? resolvedSearchParams.name : undefined;
   const city = typeof resolvedSearchParams.city === 'string' ? resolvedSearchParams.city : undefined;
   const service = typeof resolvedSearchParams.service === 'string' ? resolvedSearchParams.service : undefined;
+  const problemId = typeof resolvedSearchParams.problem === 'string' ? resolvedSearchParams.problem : undefined;
+  const problemContext = getDiscoveryProblemById(problemId);
   const match = (typeof resolvedSearchParams.match === 'string' ? resolvedSearchParams.match : 'any') as 'any' | 'all';
   const minRating = typeof resolvedSearchParams.minRating === 'string' ? resolvedSearchParams.minRating : undefined;
   const verified = typeof resolvedSearchParams.verified === 'string' ? resolvedSearchParams.verified : undefined;
@@ -426,6 +482,7 @@ export default async function ProvidersPage({ searchParams }: ProvidersPageProps
     name,
     city,
     service,
+    problem: problemContext?.id,
     match,
     minRating,
     verified,
@@ -468,6 +525,8 @@ export default async function ProvidersPage({ searchParams }: ProvidersPageProps
           </div>
         </section>
 
+        {problemContext ? <ProblemContextPanel problem={problemContext} /> : null}
+
         <section className={`mt-6 ${SECTION_CLASS}`}>
           <details className="group md:hidden">
             <summary className="ml-surface flex cursor-pointer list-none items-center justify-between gap-4 rounded-[1.4rem] px-4 py-4 shadow-sm">
@@ -490,7 +549,7 @@ export default async function ProvidersPage({ searchParams }: ProvidersPageProps
                   Clear filters
                 </Link>
               </div>
-              <FiltersForm name={name} city={city} service={service} match={match} minRating={minRating} sort={sort} order={order} limit={limit} verified={verified} compact />
+              <FiltersForm name={name} city={city} service={service} problemId={problemContext?.id} match={match} minRating={minRating} sort={sort} order={order} limit={limit} verified={verified} compact />
             </div>
           </details>
 
@@ -505,7 +564,7 @@ export default async function ProvidersPage({ searchParams }: ProvidersPageProps
           </div>
 
           <div className="mt-5 hidden md:block">
-            <FiltersForm name={name} city={city} service={service} match={match} minRating={minRating} sort={sort} order={order} limit={limit} verified={verified} />
+            <FiltersForm name={name} city={city} service={service} problemId={problemContext?.id} match={match} minRating={minRating} sort={sort} order={order} limit={limit} verified={verified} />
           </div>
         </section>
 

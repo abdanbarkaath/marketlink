@@ -119,7 +119,7 @@ test.describe('mobile problem-first discovery', () => {
 
   test('problem cards route mobile users into expert filters', async ({ page }) => {
     const link = page.getByRole('link', { name: /People can't find my business/i });
-    await expect(link).toHaveAttribute('href', '/experts?service=seo%2Cweb%2Cads&match=any');
+    await expect(link).toHaveAttribute('href', '/experts?service=seo%2Cweb%2Cads&match=any&problem=cant-find-business');
   });
 
   test('hides the heavy how-it-works panel from the mobile hero', async ({ page }) => {
