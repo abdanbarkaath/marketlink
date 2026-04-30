@@ -2,17 +2,7 @@
 
 import Link from 'next/link';
 import ThemeToggle, { useMarketLinkTheme } from '@/components/ThemeToggle';
-
-const CATEGORIES = [
-  { token: 'seo', title: 'Get found on Google', desc: 'Find SEO help so more people can discover your business online.' },
-  { token: 'social', title: 'Social media help', desc: 'Find experts to manage posts, content, and social growth.' },
-  { token: 'ads', title: 'Run ads', desc: 'Find people who can run Google, Facebook, Instagram, and other ads.' },
-  { token: 'web', title: 'Build a website', desc: 'Find website help for a new site, redesign, or landing page.' },
-  { token: 'branding', title: 'Branding & design', desc: 'Find help with logos, business identity, and visual design.' },
-  { token: 'email', title: 'Email marketing', desc: 'Find help with newsletters, follow-ups, and repeat customers.' },
-  { token: 'content', title: 'Writing & content', desc: 'Find help with website copy, blogs, and marketing content.' },
-  { token: 'video', title: 'Photos & video', desc: 'Find creators for product shoots, videos, and short-form content.' },
-];
+import { homepageServicePaths } from '@/lib/discovery';
 
 const BUYER_SIGNALS = [
   { label: 'Built for', value: 'Local businesses', detail: 'Start with the kind of help you need and narrow down fast.' },
@@ -112,10 +102,10 @@ export default function Home() {
           </div>
 
           <div className="mt-5 grid grid-cols-1 gap-4 sm:mt-6 sm:grid-cols-2 xl:grid-cols-4">
-            {CATEGORIES.map((c, index) => (
+            {homepageServicePaths.map((path, index) => (
               <Link
-                key={c.token}
-                href={`/experts?service=${encodeURIComponent(c.token)}`}
+                key={path.id}
+                href={path.href}
                 className={[
                   'group flex min-h-[190px] flex-col justify-between rounded-[1.75rem] p-4 transition sm:min-h-[220px] sm:p-5',
                   t.card,
@@ -130,8 +120,11 @@ export default function Home() {
                     </span>
                     <span className={`inline-block h-2.5 w-2.5 rounded-full ${t.accentDot}`} />
                   </div>
-                  <h3 className="mt-5 text-xl font-semibold tracking-tight text-slate-900">{c.title}</h3>
-                  <p className={`mt-3 text-sm leading-7 ${t.mutedText}`}>{c.desc}</p>
+                  <h3 className="mt-5 text-xl font-semibold tracking-tight text-slate-900">{path.plainLabel}</h3>
+                  <div className={`mt-2 text-[11px] font-medium uppercase tracking-[0.18em] ${t.mutedText}`}>
+                    {path.technicalLabel}
+                  </div>
+                  <p className={`mt-3 text-sm leading-7 ${t.mutedText}`}>{path.shortHelp}</p>
                 </div>
 
                 <div className="mt-6 flex items-center justify-between gap-4">
