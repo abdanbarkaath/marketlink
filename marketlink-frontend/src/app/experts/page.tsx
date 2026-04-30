@@ -219,7 +219,6 @@ function ProviderCard({ provider }: { provider: Provider }) {
       ? `${p.currencyCode || 'USD'} ${p.hourlyRateMin ?? ''}${p.hourlyRateMax ? `-${p.hourlyRateMax}` : '+'}/hr`
       : 'Request quote';
   const profileSummary = p.shortDescription ? p.shortDescription : p.tagline ? p.tagline : 'Explore services, fit, pricing guidance, and contact details.';
-  const sinceLabel = new Date(p.createdAt).toLocaleDateString();
   const creatorPlatformsLabel = p.creatorPlatforms?.length ? p.creatorPlatforms.join(' • ') : null;
   const creatorAudienceLabel = formatAudienceSize(p.creatorAudienceSize);
   const creatorProofBody =
@@ -228,12 +227,11 @@ function ProviderCard({ provider }: { provider: Provider }) {
     null;
 
   return (
-    <li className="ml-card ml-card-hover overflow-hidden rounded-[1.9rem] transition hover:-translate-y-0.5">
+    <li data-testid="expert-result-card" className="ml-card ml-card-hover rounded-[1.55rem] transition hover:-translate-y-0.5">
       <Link href={`/experts/${p.slug}`} className="group block">
-        <div className="h-1.5 bg-[linear-gradient(90deg,#0f172a,#25324a,#b6bdc8)]" />
         <div className="p-4 sm:p-5">
-          <div className="flex items-start gap-3 sm:gap-4">
-            <div className="ml-surface-muted h-14 w-14 shrink-0 overflow-hidden rounded-2xl shadow-sm">
+          <div className="flex flex-col gap-4 sm:flex-row sm:items-start">
+            <div className="ml-surface-muted h-14 w-14 shrink-0 overflow-hidden rounded-2xl shadow-sm sm:h-16 sm:w-16">
               {p.logo ? (
                 // eslint-disable-next-line @next/next/no-img-element
                 <img src={p.logo} alt={p.businessName} className="h-full w-full object-cover" />
@@ -242,54 +240,56 @@ function ProviderCard({ provider }: { provider: Provider }) {
               )}
             </div>
 
-            <div className="min-w-0 flex-1">
-              <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
-                <div className="min-w-0">
-                  <div className="flex flex-wrap items-center gap-2">
-                    <span className={`${PILL_CLASS} px-2.5 text-[10px]`}>
-                      {p.city}, {p.state}
-                    </span>
-                    {p.verified ? (
-                      <span className={`${PILL_MUTED_CLASS} inline-flex items-center px-2.5 py-1 text-[10px]`}>
-                        Verified
+            <div className="min-w-0 flex-1 sm:grid sm:grid-cols-[minmax(0,1fr)_190px] sm:gap-5">
+              <div className="min-w-0">
+                <div className="flex flex-wrap items-center gap-2 text-[11px] font-medium uppercase tracking-[0.18em] text-slate-500">
+                  <span>{expertTypeLabel}</span>
+                  <span aria-hidden="true">/</span>
+                  <span>
+                    {p.city}, {p.state}
+                  </span>
+                  {p.verified ? (
+                    <>
+                      <span aria-hidden="true">/</span>
+                      <span className="text-slate-700">Verified</span>
+                    </>
+                  ) : null}
+                </div>
+
+                <h3 className="mt-2 truncate text-[1.2rem] font-semibold tracking-tight text-slate-900 sm:text-[1.35rem]">{p.businessName}</h3>
+                <p className="mt-2 line-clamp-2 text-sm leading-6 text-slate-600">{profileSummary}</p>
+
+                {topServices.length > 0 ? (
+                  <div className="mt-3 flex flex-wrap gap-2" title={p.services.join(', ')}>
+                    {topServices.map((service) => (
+                      <span key={service} className={`${PILL_CLASS} px-3 text-[10px]`}>
+                        {service}
+                      </span>
+                    ))}
+                    {overflow > 0 ? (
+                      <span className={`${PILL_MUTED_CLASS} px-3 text-[10px]`}>
+                        +{overflow} more
                       </span>
                     ) : null}
                   </div>
+                ) : null}
+              </div>
 
-                  <div className="mt-2 text-[11px] font-medium uppercase tracking-[0.22em] text-slate-500">{expertTypeLabel}</div>
-                  <h3 className="mt-1 truncate text-[1.2rem] font-semibold tracking-tight text-slate-900 sm:text-[1.35rem]">{p.businessName}</h3>
-                  <p className="mt-2 text-sm leading-6 text-slate-600 sm:max-w-2xl">{profileSummary}</p>
+              <div className="mt-4 flex items-center justify-between gap-4 border-t border-slate-200/75 pt-4 sm:mt-0 sm:flex-col sm:items-end sm:justify-between sm:border-t-0 sm:pt-0">
+                <div className="text-right">
+                  <div className="text-[11px] font-medium uppercase tracking-[0.18em] text-slate-500">Rating</div>
+                  <div className="mt-1 text-lg font-semibold text-slate-900">{p.rating?.toFixed?.(1) ?? '0.0'}</div>
+                  <div className="mt-2 text-sm font-semibold text-slate-900">{pricingLabel}</div>
                 </div>
 
-                <div className="grid shrink-0 grid-cols-2 gap-2 sm:min-w-[220px]">
-                  <div className="ml-surface-muted rounded-[1.15rem] px-3 py-2.5 text-right shadow-sm">
-                    <div className="text-[10px] font-medium uppercase tracking-[0.18em] text-slate-500">Rating</div>
-                    <div className="mt-1 text-base font-semibold text-slate-900 sm:text-lg">{p.rating?.toFixed?.(1) ?? '0.0'}</div>
-                  </div>
-                  <div className="ml-surface-muted rounded-[1.15rem] px-3 py-2.5 text-right shadow-sm">
-                    <div className="text-[10px] font-medium uppercase tracking-[0.18em] text-slate-500">Pricing</div>
-                    <div className="mt-1 text-sm font-semibold text-slate-900">{pricingLabel}</div>
-                  </div>
+                <div className="ml-btn-primary inline-flex min-h-10 items-center gap-2 rounded-xl px-4 text-sm font-semibold text-white">
+                  Open profile
+                  <span className="text-base transition group-hover:translate-x-1" aria-hidden="true">&rarr;</span>
                 </div>
               </div>
 
-              {topServices.length > 0 ? (
-                <div className="mt-4 flex flex-wrap gap-2" title={p.services.join(', ')}>
-                  {topServices.map((service) => (
-                    <span key={service} className={`${PILL_CLASS} px-3 text-[10px]`}>
-                      {service}
-                    </span>
-                  ))}
-                  {overflow > 0 ? (
-                    <span className={`${PILL_MUTED_CLASS} px-3 text-[10px]`}>
-                      +{overflow} more
-                    </span>
-                  ) : null}
-                </div>
-              ) : null}
-
               {p.expertType === 'creator' && creatorProofBody ? (
-                <div className="mt-4 rounded-[1.05rem] bg-slate-50 px-3 py-3 shadow-sm ring-1 ring-slate-200/80">
+                <div className="mt-4 rounded-[1.05rem] bg-slate-50 px-3 py-3 ring-1 ring-slate-200/80 sm:col-span-2">
                   <div className="flex flex-wrap items-center gap-2">
                     <span className={`${PILL_CLASS} px-2.5 text-[10px]`}>Creator proof</span>
                     {creatorPlatformsLabel ? (
@@ -301,32 +301,6 @@ function ProviderCard({ provider }: { provider: Provider }) {
                   <p className="mt-2 text-sm leading-6 text-slate-700">{creatorProofBody}</p>
                 </div>
               ) : null}
-
-              <div className="mt-4 hidden gap-3 border-t border-slate-200/80 pt-4 sm:grid sm:grid-cols-[1.05fr_0.95fr_auto] sm:items-center">
-                <div className="ml-surface-muted rounded-[1.05rem] px-3 py-3">
-                  <div className="text-[10px] font-medium uppercase tracking-[0.18em] text-slate-500">Profile status</div>
-                  <div className="mt-1 text-sm font-semibold text-slate-900">{p.verified ? 'Verified expert' : 'Live expert profile'}</div>
-                </div>
-                <div className="ml-surface-muted rounded-[1.05rem] px-3 py-3">
-                  <div className="text-[10px] font-medium uppercase tracking-[0.18em] text-slate-500">Updated</div>
-                  <div className="mt-1 text-sm font-semibold text-slate-900">{sinceLabel}</div>
-                </div>
-                <div className="ml-dark-panel flex items-center justify-between gap-3 rounded-[1.05rem] px-4 py-3 sm:justify-center">
-                  <span className="text-sm font-semibold">Open profile</span>
-                  <span className="text-base transition group-hover:translate-x-1" aria-hidden="true">&rarr;</span>
-                </div>
-              </div>
-
-              <div className="mt-4 flex items-center justify-between gap-4 border-t border-slate-200/80 pt-4 sm:hidden">
-                <div className="min-w-0">
-                  <div className="text-[10px] font-medium uppercase tracking-[0.18em] text-slate-500">Updated</div>
-                  <div className="mt-1 text-sm font-semibold text-slate-900">{sinceLabel}</div>
-                </div>
-                <div className="ml-btn-primary flex items-center gap-2 rounded-xl px-4 py-2 text-sm font-semibold text-white">
-                  Open profile
-                  <span className="text-base transition group-hover:translate-x-1" aria-hidden="true">&rarr;</span>
-                </div>
-              </div>
             </div>
           </div>
         </div>
@@ -527,55 +501,59 @@ export default async function ProvidersPage({ searchParams }: ProvidersPageProps
 
         {problemContext ? <ProblemContextPanel problem={problemContext} /> : null}
 
-        <section className={`mt-6 ${SECTION_CLASS}`}>
-          <details className="group md:hidden">
-            <summary className="ml-surface flex cursor-pointer list-none items-center justify-between gap-4 rounded-[1.4rem] px-4 py-4 shadow-sm">
-              <div className="min-w-0">
+        <div className="mt-6 grid gap-6 lg:grid-cols-[minmax(0,1fr)_360px] lg:items-start">
+          <section className={`${SECTION_CLASS} lg:hidden`}>
+            <details className="group">
+              <summary className="ml-surface flex cursor-pointer list-none items-center justify-between gap-4 rounded-[1.4rem] px-4 py-4 shadow-sm">
+                <div className="min-w-0">
+                  <div className="text-[11px] font-medium uppercase tracking-[0.22em] text-slate-500">Filters</div>
+                  <h2 className="mt-1 text-xl font-semibold tracking-tight text-slate-900">Refine results</h2>
+                  <p className="mt-1 text-sm text-slate-600">
+                    {activeFilters.length > 0 ? `${activeFilters.length} active filter${activeFilters.length > 1 ? 's' : ''}` : 'Open filters to narrow the list'}
+                  </p>
+                </div>
+                <div className="flex flex-col items-end gap-2">
+                  <span className="ml-btn-secondary rounded-xl px-4 py-2 text-sm font-medium normal-case tracking-normal group-open:hidden">Open</span>
+                  <span className="ml-btn-secondary hidden rounded-xl px-4 py-2 text-sm font-medium normal-case tracking-normal group-open:inline-flex">Close</span>
+                </div>
+              </summary>
+              <div className="ml-surface mt-4 rounded-[1.4rem] p-4 shadow-sm">
+                <div className="mb-4 flex items-center justify-between gap-3">
+                  <div className="text-sm font-medium text-slate-700">Set filters and update the results when ready.</div>
+                  <Link href="/experts" className="text-sm font-medium text-slate-600 underline underline-offset-4 hover:text-slate-900">
+                    Clear filters
+                  </Link>
+                </div>
+                <FiltersForm name={name} city={city} service={service} problemId={problemContext?.id} match={match} minRating={minRating} sort={sort} order={order} limit={limit} verified={verified} compact />
+              </div>
+            </details>
+          </section>
+
+          <aside data-testid="desktop-filter-rail" className={`${SECTION_CLASS} hidden lg:sticky lg:top-24 lg:block`}>
+            <div className="flex items-start justify-between gap-4">
+              <div>
                 <div className="text-[11px] font-medium uppercase tracking-[0.22em] text-slate-500">Filters</div>
-                <h2 className="mt-1 text-xl font-semibold tracking-tight text-slate-900">Refine results</h2>
-                <p className="mt-1 text-sm text-slate-600">
-                  {activeFilters.length > 0 ? `${activeFilters.length} active filter${activeFilters.length > 1 ? 's' : ''}` : 'Open filters to narrow the list'}
-                </p>
+                <h2 className="mt-2 text-xl font-semibold tracking-tight text-slate-900">Refine results</h2>
+                <p className="mt-2 text-sm leading-6 text-slate-600">Adjust the list while keeping experts in view.</p>
               </div>
-              <div className="flex flex-col items-end gap-2">
-                <span className="ml-btn-secondary rounded-xl px-4 py-2 text-sm font-medium normal-case tracking-normal group-open:hidden">Open</span>
-                <span className="ml-btn-secondary hidden rounded-xl px-4 py-2 text-sm font-medium normal-case tracking-normal group-open:inline-flex">Close</span>
-              </div>
-            </summary>
-            <div className="ml-surface mt-4 rounded-[1.4rem] p-4 shadow-sm">
-              <div className="mb-4 flex items-center justify-between gap-3">
-                <div className="text-sm font-medium text-slate-700">Set filters and update the results when ready.</div>
-                <Link href="/experts" className="text-sm font-medium text-slate-600 underline underline-offset-4 hover:text-slate-900">
-                  Clear filters
-                </Link>
-              </div>
+              <Link href="/experts" className="text-sm font-medium text-slate-600 underline underline-offset-4 hover:text-slate-900">
+                Clear
+              </Link>
+            </div>
+
+            <div className="mt-5">
               <FiltersForm name={name} city={city} service={service} problemId={problemContext?.id} match={match} minRating={minRating} sort={sort} order={order} limit={limit} verified={verified} compact />
             </div>
-          </details>
+          </aside>
 
-          <div className="hidden flex-col gap-3 md:flex md:flex-row md:items-end md:justify-between">
-            <div>
-              <div className="text-[11px] font-medium uppercase tracking-[0.22em] text-slate-500">Filters</div>
-              <h2 className="mt-2 text-2xl font-semibold tracking-tight text-slate-900">Refine results</h2>
-            </div>
-            <Link href="/experts" className="text-sm font-medium text-slate-600 underline underline-offset-4 hover:text-slate-900">
-              Clear filters
-            </Link>
-          </div>
-
-          <div className="mt-5 hidden md:block">
-            <FiltersForm name={name} city={city} service={service} problemId={problemContext?.id} match={match} minRating={minRating} sort={sort} order={order} limit={limit} verified={verified} />
-          </div>
-        </section>
-
-        <section className={`mt-6 ${SECTION_CLASS}`}>
-          <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
-            <div>
-              <h2 className="text-2xl font-semibold tracking-tight text-slate-900">Expert results</h2>
-              <p className="mt-1 text-sm text-slate-600">
-                Showing {(meta.page - 1) * meta.limit + 1}-{Math.min(meta.page * meta.limit, meta.total)} of {meta.total}
-              </p>
-            </div>
+          <section className={`${SECTION_CLASS} lg:order-first`}>
+            <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+              <div>
+                <h2 className="text-2xl font-semibold tracking-tight text-slate-900">Expert results</h2>
+                <p className="mt-1 text-sm text-slate-600">
+                  Showing {(meta.page - 1) * meta.limit + 1}-{Math.min(meta.page * meta.limit, meta.total)} of {meta.total}
+                </p>
+              </div>
 
             {activeFilters.length > 0 ? (
               <div className="flex flex-wrap gap-2">
@@ -593,7 +571,7 @@ export default async function ProvidersPage({ searchParams }: ProvidersPageProps
               No experts found. Try adjusting your filters.
             </div>
           ) : (
-            <ul className="mt-5 grid grid-cols-1 gap-4 xl:grid-cols-2">
+            <ul data-testid="expert-results-list" className="mt-5 grid grid-cols-1 gap-4">
               {data.map((p) => (
                 <ProviderCard key={p.id} provider={p} />
               ))}
@@ -644,7 +622,8 @@ export default async function ProvidersPage({ searchParams }: ProvidersPageProps
               </Link>
             </div>
           </div>
-        </section>
+          </section>
+        </div>
       </div>
     </main>
   );

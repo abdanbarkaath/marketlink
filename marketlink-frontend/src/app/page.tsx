@@ -9,12 +9,6 @@ import {
   homepageServicePaths,
 } from '@/lib/discovery';
 
-const BUYER_SIGNALS = [
-  { label: 'Built for', value: 'Local businesses' },
-  { label: 'Best for', value: 'Quick shortlists' },
-  { label: 'How it works', value: 'Browse, compare, contact' },
-];
-
 const MOBILE_PROBLEM_CARD_IDS = new Set([
   'cant-find-business',
   'need-more-calls',
@@ -34,6 +28,12 @@ const DESKTOP_HERO_PROBLEM_CARD_IDS = new Set([
   'need-more-calls',
   'website-not-helping',
 ]);
+
+const HERO_PRODUCT_STEPS = [
+  { icon: '🔎', label: 'Look up experts' },
+  { icon: '⚖', label: 'Compare the best fit' },
+  { icon: '💯', label: 'Get results' },
+];
 
 export default function Home() {
   const { t } = useMarketLinkTheme();
@@ -70,7 +70,7 @@ export default function Home() {
 
           <div id="mobile-problems" className="mt-7">
             <div className={`text-[11px] font-medium uppercase tracking-[0.22em] ${t.mutedText}`}>Start with the problem</div>
-            <h2 className="mt-2 text-2xl font-semibold tracking-[-0.04em] text-slate-950">What do you need help fixing first?</h2>
+            <h2 className="mt-2 text-2xl font-semibold tracking-[-0.04em] text-slate-950">Choose a starting point</h2>
 
             <div className="mt-4 space-y-3">
               {mobileProblemCards.map((problem, index) => {
@@ -109,7 +109,7 @@ export default function Home() {
         </section>
 
         <section className={`hidden overflow-hidden rounded-[2rem] ${t.card} px-5 py-5 sm:px-8 sm:py-8 lg:block lg:px-10 lg:py-10`}>
-          <div className="grid gap-8 lg:grid-cols-[minmax(0,1.1fr)_minmax(360px,0.72fr)] lg:items-center">
+          <div className="grid gap-8 lg:grid-cols-[minmax(0,1.1fr)_minmax(360px,0.72fr)] lg:items-start">
             <div className="flex flex-col gap-6">
               <div className="space-y-4">
                 <div className={`inline-flex items-center rounded-xl px-3 py-1 text-[11px] font-semibold uppercase tracking-[0.28em] shadow-sm ${t.brandBadge}`}>
@@ -117,41 +117,102 @@ export default function Home() {
                 </div>
                 <div className="max-w-3xl">
                   <h1 className="text-[2rem] font-semibold tracking-[-0.04em] text-slate-900 sm:text-5xl">
-                    Find marketers, website builders, and other local experts for your business.
+                    Find local marketing experts near you.
                   </h1>
-                  <p className={`mt-4 max-w-2xl text-sm leading-7 sm:text-base sm:leading-8 ${t.mutedText}`}>
-                    Browse by service, narrow by city, and compare real local experts in one place. When someone looks like a fit, open their profile and contact them directly.
+                  <p className={`mt-4 max-w-xl text-sm leading-7 sm:text-base sm:leading-8 ${t.mutedText}`}>
+                    Find and compare local experts for the marketing help your business needs.
                   </p>
                 </div>
               </div>
 
-              <div className="flex flex-col gap-3 sm:flex-row sm:flex-wrap">
+              <div>
                 <Link
                   href="/experts"
                   className={`inline-flex min-h-12 items-center justify-center rounded-xl px-6 text-sm font-semibold shadow-sm ${t.primaryBtn}`}
                 >
                   Browse local experts
                 </Link>
-                <Link
-                  href="#browse-by-need"
-                  className={`inline-flex min-h-12 items-center justify-center rounded-xl px-6 text-sm font-medium ${t.secondaryBtn}`}
-                >
-                  Search by service
-                </Link>
               </div>
 
-              <div
-                data-testid="desktop-buyer-signal-row"
-                className={`flex flex-wrap items-center gap-x-4 gap-y-2 text-sm ${t.mutedText}`}
-              >
-                {BUYER_SIGNALS.map((item) => (
-                  <div key={item.label} data-testid="desktop-buyer-signal" className="flex items-center gap-2">
-                    <span className={`h-1.5 w-1.5 rounded-full ${t.accentDot}`} aria-hidden="true" />
-                    <span className="font-semibold text-slate-900">{item.value}</span>
-                  </div>
-                ))}
+              <div data-testid="desktop-product-checklist" className="mt-1 max-w-sm">
+                {HERO_PRODUCT_STEPS.map((step, index) => {
+                  const isFinal = index === HERO_PRODUCT_STEPS.length - 1;
+                  const displayLabel = ['Find local experts', 'Compare best fits', 'Get real results'][index];
+
+                  return (
+                    <div
+                      key={displayLabel}
+                      data-testid="desktop-product-checklist-item"
+                      className="hero-step relative grid grid-cols-[minmax(0,15rem)_3.5rem] items-center gap-6 pb-4 opacity-0 last:pb-0 motion-reduce:opacity-100"
+                      style={{ animationDelay: `${index * 140}ms` }}
+                    >
+                      {index < HERO_PRODUCT_STEPS.length - 1 ? (
+                        <span className="hero-step-line absolute right-7 top-12 h-[calc(100%-2rem)] w-px origin-top scale-y-0 bg-slate-200 motion-reduce:scale-y-100" aria-hidden="true" />
+                      ) : null}
+                      <span className={`text-[1.35rem] font-semibold leading-tight tracking-[-0.015em] ${isFinal ? 'text-slate-950' : 'text-slate-800'}`}>
+                        {displayLabel}
+                      </span>
+                      <span
+                        data-testid="desktop-product-checklist-icon"
+                        className={[
+                          'relative z-10 grid h-12 w-12 shrink-0 place-items-center leading-none',
+                          isFinal
+                            ? 'bg-transparent text-[0.95rem] font-black text-rose-600'
+                            : 'rounded-full bg-white text-[1.45rem] text-slate-700 shadow-sm ring-1 ring-slate-200',
+                        ].join(' ')}
+                        aria-hidden="true"
+                      >
+                        {isFinal ? (
+                          <span className="relative inline-block after:absolute after:inset-x-0 after:-bottom-1 after:h-0.5 after:rounded-full after:bg-rose-500">
+                            100
+                          </span>
+                        ) : (
+                          step.icon
+                        )}
+                      </span>
+                    </div>
+                  );
+                })}
               </div>
             </div>
+
+            <style>{`
+              @keyframes hero-step-in {
+                from {
+                  opacity: 0;
+                  transform: translateX(-18px);
+                }
+                to {
+                  opacity: 1;
+                  transform: translateX(0);
+                }
+              }
+
+              .hero-step {
+                animation: hero-step-in 520ms cubic-bezier(0.2, 0.8, 0.2, 1) forwards;
+              }
+
+              .hero-step-line {
+                animation: hero-step-line 520ms cubic-bezier(0.2, 0.8, 0.2, 1) forwards;
+                animation-delay: inherit;
+              }
+
+              @keyframes hero-step-line {
+                from {
+                  transform: scaleY(0);
+                }
+                to {
+                  transform: scaleY(1);
+                }
+              }
+
+              @media (prefers-reduced-motion: reduce) {
+                .hero-step,
+                .hero-step-line {
+                  animation: none;
+                }
+              }
+            `}</style>
 
             <aside
               data-testid="desktop-problem-panel"
@@ -188,54 +249,6 @@ export default function Home() {
                 Already know the service? Use search by service or browse the full expert directory.
               </div>
             </aside>
-          </div>
-        </section>
-
-        <section id="desktop-problems" data-testid="desktop-problem-section" className="mt-6 hidden lg:block">
-          <div className="flex flex-col gap-3 sm:flex-row sm:items-end sm:justify-between">
-            <div>
-              <div className={`text-[11px] font-medium uppercase tracking-[0.24em] ${t.mutedText}`}>Start with the problem</div>
-              <h2 className="mt-2 text-3xl font-semibold tracking-[-0.03em] text-slate-900">What do you need help fixing first?</h2>
-            </div>
-            <p className={`max-w-xl text-sm leading-7 ${t.mutedText}`}>
-              These are plain-language starting points for owners who know what feels broken, but not which marketing service to search for.
-            </p>
-          </div>
-
-          <div className="mt-5 grid gap-4 xl:grid-cols-4">
-            {desktopProblemCards.map((problem) => {
-              const suggestedPaths = getDiscoveryServicePathsForProblem(problem);
-
-              return (
-                <Link
-                  key={problem.id}
-                  href={getDiscoveryProblemHref(problem)}
-                  data-testid="desktop-problem-card"
-                  className={`group flex min-h-[230px] flex-col justify-between rounded-[1.75rem] ${t.card} p-5 transition ${t.cardHover}`}
-                >
-                  <div>
-                    <div className={`text-[11px] font-medium uppercase tracking-[0.18em] ${t.mutedText}`}>Problem</div>
-                    <div className="mt-3 flex items-start justify-between gap-4">
-                      <div>
-                        <h3 className="text-lg font-semibold tracking-[-0.02em] text-slate-950">{problem.problemTitle}</h3>
-                        <p className={`mt-2 text-sm leading-6 ${t.mutedText}`}>{problem.customerLanguage}</p>
-                      </div>
-                      <span className="mt-1 text-lg text-slate-400 transition group-hover:translate-x-1 group-hover:text-slate-700" aria-hidden="true">
-                        &rarr;
-                      </span>
-                    </div>
-                  </div>
-
-                  <div className="mt-5 flex flex-wrap gap-2">
-                    {suggestedPaths.slice(0, 3).map((path) => (
-                      <span key={path.id} className="rounded-full bg-slate-50 px-3 py-1 text-[11px] font-semibold text-slate-700 ring-1 ring-slate-200">
-                        {path.plainLabel}
-                      </span>
-                    ))}
-                  </div>
-                </Link>
-              );
-            })}
           </div>
         </section>
 
