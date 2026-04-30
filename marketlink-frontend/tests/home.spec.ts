@@ -13,25 +13,19 @@ test('homepage loads', async ({ page }) => {
 test('shows main heading', async ({ page }) => {
   await expect(
     page.getByRole('heading', {
-      name: 'Find marketers, website builders, and other local experts for your business.',
+      name: 'Find local marketing experts near you.',
     }),
   ).toBeVisible();
 });
 
 test('shows supporting intro copy', async ({ page }) => {
-  await expect(page.getByText('Browse by service, narrow by city, and compare real local experts in one place.')).toBeVisible();
+  await expect(page.getByText('Find and compare local experts for the marketing help your business needs.')).toBeVisible();
 });
 
 test('browse local experts link is visible', async ({ page }) => {
   const link = page.getByRole('link', { name: 'Browse local experts' });
   await expect(link).toBeVisible();
   await expect(link).toHaveAttribute('href', '/experts');
-});
-
-test('search by service link is visible', async ({ page }) => {
-  const link = page.getByRole('link', { name: 'Search by service' });
-  await expect(link).toBeVisible();
-  await expect(link).toHaveAttribute('href', '#browse-by-need');
 });
 
 test('desktop hero shows problem-first discovery choices', async ({ page }) => {
@@ -47,29 +41,39 @@ test('desktop hero shows problem-first discovery choices', async ({ page }) => {
   await expect(panel.getByText('My website is not helping')).toBeVisible();
 });
 
-test('desktop hero keeps buyer signals lightweight', async ({ page }) => {
+test('desktop hero keeps the left side focused on one action', async ({ page }) => {
   await page.setViewportSize({ width: 1440, height: 900 });
   await page.goto(BASE_URL);
 
-  const signalRow = page.getByTestId('desktop-buyer-signal-row');
-  await expect(signalRow).toBeVisible();
-  await expect(signalRow.getByTestId('desktop-buyer-signal')).toHaveCount(3);
-  await expect(signalRow.getByText('Local businesses')).toBeVisible();
-  await expect(signalRow.getByText('Quick shortlists')).toBeVisible();
-  await expect(signalRow.getByText('Browse, compare, contact')).toBeVisible();
+  await expect(page.getByTestId('desktop-buyer-flow')).not.toBeVisible();
+  await expect(page.getByRole('link', { name: 'Search by service' })).not.toBeVisible();
+  await expect(page.getByRole('link', { name: 'Browse local experts' })).toBeVisible();
 });
 
-test('desktop problem section shows fuller problem cards and suggested paths', async ({ page }) => {
+test('desktop hero explains the product with a vertical checklist', async ({ page }) => {
   await page.setViewportSize({ width: 1440, height: 900 });
   await page.goto(BASE_URL);
 
-  const section = page.getByTestId('desktop-problem-section');
-  await expect(section).toBeVisible();
-  await expect(section.getByTestId('desktop-problem-card')).toHaveCount(4);
-  await expect(section.getByText('Show up on Google').first()).toBeVisible();
-  await expect(section.getByText('Run local ads').first()).toBeVisible();
-  await expect(section.getByText('Improve my website').first()).toBeVisible();
-  await expect(section.getByText('Create better content').first()).toBeVisible();
+  const checklist = page.getByTestId('desktop-product-checklist');
+  await expect(checklist).toBeVisible();
+  await expect(checklist.getByTestId('desktop-product-checklist-item')).toHaveCount(3);
+  await expect(checklist.getByText('Find local experts')).toBeVisible();
+  await expect(checklist.getByText('Compare best fits')).toBeVisible();
+  await expect(checklist.getByText('Get real results')).toBeVisible();
+  await expect(checklist.getByTestId('desktop-product-checklist-icon')).toHaveCount(3);
+  const resultIcon = checklist.getByTestId('desktop-product-checklist-item').filter({ hasText: 'Get real results' }).getByTestId('desktop-product-checklist-icon');
+  await expect(resultIcon).toContainText('100');
+  await expect(resultIcon).not.toHaveClass(/.*bg-slate-950.*/);
+});
+
+test('desktop keeps problem choices inside the hero starting point panel', async ({ page }) => {
+  await page.setViewportSize({ width: 1440, height: 900 });
+  await page.goto(BASE_URL);
+
+  await expect(page.getByTestId('desktop-problem-section')).not.toBeVisible();
+  await expect(page.getByText('What do you need help fixing first?')).not.toBeVisible();
+  const panel = page.getByTestId('desktop-problem-panel');
+  await expect(panel.getByTestId('desktop-problem-link')).toHaveCount(3);
 });
 
 test('renders 8 service path cards', async ({ page }) => {
@@ -108,7 +112,7 @@ test.describe('mobile problem-first discovery', () => {
   });
 
   test('shows compact problem cards before the full service grid', async ({ page }) => {
-    await expect(page.getByRole('heading', { name: 'What do you need help fixing first?' })).toBeVisible();
+    await expect(page.getByRole('heading', { name: 'Choose a starting point' })).toBeVisible();
     await expect(page.getByTestId('mobile-problem-card')).toHaveCount(4);
     const mobileCards = page.getByTestId('mobile-problem-card');
     await expect(mobileCards.filter({ hasText: "People can't find my business" })).toBeVisible();
