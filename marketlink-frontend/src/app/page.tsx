@@ -2,7 +2,12 @@
 
 import Link from 'next/link';
 import ThemeToggle, { useMarketLinkTheme } from '@/components/ThemeToggle';
-import { homepageServicePaths } from '@/lib/discovery';
+import {
+  getDiscoveryProblemHref,
+  getDiscoveryServicePathsForProblem,
+  homepageProblemCards,
+  homepageServicePaths,
+} from '@/lib/discovery';
 
 const BUYER_SIGNALS = [
   { label: 'Built for', value: 'Local businesses', detail: 'Start with the kind of help you need and narrow down fast.' },
@@ -10,13 +15,85 @@ const BUYER_SIGNALS = [
   { label: 'How it works', value: 'Browse, compare, contact', detail: 'Open profiles, check the fit, and reach out directly.' },
 ];
 
+const MOBILE_PROBLEM_CARD_IDS = new Set([
+  'cant-find-business',
+  'need-more-calls',
+  'website-not-helping',
+  'not-sure-what-i-need',
+]);
+
 export default function Home() {
   const { t } = useMarketLinkTheme();
+  const mobileProblemCards = homepageProblemCards.filter((problem) => MOBILE_PROBLEM_CARD_IDS.has(problem.id));
 
   return (
     <main className={`${t.pageBg} min-h-[calc(100vh-80px)]`}>
       <div className="mx-auto max-w-7xl px-4 py-6 sm:px-6 sm:py-10">
-        <section className={`overflow-hidden rounded-[2rem] ${t.card} px-5 py-5 sm:px-8 sm:py-8 lg:px-10 lg:py-10`}>
+        <section className={`overflow-hidden rounded-[2rem] ${t.card} px-5 py-6 shadow-[0_24px_80px_rgba(15,23,42,0.10)] ring-1 ring-slate-200/80 lg:hidden`}>
+          <div className={`inline-flex items-center rounded-full px-3 py-1 text-[11px] font-semibold uppercase tracking-[0.22em] shadow-sm ${t.brandBadge}`}>
+            Local marketing help
+          </div>
+
+          <h1 className="mt-5 text-[2.75rem] font-semibold leading-[0.92] tracking-[-0.075em] text-slate-950">
+            Find marketing help by the problem you need solved.
+          </h1>
+          <p className={`mt-4 text-[1.02rem] leading-7 ${t.mutedText}`}>
+            Start with what feels stuck, then compare local experts who can help with the next move.
+          </p>
+
+          <div className="mt-5 grid grid-cols-[1fr_auto] items-center gap-3">
+            <Link
+              href="/experts"
+              className={`inline-flex min-h-12 items-center justify-center rounded-2xl px-5 text-sm font-semibold shadow-sm ${t.primaryBtn}`}
+            >
+              Browse experts
+            </Link>
+            <Link href="#mobile-problems" className="inline-flex min-h-12 items-center justify-center rounded-2xl bg-slate-50 px-4 text-sm font-semibold text-slate-900 shadow-sm ring-1 ring-slate-200">
+              Help me choose
+            </Link>
+          </div>
+
+          <div id="mobile-problems" className="mt-7">
+            <div className={`text-[11px] font-medium uppercase tracking-[0.22em] ${t.mutedText}`}>Start with the problem</div>
+            <h2 className="mt-2 text-2xl font-semibold tracking-[-0.04em] text-slate-950">What do you need help fixing first?</h2>
+
+            <div className="mt-4 space-y-3">
+              {mobileProblemCards.map((problem, index) => {
+                const suggestedPaths = getDiscoveryServicePathsForProblem(problem);
+
+                return (
+                  <Link
+                    key={problem.id}
+                    href={getDiscoveryProblemHref(problem)}
+                    data-testid="mobile-problem-card"
+                    className={`group block rounded-[1.45rem] ${t.surfaceMuted} ${t.border} border px-4 py-4 shadow-sm transition active:scale-[0.99]`}
+                  >
+                    <div className="flex items-start justify-between gap-4">
+                      <div>
+                        <div className={`text-[10px] font-medium uppercase tracking-[0.18em] ${t.mutedText}`}>Problem {index + 1}</div>
+                        <h3 className="mt-2 text-lg font-semibold tracking-[-0.02em] text-slate-950">{problem.problemTitle}</h3>
+                      </div>
+                      <span className="mt-1 text-lg text-slate-400 transition group-hover:translate-x-1 group-hover:text-slate-700" aria-hidden="true">
+                        &rarr;
+                      </span>
+                    </div>
+
+                    <p className={`mt-2 text-sm leading-6 ${t.mutedText}`}>{problem.customerLanguage}</p>
+                    <div className="mt-3 flex flex-wrap gap-2">
+                      {suggestedPaths.slice(0, 3).map((path) => (
+                        <span key={path.id} className="rounded-full bg-white px-3 py-1 text-[11px] font-semibold text-slate-700 shadow-sm ring-1 ring-slate-200/80">
+                          {path.plainLabel}
+                        </span>
+                      ))}
+                    </div>
+                  </Link>
+                );
+              })}
+            </div>
+          </div>
+        </section>
+
+        <section className={`hidden overflow-hidden rounded-[2rem] ${t.card} px-5 py-5 sm:px-8 sm:py-8 lg:block lg:px-10 lg:py-10`}>
           <div className="grid gap-6 lg:grid-cols-[1.35fr_0.85fr] lg:items-stretch">
             <div className="flex flex-col gap-6">
               <div className="space-y-4">
@@ -59,7 +136,10 @@ export default function Home() {
               </div>
             </div>
 
-            <aside className={`ml-dark-panel flex h-full flex-col justify-between rounded-[1.75rem] px-5 py-5 text-white shadow-[0_24px_70px_rgba(23,26,31,0.24)] sm:px-6 sm:py-6`}>
+            <aside
+              data-testid="hero-how-it-works-panel"
+              className="ml-dark-panel flex h-full flex-col justify-between rounded-[1.75rem] px-5 py-5 text-white shadow-[0_24px_70px_rgba(23,26,31,0.24)] sm:px-6 sm:py-6"
+            >
               <div>
                 <div className="text-[11px] font-medium uppercase tracking-[0.28em] text-white/60">How it works</div>
                 <h2 className="mt-3 text-2xl font-semibold tracking-tight">Find help in a few simple steps.</h2>
@@ -106,6 +186,7 @@ export default function Home() {
               <Link
                 key={path.id}
                 href={path.href}
+                data-testid="service-path-card"
                 className={[
                   'group flex min-h-[190px] flex-col justify-between rounded-[1.75rem] p-4 transition sm:min-h-[220px] sm:p-5',
                   t.card,
