@@ -219,5 +219,21 @@ export function getDiscoveryServicePathsForProblem(problem: DiscoveryProblemCard
 
 export function getDiscoveryProblemHref(problem: DiscoveryProblemCard) {
   const serviceTokens = getDiscoveryServicePathsForProblem(problem).flatMap((path) => path.serviceTokens);
-  return buildExpertsHref(Array.from(new Set(serviceTokens)));
+  const href = buildExpertsHref(Array.from(new Set(serviceTokens)));
+  const [pathname, query = ''] = href.split('?');
+  const params = new URLSearchParams(query);
+  params.set('problem', problem.id);
+  return `${pathname}?${params.toString()}`;
+}
+
+export function getDiscoveryProblemById(problemId: string | undefined) {
+  if (!problemId) return null;
+  return discoveryProblemCards.find((problem) => problem.id === problemId) ?? null;
+}
+
+export function getDiscoveryServicePathHrefForProblem(path: DiscoveryServicePath, problem: DiscoveryProblemCard) {
+  const [pathname, query = ''] = path.href.split('?');
+  const params = new URLSearchParams(query);
+  params.set('problem', problem.id);
+  return `${pathname}?${params.toString()}`;
 }
