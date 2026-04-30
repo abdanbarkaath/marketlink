@@ -31,7 +31,45 @@ test('browse local experts link is visible', async ({ page }) => {
 test('search by service link is visible', async ({ page }) => {
   const link = page.getByRole('link', { name: 'Search by service' });
   await expect(link).toBeVisible();
-  await expect(link).toHaveAttribute('href', '/experts');
+  await expect(link).toHaveAttribute('href', '#browse-by-need');
+});
+
+test('desktop hero shows problem-first discovery choices', async ({ page }) => {
+  await page.setViewportSize({ width: 1440, height: 900 });
+  await page.goto(BASE_URL);
+
+  await expect(page.getByTestId('desktop-problem-panel')).toBeVisible();
+  await expect(page.getByRole('heading', { name: 'Choose a starting point' })).toBeVisible();
+  const panel = page.getByTestId('desktop-problem-panel');
+  await expect(panel.getByTestId('desktop-problem-link')).toHaveCount(3);
+  await expect(panel.getByText("People can't find my business")).toBeVisible();
+  await expect(panel.getByText('I need more calls or bookings')).toBeVisible();
+  await expect(panel.getByText('My website is not helping')).toBeVisible();
+});
+
+test('desktop hero keeps buyer signals lightweight', async ({ page }) => {
+  await page.setViewportSize({ width: 1440, height: 900 });
+  await page.goto(BASE_URL);
+
+  const signalRow = page.getByTestId('desktop-buyer-signal-row');
+  await expect(signalRow).toBeVisible();
+  await expect(signalRow.getByTestId('desktop-buyer-signal')).toHaveCount(3);
+  await expect(signalRow.getByText('Local businesses')).toBeVisible();
+  await expect(signalRow.getByText('Quick shortlists')).toBeVisible();
+  await expect(signalRow.getByText('Browse, compare, contact')).toBeVisible();
+});
+
+test('desktop problem section shows fuller problem cards and suggested paths', async ({ page }) => {
+  await page.setViewportSize({ width: 1440, height: 900 });
+  await page.goto(BASE_URL);
+
+  const section = page.getByTestId('desktop-problem-section');
+  await expect(section).toBeVisible();
+  await expect(section.getByTestId('desktop-problem-card')).toHaveCount(4);
+  await expect(section.getByText('Show up on Google').first()).toBeVisible();
+  await expect(section.getByText('Run local ads').first()).toBeVisible();
+  await expect(section.getByText('Improve my website').first()).toBeVisible();
+  await expect(section.getByText('Create better content').first()).toBeVisible();
 });
 
 test('renders 8 service path cards', async ({ page }) => {
@@ -49,7 +87,7 @@ test('shows social media service path', async ({ page }) => {
 });
 
 test('service path cards link to expert filters', async ({ page }) => {
-  const link = page.getByRole('link', { name: /Run local ads/i });
+  const link = page.getByTestId('service-path-card').filter({ hasText: 'Run local ads' });
   await expect(link).toHaveAttribute('href', '/experts?service=ads');
 });
 
@@ -72,10 +110,11 @@ test.describe('mobile problem-first discovery', () => {
   test('shows compact problem cards before the full service grid', async ({ page }) => {
     await expect(page.getByRole('heading', { name: 'What do you need help fixing first?' })).toBeVisible();
     await expect(page.getByTestId('mobile-problem-card')).toHaveCount(4);
-    await expect(page.getByText("People can't find my business")).toBeVisible();
-    await expect(page.getByText('I need more calls or bookings')).toBeVisible();
-    await expect(page.getByText('My website is not helping')).toBeVisible();
-    await expect(page.getByText("I'm not sure what I need")).toBeVisible();
+    const mobileCards = page.getByTestId('mobile-problem-card');
+    await expect(mobileCards.filter({ hasText: "People can't find my business" })).toBeVisible();
+    await expect(mobileCards.filter({ hasText: 'I need more calls or bookings' })).toBeVisible();
+    await expect(mobileCards.filter({ hasText: 'My website is not helping' })).toBeVisible();
+    await expect(mobileCards.filter({ hasText: "I'm not sure what I need" })).toBeVisible();
   });
 
   test('problem cards route mobile users into expert filters', async ({ page }) => {

@@ -1,7 +1,7 @@
 'use client';
 
 import Link from 'next/link';
-import ThemeToggle, { useMarketLinkTheme } from '@/components/ThemeToggle';
+import { useMarketLinkTheme } from '@/components/ThemeToggle';
 import {
   getDiscoveryProblemHref,
   getDiscoveryServicePathsForProblem,
@@ -10,9 +10,9 @@ import {
 } from '@/lib/discovery';
 
 const BUYER_SIGNALS = [
-  { label: 'Built for', value: 'Local businesses', detail: 'Start with the kind of help you need and narrow down fast.' },
-  { label: 'Best for', value: 'Quick shortlists', detail: 'Compare local experts without opening a dozen tabs.' },
-  { label: 'How it works', value: 'Browse, compare, contact', detail: 'Open profiles, check the fit, and reach out directly.' },
+  { label: 'Built for', value: 'Local businesses' },
+  { label: 'Best for', value: 'Quick shortlists' },
+  { label: 'How it works', value: 'Browse, compare, contact' },
 ];
 
 const MOBILE_PROBLEM_CARD_IDS = new Set([
@@ -22,9 +22,24 @@ const MOBILE_PROBLEM_CARD_IDS = new Set([
   'not-sure-what-i-need',
 ]);
 
+const DESKTOP_PROBLEM_CARD_IDS = new Set([
+  'cant-find-business',
+  'need-more-calls',
+  'website-not-helping',
+  'social-not-working',
+]);
+
+const DESKTOP_HERO_PROBLEM_CARD_IDS = new Set([
+  'cant-find-business',
+  'need-more-calls',
+  'website-not-helping',
+]);
+
 export default function Home() {
   const { t } = useMarketLinkTheme();
   const mobileProblemCards = homepageProblemCards.filter((problem) => MOBILE_PROBLEM_CARD_IDS.has(problem.id));
+  const desktopProblemCards = homepageProblemCards.filter((problem) => DESKTOP_PROBLEM_CARD_IDS.has(problem.id));
+  const desktopHeroProblemCards = desktopProblemCards.filter((problem) => DESKTOP_HERO_PROBLEM_CARD_IDS.has(problem.id));
 
   return (
     <main className={`${t.pageBg} min-h-[calc(100vh-80px)]`}>
@@ -94,7 +109,7 @@ export default function Home() {
         </section>
 
         <section className={`hidden overflow-hidden rounded-[2rem] ${t.card} px-5 py-5 sm:px-8 sm:py-8 lg:block lg:px-10 lg:py-10`}>
-          <div className="grid gap-6 lg:grid-cols-[1.35fr_0.85fr] lg:items-stretch">
+          <div className="grid gap-8 lg:grid-cols-[minmax(0,1.1fr)_minmax(360px,0.72fr)] lg:items-center">
             <div className="flex flex-col gap-6">
               <div className="space-y-4">
                 <div className={`inline-flex items-center rounded-xl px-3 py-1 text-[11px] font-semibold uppercase tracking-[0.28em] shadow-sm ${t.brandBadge}`}>
@@ -118,59 +133,113 @@ export default function Home() {
                   Browse local experts
                 </Link>
                 <Link
-                  href="/experts"
+                  href="#browse-by-need"
                   className={`inline-flex min-h-12 items-center justify-center rounded-xl px-6 text-sm font-medium ${t.secondaryBtn}`}
                 >
                   Search by service
                 </Link>
               </div>
 
-              <div className="grid gap-3 sm:grid-cols-3">
+              <div
+                data-testid="desktop-buyer-signal-row"
+                className={`flex flex-wrap items-center gap-x-4 gap-y-2 text-sm ${t.mutedText}`}
+              >
                 {BUYER_SIGNALS.map((item) => (
-                  <div key={item.label} className={`rounded-[1.5rem] ${t.surfaceMuted} ${t.border} border px-4 py-4 shadow-sm`}>
-                    <div className={`text-[11px] font-medium uppercase tracking-[0.22em] ${t.mutedText}`}>{item.label}</div>
-                    <div className="mt-2 text-base font-semibold text-slate-900">{item.value}</div>
-                    <p className={`mt-2 text-sm leading-6 ${t.mutedText}`}>{item.detail}</p>
+                  <div key={item.label} data-testid="desktop-buyer-signal" className="flex items-center gap-2">
+                    <span className={`h-1.5 w-1.5 rounded-full ${t.accentDot}`} aria-hidden="true" />
+                    <span className="font-semibold text-slate-900">{item.value}</span>
                   </div>
                 ))}
               </div>
             </div>
 
             <aside
-              data-testid="hero-how-it-works-panel"
-              className="ml-dark-panel flex h-full flex-col justify-between rounded-[1.75rem] px-5 py-5 text-white shadow-[0_24px_70px_rgba(23,26,31,0.24)] sm:px-6 sm:py-6"
+              data-testid="desktop-problem-panel"
+              className={`rounded-[1.75rem] ${t.surfaceMuted} ${t.border} border px-5 py-5 shadow-[0_24px_70px_rgba(15,23,42,0.08)] sm:px-6 sm:py-6`}
             >
               <div>
-                <div className="text-[11px] font-medium uppercase tracking-[0.28em] text-white/60">How it works</div>
-                <h2 className="mt-3 text-2xl font-semibold tracking-tight">Find help in a few simple steps.</h2>
-                <div className="mt-5 space-y-3">
-                  <div className="rounded-[1.35rem] border border-white/10 bg-white/7 px-4 py-3.5">
-                    <div className="text-sm font-semibold">1. Find the kind of help you need</div>
-                    <p className="mt-1 text-sm leading-6 text-white/76">Browse marketers, ad experts, website builders, influencers, and other local experts for your business.</p>
-                  </div>
-                  <div className="rounded-[1.35rem] border border-white/10 bg-white/7 px-4 py-3.5">
-                    <div className="text-sm font-semibold">2. Compare local experts</div>
-                    <p className="mt-1 text-sm leading-6 text-white/76">See what they do, who they help, and whether they look like the right fit for your business.</p>
-                  </div>
-                  <div className="rounded-[1.35rem] border border-white/10 bg-white/7 px-4 py-3.5">
-                    <div className="text-sm font-semibold">3. Reach out directly</div>
-                    <p className="mt-1 text-sm leading-6 text-white/76">Open a profile and send an inquiry when you find someone who feels right for the job.</p>
-                  </div>
-                </div>
+                <div className={`text-[11px] font-medium uppercase tracking-[0.24em] ${t.mutedText}`}>Problem-first discovery</div>
+                <h2 className="mt-3 text-2xl font-semibold tracking-tight text-slate-950">Choose a starting point</h2>
+                <p className={`mt-2 text-sm leading-6 ${t.mutedText}`}>
+                  Pick the closest business problem and jump into a matching expert shortlist.
+                </p>
               </div>
 
-              <div className="mt-5 rounded-[1.35rem] border border-white/10 bg-white/7 px-4 py-4">
-                <div className="text-[11px] font-medium uppercase tracking-[0.22em] text-white/60">MVP direction</div>
-                <p className="mt-2 text-sm leading-6 text-white/82">Search is city + service first. No maps, no radius clutter, just cleaner local discovery.</p>
-                <div className="mt-4 hidden sm:block">
-                  <ThemeToggle compact />
-                </div>
+              <div className="mt-5 grid gap-2.5">
+                {desktopHeroProblemCards.map((problem) => (
+                  <Link
+                    key={problem.id}
+                    href={getDiscoveryProblemHref(problem)}
+                    data-testid="desktop-problem-link"
+                    className="group flex items-center justify-between gap-4 rounded-2xl bg-white px-4 py-3 shadow-sm ring-1 ring-slate-200/80 transition hover:-translate-y-0.5 hover:shadow-md"
+                  >
+                    <div>
+                      <h3 className="text-sm font-semibold tracking-[-0.01em] text-slate-950">{problem.problemTitle}</h3>
+                      <p className={`mt-1 text-xs leading-5 ${t.mutedText}`}>{problem.outcomePromise}</p>
+                    </div>
+                    <span className="text-lg text-slate-400 transition group-hover:translate-x-1 group-hover:text-slate-700" aria-hidden="true">
+                      &rarr;
+                    </span>
+                  </Link>
+                ))}
+              </div>
+
+              <div className={`mt-5 rounded-2xl bg-white/70 px-4 py-3 text-sm leading-6 ${t.mutedText} ring-1 ring-slate-200/70`}>
+                Already know the service? Use search by service or browse the full expert directory.
               </div>
             </aside>
           </div>
         </section>
 
-        <section className="mt-6 sm:mt-8">
+        <section id="desktop-problems" data-testid="desktop-problem-section" className="mt-6 hidden lg:block">
+          <div className="flex flex-col gap-3 sm:flex-row sm:items-end sm:justify-between">
+            <div>
+              <div className={`text-[11px] font-medium uppercase tracking-[0.24em] ${t.mutedText}`}>Start with the problem</div>
+              <h2 className="mt-2 text-3xl font-semibold tracking-[-0.03em] text-slate-900">What do you need help fixing first?</h2>
+            </div>
+            <p className={`max-w-xl text-sm leading-7 ${t.mutedText}`}>
+              These are plain-language starting points for owners who know what feels broken, but not which marketing service to search for.
+            </p>
+          </div>
+
+          <div className="mt-5 grid gap-4 xl:grid-cols-4">
+            {desktopProblemCards.map((problem) => {
+              const suggestedPaths = getDiscoveryServicePathsForProblem(problem);
+
+              return (
+                <Link
+                  key={problem.id}
+                  href={getDiscoveryProblemHref(problem)}
+                  data-testid="desktop-problem-card"
+                  className={`group flex min-h-[230px] flex-col justify-between rounded-[1.75rem] ${t.card} p-5 transition ${t.cardHover}`}
+                >
+                  <div>
+                    <div className={`text-[11px] font-medium uppercase tracking-[0.18em] ${t.mutedText}`}>Problem</div>
+                    <div className="mt-3 flex items-start justify-between gap-4">
+                      <div>
+                        <h3 className="text-lg font-semibold tracking-[-0.02em] text-slate-950">{problem.problemTitle}</h3>
+                        <p className={`mt-2 text-sm leading-6 ${t.mutedText}`}>{problem.customerLanguage}</p>
+                      </div>
+                      <span className="mt-1 text-lg text-slate-400 transition group-hover:translate-x-1 group-hover:text-slate-700" aria-hidden="true">
+                        &rarr;
+                      </span>
+                    </div>
+                  </div>
+
+                  <div className="mt-5 flex flex-wrap gap-2">
+                    {suggestedPaths.slice(0, 3).map((path) => (
+                      <span key={path.id} className="rounded-full bg-slate-50 px-3 py-1 text-[11px] font-semibold text-slate-700 ring-1 ring-slate-200">
+                        {path.plainLabel}
+                      </span>
+                    ))}
+                  </div>
+                </Link>
+              );
+            })}
+          </div>
+        </section>
+
+        <section id="browse-by-need" className="mt-6 scroll-mt-24 sm:mt-8">
           <div className="flex flex-col gap-3 sm:flex-row sm:items-end sm:justify-between">
             <div>
               <div className={`text-[11px] font-medium uppercase tracking-[0.24em] ${t.mutedText}`}>Browse by need</div>
