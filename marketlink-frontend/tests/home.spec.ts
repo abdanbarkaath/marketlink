@@ -35,7 +35,7 @@ test('search by service link is visible', async ({ page }) => {
 });
 
 test('renders 8 service path cards', async ({ page }) => {
-  await expect(page.getByRole('heading', { level: 3 })).toHaveCount(8);
+  await expect(page.getByTestId('service-path-card')).toHaveCount(8);
 });
 
 test('shows Google discovery service path', async ({ page }) => {
@@ -61,4 +61,29 @@ test('footer directory link is visible', async ({ page }) => {
   const link = page.getByRole('link', { name: 'Open directory' });
   await expect(link).toBeVisible();
   await expect(link).toHaveAttribute('href', '/experts');
+});
+
+test.describe('mobile problem-first discovery', () => {
+  test.beforeEach(async ({ page }) => {
+    await page.setViewportSize({ width: 390, height: 844 });
+    await page.goto(BASE_URL);
+  });
+
+  test('shows compact problem cards before the full service grid', async ({ page }) => {
+    await expect(page.getByRole('heading', { name: 'What do you need help fixing first?' })).toBeVisible();
+    await expect(page.getByTestId('mobile-problem-card')).toHaveCount(4);
+    await expect(page.getByText("People can't find my business")).toBeVisible();
+    await expect(page.getByText('I need more calls or bookings')).toBeVisible();
+    await expect(page.getByText('My website is not helping')).toBeVisible();
+    await expect(page.getByText("I'm not sure what I need")).toBeVisible();
+  });
+
+  test('problem cards route mobile users into expert filters', async ({ page }) => {
+    const link = page.getByRole('link', { name: /People can't find my business/i });
+    await expect(link).toHaveAttribute('href', '/experts?service=seo%2Cweb%2Cads&match=any');
+  });
+
+  test('hides the heavy how-it-works panel from the mobile hero', async ({ page }) => {
+    await expect(page.getByTestId('hero-how-it-works-panel')).not.toBeVisible();
+  });
 });

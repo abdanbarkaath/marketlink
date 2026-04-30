@@ -211,3 +211,13 @@ export const homepageProblemCards = discoveryProblemCards
   .filter((problem) => problem.priority <= 6)
   .sort((a, b) => a.priority - b.priority);
 
+export function getDiscoveryServicePathsForProblem(problem: DiscoveryProblemCard) {
+  return problem.suggestedPathIds
+    .map((pathId) => discoveryServicePaths.find((path) => path.id === pathId))
+    .filter((path): path is DiscoveryServicePath => Boolean(path));
+}
+
+export function getDiscoveryProblemHref(problem: DiscoveryProblemCard) {
+  const serviceTokens = getDiscoveryServicePathsForProblem(problem).flatMap((path) => path.serviceTokens);
+  return buildExpertsHref(Array.from(new Set(serviceTokens)));
+}
