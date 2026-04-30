@@ -11,47 +11,54 @@ test('homepage loads', async ({ page }) => {
 });
 
 test('shows main heading', async ({ page }) => {
-  await expect(page.getByRole('heading', { name: 'Find local marketing experts' })).toBeVisible();
+  await expect(
+    page.getByRole('heading', {
+      name: 'Find marketers, website builders, and other local experts for your business.',
+    }),
+  ).toBeVisible();
 });
 
 test('shows supporting intro copy', async ({ page }) => {
-  await expect(page.getByText('Pick a category to browse verified providers in your area.')).toBeVisible();
+  await expect(page.getByText('Browse by service, narrow by city, and compare real local experts in one place.')).toBeVisible();
 });
 
-test('browse all providers link is visible', async ({ page }) => {
-  const link = page.getByRole('link', { name: 'Browse all providers' });
+test('browse local experts link is visible', async ({ page }) => {
+  const link = page.getByRole('link', { name: 'Browse local experts' });
   await expect(link).toBeVisible();
-  await expect(link).toHaveAttribute('href', '/providers');
+  await expect(link).toHaveAttribute('href', '/experts');
 });
 
-test('use filters link is visible', async ({ page }) => {
-  const link = page.getByRole('link', { name: 'Use filters' });
+test('search by service link is visible', async ({ page }) => {
+  const link = page.getByRole('link', { name: 'Search by service' });
   await expect(link).toBeVisible();
-  await expect(link).toHaveAttribute('href', '/providers');
+  await expect(link).toHaveAttribute('href', '/experts');
 });
 
-test('renders 8 category headings', async ({ page }) => {
-  await expect(page.getByRole('heading', { level: 2 })).toHaveCount(8);
+test('renders 8 service path cards', async ({ page }) => {
+  await expect(page.getByRole('heading', { level: 3 })).toHaveCount(8);
 });
 
-test('shows SEO category card', async ({ page }) => {
-  await expect(page.getByRole('heading', { level: 2, name: 'SEO' })).toBeVisible();
+test('shows Google discovery service path', async ({ page }) => {
+  await expect(page.getByRole('heading', { level: 3, name: 'Show up on Google' })).toBeVisible();
+  await expect(page.getByText('SEO / local search')).toBeVisible();
 });
 
-test('shows Social Media category card', async ({ page }) => {
-  await expect(page.getByRole('heading', { level: 2, name: 'Social Media' })).toBeVisible();
+test('shows social media service path', async ({ page }) => {
+  await expect(page.getByRole('heading', { level: 3, name: 'Grow on social media' })).toBeVisible();
+  await expect(page.getByText('Social media marketing')).toBeVisible();
 });
 
-test('shows View providers callouts', async ({ page }) => {
-  await expect(page.getByText('View providers')).toHaveCount(8);
+test('service path cards link to expert filters', async ({ page }) => {
+  const link = page.getByRole('link', { name: /Run local ads/i });
+  await expect(link).toHaveAttribute('href', '/experts?service=ads');
 });
 
-test('footer message is visible', async ({ page }) => {
-  await expect(page.getByText('Want more control? Use filters on the providers page.')).toBeVisible();
+test('shows See experts callouts', async ({ page }) => {
+  await expect(page.getByText('See experts')).toHaveCount(8);
 });
 
-test('footer filters link is visible', async ({ page }) => {
-  const link = page.getByRole('link', { name: 'Go to filters' });
+test('footer directory link is visible', async ({ page }) => {
+  const link = page.getByRole('link', { name: 'Open directory' });
   await expect(link).toBeVisible();
-  await expect(link).toHaveAttribute('href', '/providers');
+  await expect(link).toHaveAttribute('href', '/experts');
 });
