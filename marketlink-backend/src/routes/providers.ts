@@ -594,6 +594,9 @@ const expertsRoutes: FastifyPluginAsync = async (fastify) => {
     if (expertType === 'invalid') {
       return reply.code(400).send({ error: `expertType must be one of: ${Object.values(ExpertType).join(', ')}.` });
     }
+    if (!expertType) {
+      return reply.code(400).send({ error: 'expertType is required.' });
+    }
 
     let services: string[] = [];
     if (Array.isArray(body.services)) {
@@ -603,6 +606,9 @@ const expertsRoutes: FastifyPluginAsync = async (fastify) => {
         .split(',')
         .map((s) => s.trim().toLowerCase())
         .filter(Boolean);
+    }
+    if (!services.length) {
+      return reply.code(400).send({ error: 'At least one service is required.' });
     }
 
     const creatorPlatforms = normalizeTokenArray(body.creatorPlatforms);
@@ -650,7 +656,7 @@ const expertsRoutes: FastifyPluginAsync = async (fastify) => {
           email: user.email,
           businessName,
           slug,
-          expertType: expertType === null ? undefined : expertType,
+          expertType,
           tagline,
           city,
           state,
@@ -821,6 +827,9 @@ const expertsRoutes: FastifyPluginAsync = async (fastify) => {
       if (expertType === 'invalid') {
         return reply.code(400).send({ error: `expertType must be one of: ${Object.values(ExpertType).join(', ')}.` });
       }
+      if (!expertType) {
+        return reply.code(400).send({ error: 'expertType is required.' });
+      }
       (data as any).expertType = expertType;
     }
     const creatorPlatforms = normalizeTokenArray(body.creatorPlatforms);
@@ -911,12 +920,16 @@ const expertsRoutes: FastifyPluginAsync = async (fastify) => {
     const servesNationwide = parseOptionalBool(body.servesNationwide);
     if (typeof servesNationwide !== 'undefined') (data as any).servesNationwide = servesNationwide;
     if (Array.isArray(body.services)) {
-      (data as any).services = body.services.map((s) => String(s).trim().toLowerCase()).filter(Boolean);
+      const services = body.services.map((s) => String(s).trim().toLowerCase()).filter(Boolean);
+      if (!services.length) return reply.code(400).send({ error: 'At least one service is required.' });
+      (data as any).services = services;
     } else if (typeof body.services === 'string') {
-      (data as any).services = body.services
+      const services = body.services
         .split(',')
         .map((s) => s.trim().toLowerCase())
         .filter(Boolean);
+      if (!services.length) return reply.code(400).send({ error: 'At least one service is required.' });
+      (data as any).services = services;
     }
 
     if (typeof body.projects !== 'undefined') {

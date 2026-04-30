@@ -49,6 +49,30 @@ const PILL_CLASS = 'ml-pill rounded-xl px-3 py-1 text-[11px] font-medium upperca
 const PILL_MUTED_CLASS = 'ml-pill-muted rounded-xl px-3 py-1 text-[11px] font-medium uppercase tracking-[0.18em]';
 const SECTION_CLASS = 'ml-card rounded-[1.8rem] px-5 py-5 shadow-[0_16px_40px_rgba(23,26,31,0.06)] sm:px-6 sm:py-6';
 
+function formatExpertTypeLabel(expertType: Provider['expertType']) {
+  switch (expertType) {
+    case 'agency':
+      return 'Agency';
+    case 'freelancer':
+      return 'Freelancer';
+    case 'creator':
+      return 'Creator';
+    case 'specialist':
+      return 'Specialist';
+    default:
+      return 'Expert';
+  }
+}
+
+function formatAudienceSize(value: number | null | undefined) {
+  if (typeof value !== 'number' || !Number.isFinite(value) || value <= 0) return null;
+
+  return new Intl.NumberFormat('en-US', {
+    notation: 'compact',
+    maximumFractionDigits: 1,
+  }).format(value);
+}
+
 function FiltersForm({ name, city, service, match, minRating, sort, order, limit, verified, compact = false }: FiltersFormProps) {
   return (
     <form method="GET" className={`grid gap-4 ${compact ? '' : 'lg:grid-cols-12'}`}>
@@ -180,6 +204,7 @@ function ProviderCard({ provider }: { provider: Provider }) {
   const p = provider;
   const topServices = (p.services ?? []).slice(0, 3);
   const overflow = Math.max(0, (p.services?.length ?? 0) - topServices.length);
+  const expertTypeLabel = formatExpertTypeLabel(p.expertType);
   const pricingLabel = p.minProjectBudget
     ? `${p.currencyCode || 'USD'} ${p.minProjectBudget}+ min`
       : p.hourlyRateMin || p.hourlyRateMax
@@ -187,6 +212,12 @@ function ProviderCard({ provider }: { provider: Provider }) {
       : 'Request quote';
   const profileSummary = p.shortDescription ? p.shortDescription : p.tagline ? p.tagline : 'Explore services, fit, pricing guidance, and contact details.';
   const sinceLabel = new Date(p.createdAt).toLocaleDateString();
+  const creatorPlatformsLabel = p.creatorPlatforms?.length ? p.creatorPlatforms.join(' • ') : null;
+  const creatorAudienceLabel = formatAudienceSize(p.creatorAudienceSize);
+  const creatorProofBody =
+    p.creatorProofSummary ||
+    [creatorPlatformsLabel, creatorAudienceLabel ? `${creatorAudienceLabel} audience` : null].filter(Boolean).join(' • ') ||
+    null;
 
   return (
     <li className="ml-card ml-card-hover overflow-hidden rounded-[1.9rem] transition hover:-translate-y-0.5">
@@ -217,7 +248,7 @@ function ProviderCard({ provider }: { provider: Provider }) {
                     ) : null}
                   </div>
 
-                  <div className="mt-2 text-[11px] font-medium uppercase tracking-[0.22em] text-slate-500">Local marketing expert</div>
+                  <div className="mt-2 text-[11px] font-medium uppercase tracking-[0.22em] text-slate-500">{expertTypeLabel}</div>
                   <h3 className="mt-1 truncate text-[1.2rem] font-semibold tracking-tight text-slate-900 sm:text-[1.35rem]">{p.businessName}</h3>
                   <p className="mt-2 text-sm leading-6 text-slate-600 sm:max-w-2xl">{profileSummary}</p>
                 </div>
@@ -246,6 +277,20 @@ function ProviderCard({ provider }: { provider: Provider }) {
                       +{overflow} more
                     </span>
                   ) : null}
+                </div>
+              ) : null}
+
+              {p.expertType === 'creator' && creatorProofBody ? (
+                <div className="mt-4 rounded-[1.05rem] bg-slate-50 px-3 py-3 shadow-sm ring-1 ring-slate-200/80">
+                  <div className="flex flex-wrap items-center gap-2">
+                    <span className={`${PILL_CLASS} px-2.5 text-[10px]`}>Creator proof</span>
+                    {creatorPlatformsLabel ? (
+                      <span className="text-[11px] font-medium uppercase tracking-[0.18em] text-slate-500">
+                        {creatorPlatformsLabel}
+                      </span>
+                    ) : null}
+                  </div>
+                  <p className="mt-2 text-sm leading-6 text-slate-700">{creatorProofBody}</p>
                 </div>
               ) : null}
 

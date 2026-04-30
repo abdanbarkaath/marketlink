@@ -175,6 +175,30 @@ function formatToken(value: string) {
     .join(' ');
 }
 
+function formatExpertTypeLabel(expertType: Provider['expertType']) {
+  switch (expertType) {
+    case 'agency':
+      return 'Agency';
+    case 'freelancer':
+      return 'Freelancer';
+    case 'creator':
+      return 'Creator';
+    case 'specialist':
+      return 'Specialist';
+    default:
+      return 'Expert';
+  }
+}
+
+function formatAudienceSize(value: number | null | undefined) {
+  if (typeof value !== 'number' || !Number.isFinite(value) || value <= 0) return null;
+
+  return new Intl.NumberFormat('en-US', {
+    notation: 'compact',
+    maximumFractionDigits: 1,
+  }).format(value);
+}
+
 function formatMoney(value: number | null | undefined, currencyCode: string | null | undefined) {
   if (typeof value !== 'number' || !Number.isFinite(value)) return null;
 
@@ -307,9 +331,17 @@ function ProviderPageContent({ provider: p }: { provider: Provider }) {
   const coverMedia = visibleMedia.find((item) => item.type === 'cover') || visibleMedia.find((item) => getMediaPresentation(item).kind === 'image') || null;
   const hourlyRange = formatMoneyRange(p.hourlyRateMin, p.hourlyRateMax, p.currencyCode, ' / hr');
   const startingBudget = formatMoney(p.minProjectBudget, p.currencyCode);
+  const expertTypeLabel = formatExpertTypeLabel(p.expertType);
+  const creatorPlatformsLabel = p.creatorPlatforms?.length ? p.creatorPlatforms.join(' • ') : null;
+  const creatorAudienceLabel = formatAudienceSize(p.creatorAudienceSize);
+  const creatorProofBody =
+    p.creatorProofSummary ||
+    [creatorPlatformsLabel, creatorAudienceLabel ? `${creatorAudienceLabel} audience` : null].filter(Boolean).join(' • ') ||
+    null;
   const locationLabel = formatLocation(p.city, p.state, p.zip);
   const mapEmbedSrc = `https://maps.google.com/maps?hl=en&q=${encodeURIComponent(locationLabel)}&t=&z=11&ie=UTF8&iwloc=B&output=embed`;
   const decisionCards = [
+    { label: 'Expert type', value: expertTypeLabel },
     hourlyRange ? { label: 'Hourly range', value: hourlyRange } : null,
     startingBudget ? { label: 'Project minimum', value: `${startingBudget}+` } : null,
     p.responseTimeHours ? { label: 'Response time', value: `${p.responseTimeHours}h` } : null,
@@ -451,6 +483,9 @@ function ProviderPageContent({ provider: p }: { provider: Provider }) {
                     <span className={`rounded-xl px-3 py-1 text-[11px] font-medium uppercase tracking-[0.18em] ${t.brandBadge}`}>
                       Expert profile
                     </span>
+                    <span className="ml-pill-muted rounded-xl px-3 py-1 text-[11px] font-medium uppercase tracking-[0.18em]">
+                      {expertTypeLabel}
+                    </span>
                     {p.verified ? (
                       <span className="ml-pill-muted rounded-xl px-3 py-1 text-[11px] font-medium uppercase tracking-[0.18em]">
                         Verified
@@ -547,6 +582,10 @@ function ProviderPageContent({ provider: p }: { provider: Provider }) {
                     <p className="mt-3 text-sm leading-7 text-slate-600">Everything a buyer usually checks before they send the first message.</p>
                     <div className="mt-5 space-y-4 text-sm text-slate-700">
                       <div>
+                        <div className="text-[11px] font-medium uppercase tracking-[0.18em] text-slate-500">Expert type</div>
+                        <div className="mt-2 font-medium text-slate-900">{expertTypeLabel}</div>
+                      </div>
+                      <div>
                         <div className="text-[11px] font-medium uppercase tracking-[0.18em] text-slate-500">Location</div>
                         <div className="mt-2 font-medium text-slate-900">{locationLabel}</div>
                       </div>
@@ -570,6 +609,31 @@ function ProviderPageContent({ provider: p }: { provider: Provider }) {
                       </div>
                     </div>
                   </div>
+
+                  {p.expertType === 'creator' && creatorProofBody ? (
+                    <div className="ml-surface rounded-[1.75rem] px-5 py-5 shadow-sm">
+                      <div className="text-[11px] font-medium uppercase tracking-[0.22em] text-slate-500">Creator proof</div>
+                      <p className="mt-3 text-sm leading-7 text-slate-600">Signals that help a business judge audience fit and creator-specific credibility.</p>
+                      <div className="mt-5 space-y-4 text-sm text-slate-700">
+                        {creatorPlatformsLabel ? (
+                          <div>
+                            <div className="text-[11px] font-medium uppercase tracking-[0.18em] text-slate-500">Platforms</div>
+                            <div className="mt-2 font-medium text-slate-900">{creatorPlatformsLabel}</div>
+                          </div>
+                        ) : null}
+                        {creatorAudienceLabel ? (
+                          <div>
+                            <div className="text-[11px] font-medium uppercase tracking-[0.18em] text-slate-500">Audience size</div>
+                            <div className="mt-2 font-medium text-slate-900">{creatorAudienceLabel}</div>
+                          </div>
+                        ) : null}
+                        <div>
+                          <div className="text-[11px] font-medium uppercase tracking-[0.18em] text-slate-500">Proof summary</div>
+                          <p className="mt-2 leading-7 text-slate-700">{creatorProofBody}</p>
+                        </div>
+                      </div>
+                    </div>
+                  ) : null}
                 </div>
               </div>
             </div>

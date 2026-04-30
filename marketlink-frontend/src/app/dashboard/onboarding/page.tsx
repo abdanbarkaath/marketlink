@@ -7,10 +7,13 @@ const API_BASE = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:4000';
 
 const SERVICE_OPTIONS = [
   { value: 'seo', label: 'SEO' },
-  { value: 'ads', label: 'Ads' },
   { value: 'social', label: 'Social' },
+  { value: 'ads', label: 'Ads' },
+  { value: 'web', label: 'Websites' },
+  { value: 'branding', label: 'Branding' },
+  { value: 'email', label: 'Email' },
+  { value: 'content', label: 'Content' },
   { value: 'video', label: 'Video' },
-  { value: 'print', label: 'Print' },
 ];
 
 const EXPERT_TYPE_OPTIONS = [
@@ -26,13 +29,7 @@ export default function OnboardingPage() {
   const [businessName, setBusinessName] = useState('');
   const [city, setCity] = useState('');
   const [state, setState] = useState('');
-  const [zip, setZip] = useState('');
-  const [tagline, setTagline] = useState('');
-  const [logo, setLogo] = useState('');
   const [expertType, setExpertType] = useState('');
-  const [creatorPlatforms, setCreatorPlatforms] = useState<string[]>([]);
-  const [creatorAudienceSize, setCreatorAudienceSize] = useState('');
-  const [creatorProofSummary, setCreatorProofSummary] = useState('');
   const [services, setServices] = useState<string[]>([]);
 
   const [status, setStatus] = useState<'idle' | 'submitting' | 'error'>('idle');
@@ -40,17 +37,6 @@ export default function OnboardingPage() {
 
   function toggleService(val: string) {
     setServices((prev) => (prev.includes(val) ? prev.filter((v) => v !== val) : [...prev, val]));
-  }
-
-  function parseTokenInput(raw: string) {
-    return Array.from(
-      new Set(
-        raw
-          .split(',')
-          .map((s) => s.trim().toLowerCase())
-          .filter(Boolean),
-      ),
-    );
   }
 
   async function handleSubmit(e: React.FormEvent) {
@@ -62,6 +48,8 @@ export default function OnboardingPage() {
       if (!businessName.trim()) throw new Error('Business name is required.');
       if (!city.trim()) throw new Error('City is required.');
       if (!state.trim()) throw new Error('State is required.');
+      if (!expertType) throw new Error('Expert type is required.');
+      if (!services.length) throw new Error('Select at least one service.');
 
       const res = await fetch(`${API_BASE}/experts`, {
         method: 'POST',
@@ -71,13 +59,7 @@ export default function OnboardingPage() {
           businessName: businessName.trim(),
           city: city.trim(),
           state: state.trim(),
-          zip: zip.trim() || undefined,
-          tagline: tagline.trim() || undefined,
-          logo: logo.trim() || undefined,
-          expertType: expertType || undefined,
-          creatorPlatforms: expertType === 'creator' ? creatorPlatforms : undefined,
-          creatorAudienceSize: expertType === 'creator' ? creatorAudienceSize.trim() || undefined : undefined,
-          creatorProofSummary: expertType === 'creator' ? creatorProofSummary.trim() || undefined : undefined,
+          expertType,
           services,
         }),
       });
@@ -104,7 +86,7 @@ export default function OnboardingPage() {
     }
   }
 
-  const disabled = status === 'submitting' || !businessName.trim() || !city.trim() || !state.trim();
+  const disabled = status === 'submitting' || !businessName.trim() || !city.trim() || !state.trim() || !expertType || services.length === 0;
   const sectionClass =
     'rounded-[28px] border border-slate-200/80 bg-[linear-gradient(180deg,rgba(255,255,255,0.94),rgba(236,242,248,0.96))] p-5 shadow-[0_18px_50px_rgba(15,23,42,0.06)] sm:p-6';
   const fieldClass =
@@ -116,10 +98,10 @@ export default function OnboardingPage() {
       <div className="grid gap-5 lg:grid-cols-[minmax(0,1.05fr)_320px] lg:items-start">
         <section className={`${sectionClass} order-1`}>
           <div className="flex flex-col gap-1">
-            <p className="text-xs font-semibold uppercase tracking-[0.32em] text-slate-500">Provider onboarding</p>
-            <h1 className="text-3xl font-semibold tracking-tight text-slate-950 sm:text-4xl">Create your provider profile</h1>
+            <p className="text-xs font-semibold uppercase tracking-[0.32em] text-slate-500">Expert onboarding</p>
+            <h1 className="text-3xl font-semibold tracking-tight text-slate-950 sm:text-4xl">Create your expert profile</h1>
             <p className="text-sm leading-6 text-slate-600 sm:text-base">
-              Start with the essentials. You can refine pricing, case studies, and more details after the profile is live.
+              Start with the essentials that power discovery. You can add proof, pricing, and portfolio detail in your profile editor after this.
             </p>
           </div>
 
@@ -129,7 +111,7 @@ export default function OnboardingPage() {
               <input className={fieldClass} value={businessName} onChange={(e) => setBusinessName(e.target.value)} placeholder="Windy City Growth" required />
             </div>
 
-            <div className="grid grid-cols-1 gap-4 sm:grid-cols-3">
+            <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
               <div>
                 <label className="mb-1 block text-sm font-medium text-slate-700">City *</label>
                 <input className={fieldClass} value={city} onChange={(e) => setCity(e.target.value)} placeholder="Chicago" required />
@@ -138,20 +120,11 @@ export default function OnboardingPage() {
                 <label className="mb-1 block text-sm font-medium text-slate-700">State *</label>
                 <input className={fieldClass} value={state} onChange={(e) => setState(e.target.value)} placeholder="IL" maxLength={20} required />
               </div>
-              <div>
-                <label className="mb-1 block text-sm font-medium text-slate-700">ZIP</label>
-                <input className={fieldClass} value={zip} onChange={(e) => setZip(e.target.value)} placeholder="60601" />
-              </div>
             </div>
 
             <div>
-              <label className="mb-1 block text-sm font-medium text-slate-700">Tagline</label>
-              <input className={fieldClass} value={tagline} onChange={(e) => setTagline(e.target.value)} placeholder="Meta + Google Ads for local" />
-            </div>
-
-            <div>
-              <label className="mb-1 block text-sm font-medium text-slate-700">Expert type</label>
-              <select className={fieldClass} value={expertType} onChange={(e) => setExpertType(e.target.value)}>
+              <label className="mb-1 block text-sm font-medium text-slate-700">Expert type *</label>
+              <select className={fieldClass} value={expertType} onChange={(e) => setExpertType(e.target.value)} required>
                 <option value="">Select the best fit</option>
                 {EXPERT_TYPE_OPTIONS.map((opt) => (
                   <option key={opt.value} value={opt.value}>
@@ -159,57 +132,15 @@ export default function OnboardingPage() {
                   </option>
                 ))}
               </select>
-            </div>
-
-            {expertType === 'creator' ? (
-              <div className="grid gap-4 rounded-3xl border border-slate-200/80 bg-[linear-gradient(180deg,rgba(248,250,252,0.98),rgba(226,232,240,0.72))] p-4 shadow-[0_10px_30px_rgba(15,23,42,0.04)]">
-                <div>
-                  <div className="text-sm font-semibold text-slate-900">Creator proof</div>
-                  <p className="mt-1 text-xs text-slate-500">Add the channels and audience signals that help buyers understand your creator reach.</p>
-                </div>
-
-                <div>
-                  <label className="mb-1 block text-sm font-medium text-slate-700">Platforms (comma separated)</label>
-                  <input
-                    className={fieldClass}
-                    value={creatorPlatforms.join(', ')}
-                    onChange={(e) => setCreatorPlatforms(parseTokenInput(e.target.value))}
-                    placeholder="instagram, tiktok, youtube"
-                  />
-                </div>
-
-                <div>
-                  <label className="mb-1 block text-sm font-medium text-slate-700">Audience size</label>
-                  <input
-                    type="number"
-                    min="0"
-                    className={fieldClass}
-                    value={creatorAudienceSize}
-                    onChange={(e) => setCreatorAudienceSize(e.target.value)}
-                    placeholder="e.g. 50000"
-                  />
-                </div>
-
-                <div>
-                  <label className="mb-1 block text-sm font-medium text-slate-700">Proof summary</label>
-                  <textarea
-                    className={`${fieldClass} min-h-[112px]`}
-                    value={creatorProofSummary}
-                    onChange={(e) => setCreatorProofSummary(e.target.value)}
-                    placeholder="Describe your audience, content niche, and the proof buyers should know."
-                  />
-                </div>
-              </div>
-            ) : null}
-
-            <div>
-              <label className="mb-1 block text-sm font-medium text-slate-700">Logo URL</label>
-              <input className={fieldClass} value={logo} onChange={(e) => setLogo(e.target.value)} placeholder="https://.../logo.png" />
-              <p className="mt-2 text-xs text-slate-500">Upload integrations come later. Paste an image URL for now.</p>
+              <p className="mt-2 text-xs text-slate-500">
+                {expertType === 'creator'
+                  ? 'Creator proof, platform links, and audience detail can be added right after setup in your profile editor.'
+                  : 'Pick the closest fit for how buyers should understand your business.'}
+              </p>
             </div>
 
             <div>
-              <label className="mb-2 block text-sm font-medium text-slate-700">Services</label>
+              <label className="mb-2 block text-sm font-medium text-slate-700">Services *</label>
               <div className="flex flex-wrap gap-3">
                 {SERVICE_OPTIONS.map((opt) => (
                   <label key={opt.value} className="inline-flex cursor-pointer items-center gap-2 rounded-full border border-slate-200/80 bg-white px-4 py-2.5 text-sm text-slate-700 shadow-sm">
@@ -218,7 +149,7 @@ export default function OnboardingPage() {
                   </label>
                 ))}
               </div>
-              <p className="mt-2 text-xs text-slate-500">You can edit services later in your profile.</p>
+              <p className="mt-2 text-xs text-slate-500">These match the live discovery categories buyers already use on the homepage and expert directory.</p>
             </div>
 
             {error ? <p className="rounded-2xl border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700">{error}</p> : null}
@@ -241,15 +172,15 @@ export default function OnboardingPage() {
           <div className="mt-4 grid gap-3">
             <div className="rounded-2xl border border-slate-200/80 bg-[linear-gradient(180deg,rgba(248,250,252,0.98),rgba(226,232,240,0.72))] p-4 shadow-[0_10px_30px_rgba(15,23,42,0.04)]">
               <div className="text-sm font-semibold text-slate-900">1. Create the listing</div>
-              <p className="mt-1 text-sm text-slate-600">Start with business basics so your public profile has a clear foundation.</p>
+              <p className="mt-1 text-sm text-slate-600">Start with the fields buyers need first: business name, city, expert type, and services.</p>
             </div>
             <div className="rounded-2xl border border-slate-200/80 bg-[linear-gradient(180deg,rgba(248,250,252,0.98),rgba(226,232,240,0.72))] p-4 shadow-[0_10px_30px_rgba(15,23,42,0.04)]">
               <div className="text-sm font-semibold text-slate-900">2. Add proof of work</div>
-              <p className="mt-1 text-sm text-slate-600">After this, use the profile editor to add case studies, clients, and media.</p>
+              <p className="mt-1 text-sm text-slate-600">After setup, use the profile editor to add case studies, clients, media, pricing, and creator proof.</p>
             </div>
             <div className="rounded-2xl border border-slate-200/80 bg-[linear-gradient(180deg,rgba(248,250,252,0.98),rgba(226,232,240,0.72))] p-4 shadow-[0_10px_30px_rgba(15,23,42,0.04)]">
-              <div className="text-sm font-semibold text-slate-900">3. Keep it scannable</div>
-              <p className="mt-1 text-sm text-slate-600">Short positioning and the right services matter more than filling every field at once.</p>
+              <div className="text-sm font-semibold text-slate-900">3. Keep it focused</div>
+              <p className="mt-1 text-sm text-slate-600">A clear category match and strong proof matter more than stuffing every optional field in the first step.</p>
             </div>
           </div>
         </aside>

@@ -29,6 +29,21 @@ type InquiryRow = {
   createdAt: string;
 };
 
+function formatExpertTypeLabel(expertType: ExpertSummary['expertType']) {
+  switch (expertType) {
+    case 'agency':
+      return 'Agency';
+    case 'freelancer':
+      return 'Freelancer';
+    case 'creator':
+      return 'Creator';
+    case 'specialist':
+      return 'Specialist';
+    default:
+      return 'Expert';
+  }
+}
+
 export default function DashboardPage() {
   const router = useRouter();
   const { t } = useMarketLinkTheme();
@@ -136,6 +151,37 @@ const [user, setUser] = useState<User | null>(null);
   if (!user) return null;
 
   const expertLocation = expert ? `${expert.city}, ${expert.state}` : 'Create your profile to get listed.';
+  const expertTypeLabel = expert ? formatExpertTypeLabel(expert.expertType) : null;
+  const dashboardIntro = !expert
+    ? 'Create your expert profile so local businesses can discover you by city and service.'
+    : expert.status === 'active'
+    ? 'Your expert profile is live. Keep it sharp so local businesses can compare, trust, and contact you faster.'
+    : expert.status === 'pending'
+    ? 'Your expert profile is pending review. Tighten the basics and proof so it is ready to go live.'
+    : `Your expert profile is hidden from search.${expert.disabledReason ? ` Reason: ${expert.disabledReason}` : ''}`;
+  const nextSteps = !expert
+    ? [
+        { title: 'Business basics', detail: 'Add your expert name, location, type, and services so buyers can understand what you do.' },
+        { title: 'Discovery fit', detail: 'Use the same service categories buyers already browse from the homepage and directory.' },
+        { title: 'Proof later', detail: 'After setup, you can add case studies, clients, media, pricing, and creator proof.' },
+      ]
+    : expert.status === 'active'
+    ? [
+        { title: 'Stay responsive', detail: newInquiryCount && newInquiryCount > 0 ? `You have ${newInquiryCount} new buyer inquiries waiting.` : 'Check inquiries regularly and reply quickly when a buyer reaches out.' },
+        { title: 'Sharpen fit', detail: 'Keep services, short description, and expert type aligned with the kind of work you want more of.' },
+        { title: 'Build trust', detail: 'Add stronger proof with case studies, featured clients, media, or creator signals.' },
+      ]
+    : expert.status === 'pending'
+    ? [
+        { title: 'Pending review', detail: 'Your profile is not public yet, so this is the right time to tighten the basics.' },
+        { title: 'Strengthen proof', detail: 'Add projects, clients, media, or creator proof so the profile feels credible when it goes live.' },
+        { title: 'Check discovery details', detail: 'Make sure city, expert type, and services reflect how buyers should actually find you.' },
+      ]
+    : [
+        { title: 'Resolve the block', detail: expert.disabledReason || 'Update the profile details that caused it to be hidden from search.' },
+        { title: 'Rebuild trust', detail: 'Use your profile editor to tighten positioning and add proof before the profile returns to search.' },
+        { title: 'Watch inquiries', detail: 'Existing inquiry history still matters even while the public profile is hidden.' },
+      ];
 
   return (
     <main className={`${t.pageBg} min-h-[calc(100vh-72px)]`}>
@@ -144,27 +190,29 @@ const [user, setUser] = useState<User | null>(null);
           <div className="h-1.5 bg-[linear-gradient(90deg,#0f172a,#25324a,#b6bdc8)] -mx-5 -mt-5 mb-5 sm:-mx-6 sm:-mt-6 sm:mb-6" />
           <div className="flex flex-col gap-4 lg:flex-row lg:items-end lg:justify-between">
             <div>
-              <p className="text-xs font-semibold uppercase tracking-[0.32em] text-slate-500">Provider dashboard</p>
+              <p className="text-xs font-semibold uppercase tracking-[0.32em] text-slate-500">Expert dashboard</p>
               <h1 className="mt-2 text-3xl font-semibold tracking-tight text-slate-950 sm:text-4xl">Dashboard</h1>
               <div className="mt-3 flex flex-wrap items-center gap-2 text-sm">
                 <span className="font-medium text-slate-900">{user.email}</span>
                 <Pill>{user.role}</Pill>
+                {expertTypeLabel ? <Pill>{expertTypeLabel}</Pill> : null}
                 {expert ? <Pill>{expert.status}</Pill> : <Pill>Setup</Pill>}
               </div>
               <p className={`${t.mutedText} mt-3 text-sm`}>{expert ? `${expert.businessName} • ${expertLocation}` : expertLocation}</p>
+              <p className={`${t.mutedText} mt-2 max-w-3xl text-sm`}>{dashboardIntro}</p>
             </div>
 
             <div className="grid grid-cols-2 gap-3 sm:grid-cols-3">
               <div className={mutedCardClass}>
-                <div className="text-xs font-semibold uppercase tracking-[0.26em] text-slate-400">Profile</div>
+                <div className="text-xs font-semibold uppercase tracking-[0.26em] text-slate-400">Expert profile</div>
                 <div className="mt-2 text-base font-semibold text-slate-900">{expert ? expert.businessName : 'Not created'}</div>
               </div>
               <div className={mutedCardClass}>
-                <div className="text-xs font-semibold uppercase tracking-[0.26em] text-slate-400">Inquiries</div>
+                <div className="text-xs font-semibold uppercase tracking-[0.26em] text-slate-400">Buyer inquiries</div>
                 <div className="mt-2 text-base font-semibold text-slate-900">{inquiryCount === null ? '—' : inquiryCount}</div>
               </div>
               <div className={`${mutedCardClass} col-span-2 sm:col-span-1`}>
-                <div className="text-xs font-semibold uppercase tracking-[0.26em] text-slate-400">New leads</div>
+                <div className="text-xs font-semibold uppercase tracking-[0.26em] text-slate-400">New inquiries</div>
                 <div className="mt-2 text-base font-semibold text-slate-900">{newInquiryCount === null ? '—' : newInquiryCount}</div>
               </div>
             </div>
@@ -178,24 +226,24 @@ const [user, setUser] = useState<User | null>(null);
                 <div className="flex flex-col gap-5">
                   <div className="flex items-start justify-between gap-4">
                     <div>
-                      <h2 className="text-xl font-semibold text-slate-900">Set up your provider profile</h2>
-                      <p className={`mt-2 text-sm ${t.mutedText}`}>Finish setup to appear in search and start getting inquiries.</p>
+                      <h2 className="text-xl font-semibold text-slate-900">Set up your expert profile</h2>
+                      <p className={`mt-2 text-sm ${t.mutedText}`}>Finish setup to appear in city-and-service discovery and start getting buyer inquiries.</p>
                     </div>
                     <Pill>Setup</Pill>
                   </div>
 
                   <div className="grid gap-3 sm:grid-cols-3">
                     <div className={mutedCardClass}>
-                      <SectionTitle>Business</SectionTitle>
-                      <p className={`mt-1 text-sm ${t.mutedText}`}>Name, city, state</p>
+                      <SectionTitle>Core info</SectionTitle>
+                      <p className={`mt-1 text-sm ${t.mutedText}`}>Name, city, expert type</p>
                     </div>
                     <div className={mutedCardClass}>
-                      <SectionTitle>Services</SectionTitle>
-                      <p className={`mt-1 text-sm ${t.mutedText}`}>SEO, ads, social</p>
+                      <SectionTitle>Discovery fit</SectionTitle>
+                      <p className={`mt-1 text-sm ${t.mutedText}`}>Match homepage service categories</p>
                     </div>
                     <div className={mutedCardClass}>
-                      <SectionTitle>Polish</SectionTitle>
-                      <p className={`mt-1 text-sm ${t.mutedText}`}>Logo, tagline</p>
+                      <SectionTitle>Proof later</SectionTitle>
+                      <p className={`mt-1 text-sm ${t.mutedText}`}>Add trust signals after setup</p>
                     </div>
                   </div>
 
@@ -229,18 +277,12 @@ const [user, setUser] = useState<User | null>(null);
                   </div>
 
                   <div className="grid gap-3 sm:grid-cols-3">
-                    <div className={mutedCardClass}>
-                      <SectionTitle>Next step</SectionTitle>
-                      <p className={`mt-1 text-sm ${t.mutedText}`}>Check inquiries and reply fast.</p>
-                    </div>
-                    <div className={mutedCardClass}>
-                      <SectionTitle>Discoverability</SectionTitle>
-                      <p className={`mt-1 text-sm ${t.mutedText}`}>Add more services so you appear in more searches.</p>
-                    </div>
-                    <div className={mutedCardClass}>
-                      <SectionTitle>Polish</SectionTitle>
-                      <p className={`mt-1 text-sm ${t.mutedText}`}>Tighten your tagline and logo for stronger first impressions.</p>
-                    </div>
+                    {nextSteps.map((step) => (
+                      <div key={step.title} className={mutedCardClass}>
+                        <SectionTitle>{step.title}</SectionTitle>
+                        <p className={`mt-1 text-sm ${t.mutedText}`}>{step.detail}</p>
+                      </div>
+                    ))}
                   </div>
                 </div>
               </section>
@@ -254,13 +296,13 @@ const [user, setUser] = useState<User | null>(null);
 
               <div className="mt-4 grid gap-3 sm:grid-cols-2">
                 <Link href={expert ? '/dashboard/inquiries' : '/dashboard/onboarding'} className={`${mutedCardClass} transition ${t.cardHover}`} aria-disabled={!expert}>
-                  <div className="text-sm font-semibold text-slate-900">Inquiries</div>
-                  <p className={`mt-1 text-sm ${t.mutedText}`}>{expert ? 'View and respond to leads.' : 'Create a profile first to receive leads.'}</p>
+                  <div className="text-sm font-semibold text-slate-900">Buyer inquiries</div>
+                  <p className={`mt-1 text-sm ${t.mutedText}`}>{expert ? 'Review new messages, triage active buyers, and keep response times tight.' : 'Create your expert profile first to receive inquiries.'}</p>
                 </Link>
 
                 <div className={mutedCardClass}>
-                  <div className="text-sm font-semibold text-slate-900">Verification</div>
-                  <p className={`mt-1 text-sm ${t.mutedText}`}>Get verified to rank higher.</p>
+                  <div className="text-sm font-semibold text-slate-900">Profile strength</div>
+                  <p className={`mt-1 text-sm ${t.mutedText}`}>{expert ? 'Improve trust with better proof, sharper services, and clearer positioning.' : 'A stronger setup now makes the public profile easier to trust later.'}</p>
                 </div>
               </div>
             </section>
@@ -285,16 +327,16 @@ const [user, setUser] = useState<User | null>(null);
               <SectionTitle>Status</SectionTitle>
               <p className={`mt-3 text-sm ${t.mutedText}`}>
                 {!expert
-                  ? 'You are not listed yet. Complete setup to get discovered.'
+                  ? 'You are not listed yet. Complete setup so local businesses can discover you.'
                   : expert.status === 'active'
-                  ? 'Your profile is live and visible in search.'
+                  ? 'Your expert profile is live and visible in search.'
                   : expert.status === 'pending'
-                  ? 'Your profile is pending review and not visible in search yet.'
+                  ? 'Your expert profile is pending review and not visible in search yet.'
                   : expert.status === 'disabled'
-                  ? `Your profile is disabled and hidden from search.${expert.disabledReason ? ` Reason: ${expert.disabledReason}` : ''}`
+                  ? `Your expert profile is disabled and hidden from search.${expert.disabledReason ? ` Reason: ${expert.disabledReason}` : ''}`
                   : 'Your profile status is unknown.'}
               </p>
-              {expert?.status === 'pending' ? <p className={`mt-3 text-xs ${t.mutedText}`}>Tip: make sure your services and city are accurate.</p> : null}
+              {expert?.status === 'pending' ? <p className={`mt-3 text-xs ${t.mutedText}`}>Tip: make sure expert type, services, and city are accurate before the profile goes live.</p> : null}
             </section>
           </div>
         </div>
