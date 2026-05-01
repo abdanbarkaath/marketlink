@@ -36,7 +36,7 @@ test('mobile navigation opens as a readable menu sheet', async ({ page }) => {
 
   const menu = page.getByTestId('mobile-navigation-menu');
   await expect(menu).toBeVisible();
-  await expect(menu.getByText('Menu')).toBeVisible();
+  await expect(menu.getByText('MarketLink')).toBeVisible();
   await expect(menu.getByRole('link', { name: /Home/i })).toBeVisible();
   await expect(menu.getByRole('link', { name: /Browse experts/i })).toBeVisible();
 });

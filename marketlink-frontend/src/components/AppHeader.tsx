@@ -82,9 +82,9 @@ export default function AppHeader() {
     { href: '/experts', label: 'Browse experts', active: Boolean(isProvidersPage) },
     ...(canSeeDashboard ? [{ href: dashboardHref, label: 'Dashboard', active: Boolean(isDashboardPage) }] : []),
   ];
-  const mobileMenuBaseClass = 'inline-flex min-h-12 items-center justify-between rounded-2xl px-4 text-sm font-semibold transition';
-  const mobileMenuRowClass = `${mobileMenuBaseClass} bg-slate-50 text-slate-950 ring-1 ring-slate-200/80 active:scale-[0.99]`;
-  const mobileMenuActiveClass = `${mobileMenuBaseClass} bg-slate-950 text-white shadow-sm`;
+  const mobileMenuBaseClass = 'flex min-h-[4.5rem] items-center justify-between border-t border-slate-200 px-8 text-xl font-semibold tracking-[-0.02em] text-slate-950 transition active:bg-slate-50';
+  const mobileMenuRowClass = mobileMenuBaseClass;
+  const mobileMenuActiveClass = `${mobileMenuBaseClass} bg-slate-50`;
   const desktopNavShellClass =
     'hidden lg:flex items-center gap-1 rounded-[1.35rem] border border-white/14 bg-white/10 px-2 py-1.5 shadow-[0_18px_40px_rgba(15,23,42,0.12)] backdrop-blur';
   const desktopLinkClass =
@@ -144,18 +144,20 @@ export default function AppHeader() {
       </div>
 
       {mobileOpen ? (
-        <div className="pointer-events-none absolute inset-x-0 top-full z-50 px-3 pt-2 sm:px-6 lg:hidden">
+        <div className="pointer-events-none absolute inset-x-0 top-full z-50 px-5 pt-5 sm:px-10 lg:hidden">
           <div
             data-testid="mobile-navigation-menu"
-            className="pointer-events-auto overflow-hidden rounded-[1.5rem] border border-slate-200 bg-white p-3 text-slate-950 shadow-[0_24px_70px_rgba(15,23,42,0.18)]"
+            className="pointer-events-auto overflow-hidden border border-slate-200 bg-white text-slate-950 shadow-[0_24px_70px_rgba(15,23,42,0.18)]"
           >
-            <div className="px-2 pb-3 pt-1">
-              <div>
-                <div className="text-[10px] font-semibold uppercase tracking-[0.24em] text-slate-500">Menu</div>
-                <div className="mt-1 text-sm font-semibold text-slate-950">MarketLink</div>
+            <div className="flex min-h-[5.5rem] items-center justify-between px-8">
+              <div className="flex items-center gap-3">
+                <span className="inline-flex h-9 w-9 items-center justify-center rounded-lg bg-slate-950 text-sm font-semibold text-white">
+                  M
+                </span>
+                <span className="text-2xl font-semibold tracking-[-0.04em] text-slate-950">MarketLink</span>
               </div>
             </div>
-            <div className="flex flex-col gap-2">
+            <div>
               {navItems.map((item) => (
                 <Link
                   key={item.href}
@@ -163,15 +165,15 @@ export default function AppHeader() {
                   className={item.active ? mobileMenuActiveClass : mobileMenuRowClass}
                 >
                   <span>{item.label}</span>
-                  <span className="text-base leading-none text-current/55" aria-hidden="true">&rarr;</span>
+                  <span className="text-2xl leading-none text-current/75" aria-hidden="true">&rsaquo;</span>
                 </Link>
               ))}
 
               {role === null ? (
-                <div className="h-12 rounded-2xl bg-slate-50 ring-1 ring-slate-200/80" aria-hidden="true" />
+                <div className="min-h-[4.5rem] border-t border-slate-200 bg-slate-50" aria-hidden="true" />
               ) : canSeeDashboard ? (
               <>
-                <LogoutButton className={`${mobileMenuRowClass} justify-center`} />
+                <LogoutButton className={`${mobileMenuRowClass} w-full`} />
               </>
             ) : showLoginAction ? (
               <Link
@@ -179,7 +181,7 @@ export default function AppHeader() {
                 className={mobileMenuRowClass}
               >
                 <span>Sign in</span>
-                <span className="text-base leading-none text-current/55" aria-hidden="true">&rarr;</span>
+                <span className="text-2xl leading-none text-current/75" aria-hidden="true">&rsaquo;</span>
               </Link>
             ) : null}
             </div>
