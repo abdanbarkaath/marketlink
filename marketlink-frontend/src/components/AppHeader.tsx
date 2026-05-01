@@ -82,9 +82,9 @@ export default function AppHeader() {
     { href: '/experts', label: 'Browse experts', active: Boolean(isProvidersPage) },
     ...(canSeeDashboard ? [{ href: dashboardHref, label: 'Dashboard', active: Boolean(isDashboardPage) }] : []),
   ];
-  const mobileMenuBaseClass = 'inline-flex min-h-12 items-center justify-between rounded-xl border px-4 text-sm font-medium transition';
-  const mobileMenuRowClass = `${mobileMenuBaseClass} ${t.secondaryBtn}`;
-  const mobileMenuActiveClass = `${mobileMenuBaseClass} ml-btn-primary border-transparent text-white`;
+  const mobileMenuBaseClass = 'inline-flex min-h-12 items-center justify-between rounded-2xl px-4 text-sm font-semibold transition';
+  const mobileMenuRowClass = `${mobileMenuBaseClass} bg-slate-50 text-slate-950 ring-1 ring-slate-200/80 active:scale-[0.99]`;
+  const mobileMenuActiveClass = `${mobileMenuBaseClass} bg-slate-950 text-white shadow-sm`;
   const desktopNavShellClass =
     'hidden lg:flex items-center gap-1 rounded-[1.35rem] border border-white/14 bg-white/10 px-2 py-1.5 shadow-[0_18px_40px_rgba(15,23,42,0.12)] backdrop-blur';
   const desktopLinkClass =
@@ -144,12 +144,18 @@ export default function AppHeader() {
       </div>
 
       {mobileOpen ? (
-        <div className="pointer-events-none absolute inset-x-0 top-full px-4 pt-3 sm:px-6 lg:hidden">
-          <div className={`pointer-events-auto ml-auto w-full max-w-[22rem] overflow-hidden rounded-[1.5rem] border shadow-[0_18px_40px_rgba(15,23,42,0.14)] backdrop-blur ${t.header}`}>
-            <div className="border-b border-white/10 px-5 py-4">
-              <div className={`text-[11px] font-medium uppercase tracking-[0.26em] ${t.headerMutedText}`}>Navigate</div>
+        <div className="pointer-events-none absolute inset-x-0 top-full z-50 px-3 pt-2 sm:px-6 lg:hidden">
+          <div
+            data-testid="mobile-navigation-menu"
+            className="pointer-events-auto overflow-hidden rounded-[1.5rem] border border-slate-200 bg-white p-3 text-slate-950 shadow-[0_24px_70px_rgba(15,23,42,0.18)]"
+          >
+            <div className="px-2 pb-3 pt-1">
+              <div>
+                <div className="text-[10px] font-semibold uppercase tracking-[0.24em] text-slate-500">Menu</div>
+                <div className="mt-1 text-sm font-semibold text-slate-950">MarketLink</div>
+              </div>
             </div>
-            <div className="flex flex-col gap-3 px-4 py-4">
+            <div className="flex flex-col gap-2">
               {navItems.map((item) => (
                 <Link
                   key={item.href}
@@ -162,7 +168,7 @@ export default function AppHeader() {
               ))}
 
               {role === null ? (
-                <div className="h-12 rounded-xl border border-white/10 bg-white/8 opacity-60" aria-hidden="true" />
+                <div className="h-12 rounded-2xl bg-slate-50 ring-1 ring-slate-200/80" aria-hidden="true" />
               ) : canSeeDashboard ? (
               <>
                 <LogoutButton className={`${mobileMenuRowClass} justify-center`} />
