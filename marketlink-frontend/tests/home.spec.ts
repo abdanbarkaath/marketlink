@@ -50,20 +50,18 @@ test('desktop hero keeps the left side focused on one action', async ({ page }) 
   await expect(page.getByRole('link', { name: 'Browse local experts' })).toBeVisible();
 });
 
-test('desktop hero explains the product with a vertical checklist', async ({ page }) => {
+test('desktop hero shows the animated discovery visual', async ({ page }) => {
   await page.setViewportSize({ width: 1440, height: 900 });
   await page.goto(BASE_URL);
 
-  const checklist = page.getByTestId('desktop-product-checklist');
-  await expect(checklist).toBeVisible();
-  await expect(checklist.getByTestId('desktop-product-checklist-item')).toHaveCount(3);
-  await expect(checklist.getByText('Find local experts')).toBeVisible();
-  await expect(checklist.getByText('Compare best fits')).toBeVisible();
-  await expect(checklist.getByText('Get real results')).toBeVisible();
-  await expect(checklist.getByTestId('desktop-product-checklist-icon')).toHaveCount(3);
-  const resultIcon = checklist.getByTestId('desktop-product-checklist-item').filter({ hasText: 'Get real results' }).getByTestId('desktop-product-checklist-icon');
-  await expect(resultIcon).toContainText('100');
-  await expect(resultIcon).not.toHaveClass(/.*bg-slate-950.*/);
+  const animation = page.getByTestId('desktop-homepage-discovery-animation');
+  await expect(animation).toBeVisible();
+  await expect(animation.getByText('MarketLink flow')).toBeVisible();
+  const visualLabels = animation.getByTestId('desktop-homepage-discovery-visual-label');
+  await expect(visualLabels).toHaveCount(3);
+  await expect(visualLabels.filter({ hasText: 'Find local experts' })).toBeVisible();
+  await expect(visualLabels.filter({ hasText: 'Compare best fits' })).toBeVisible();
+  await expect(visualLabels.filter({ hasText: 'Get real results' })).toBeVisible();
 });
 
 test('desktop keeps problem choices inside the hero starting point panel', async ({ page }) => {
@@ -113,6 +111,9 @@ test.describe('mobile problem-first discovery', () => {
 
   test('shows compact problem cards before the full service grid', async ({ page }) => {
     await expect(page.getByRole('heading', { name: 'Choose a starting point' })).toBeVisible();
+    const animation = page.getByTestId('mobile-homepage-discovery-animation');
+    await expect(animation).toBeVisible();
+    await expect(animation.getByTestId('mobile-homepage-discovery-visual-label')).toHaveCount(3);
     await expect(page.getByTestId('mobile-problem-card')).toHaveCount(4);
     const mobileCards = page.getByTestId('mobile-problem-card');
     await expect(mobileCards.filter({ hasText: "People can't find my business" })).toBeVisible();

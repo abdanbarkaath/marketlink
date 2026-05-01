@@ -1,6 +1,7 @@
 'use client';
 
 import Link from 'next/link';
+import { HomepageDiscoveryAnimation } from '@/components/HomepageDiscoveryAnimation';
 import { useMarketLinkTheme } from '@/components/ThemeToggle';
 import {
   getDiscoveryProblemHref,
@@ -28,12 +29,6 @@ const DESKTOP_HERO_PROBLEM_CARD_IDS = new Set([
   'need-more-calls',
   'website-not-helping',
 ]);
-
-const HERO_PRODUCT_STEPS = [
-  { icon: '🔎', label: 'Look up experts' },
-  { icon: '⚖', label: 'Compare the best fit' },
-  { icon: '💯', label: 'Get results' },
-];
 
 export default function Home() {
   const { t } = useMarketLinkTheme();
@@ -67,6 +62,8 @@ export default function Home() {
               Help me choose
             </Link>
           </div>
+
+          <HomepageDiscoveryAnimation compact />
 
           <div id="mobile-problems" className="mt-7">
             <div className={`text-[11px] font-medium uppercase tracking-[0.22em] ${t.mutedText}`}>Start with the problem</div>
@@ -134,85 +131,8 @@ export default function Home() {
                 </Link>
               </div>
 
-              <div data-testid="desktop-product-checklist" className="mt-1 max-w-sm">
-                {HERO_PRODUCT_STEPS.map((step, index) => {
-                  const isFinal = index === HERO_PRODUCT_STEPS.length - 1;
-                  const displayLabel = ['Find local experts', 'Compare best fits', 'Get real results'][index];
-
-                  return (
-                    <div
-                      key={displayLabel}
-                      data-testid="desktop-product-checklist-item"
-                      className="hero-step relative grid grid-cols-[minmax(0,15rem)_3.5rem] items-center gap-6 pb-4 opacity-0 last:pb-0 motion-reduce:opacity-100"
-                      style={{ animationDelay: `${index * 140}ms` }}
-                    >
-                      {index < HERO_PRODUCT_STEPS.length - 1 ? (
-                        <span className="hero-step-line absolute right-7 top-12 h-[calc(100%-2rem)] w-px origin-top scale-y-0 bg-slate-200 motion-reduce:scale-y-100" aria-hidden="true" />
-                      ) : null}
-                      <span className={`text-[1.35rem] font-semibold leading-tight tracking-[-0.015em] ${isFinal ? 'text-slate-950' : 'text-slate-800'}`}>
-                        {displayLabel}
-                      </span>
-                      <span
-                        data-testid="desktop-product-checklist-icon"
-                        className={[
-                          'relative z-10 grid h-12 w-12 shrink-0 place-items-center leading-none',
-                          isFinal
-                            ? 'bg-transparent text-[0.95rem] font-black text-rose-600'
-                            : 'rounded-full bg-white text-[1.45rem] text-slate-700 shadow-sm ring-1 ring-slate-200',
-                        ].join(' ')}
-                        aria-hidden="true"
-                      >
-                        {isFinal ? (
-                          <span className="relative inline-block after:absolute after:inset-x-0 after:-bottom-1 after:h-0.5 after:rounded-full after:bg-rose-500">
-                            100
-                          </span>
-                        ) : (
-                          step.icon
-                        )}
-                      </span>
-                    </div>
-                  );
-                })}
-              </div>
+              <HomepageDiscoveryAnimation />
             </div>
-
-            <style>{`
-              @keyframes hero-step-in {
-                from {
-                  opacity: 0;
-                  transform: translateX(-18px);
-                }
-                to {
-                  opacity: 1;
-                  transform: translateX(0);
-                }
-              }
-
-              .hero-step {
-                animation: hero-step-in 520ms cubic-bezier(0.2, 0.8, 0.2, 1) forwards;
-              }
-
-              .hero-step-line {
-                animation: hero-step-line 520ms cubic-bezier(0.2, 0.8, 0.2, 1) forwards;
-                animation-delay: inherit;
-              }
-
-              @keyframes hero-step-line {
-                from {
-                  transform: scaleY(0);
-                }
-                to {
-                  transform: scaleY(1);
-                }
-              }
-
-              @media (prefers-reduced-motion: reduce) {
-                .hero-step,
-                .hero-step-line {
-                  animation: none;
-                }
-              }
-            `}</style>
 
             <aside
               data-testid="desktop-problem-panel"
