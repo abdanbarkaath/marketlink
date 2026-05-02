@@ -86,15 +86,15 @@ export default function AppHeader() {
   const mobileMenuRowClass = mobileMenuBaseClass;
   const mobileMenuActiveClass = `${mobileMenuBaseClass} bg-slate-50`;
   const desktopNavShellClass =
-    'hidden lg:flex items-center gap-1 rounded-[1.35rem] border border-white/14 bg-white/10 px-2 py-1.5 shadow-[0_18px_40px_rgba(15,23,42,0.12)] backdrop-blur';
+    'hidden lg:flex items-center gap-1 rounded-[1.35rem] border border-slate-200 bg-white/85 px-2 py-1.5 shadow-[0_18px_40px_rgba(15,23,42,0.08)] backdrop-blur';
   const desktopLinkClass =
-    'inline-flex items-center rounded-xl px-3 py-2 text-sm font-medium transition text-[rgb(var(--ml-header-muted))] hover:bg-white/10 hover:text-[rgb(var(--ml-header-text))]';
-  const desktopActiveLinkClass = 'inline-flex items-center rounded-xl px-3 py-2 text-sm font-medium bg-white/14 text-[rgb(var(--ml-header-text))]';
+    'inline-flex items-center rounded-xl px-3 py-2 text-sm font-medium text-slate-700 transition hover:bg-slate-100 hover:text-slate-950';
+  const desktopActiveLinkClass = 'inline-flex items-center rounded-xl bg-slate-100 px-3 py-2 text-sm font-medium text-slate-950';
   const actionButtonClass = `inline-flex min-h-11 items-center justify-center rounded-xl border px-4 text-sm font-medium shadow-sm transition ${t.secondaryBtn}`;
   const mobileMenuButtonClass = 'inline-flex h-11 w-11 items-center justify-center rounded-xl border border-slate-200 bg-white text-slate-950 shadow-sm transition lg:hidden';
 
   return (
-    <header className="sticky top-0 z-50 relative border-b border-slate-200 bg-white shadow-[0_12px_30px_rgba(15,23,42,0.05)] lg:ml-header">
+    <header className="sticky top-0 z-50 relative border-b border-slate-200 bg-white shadow-[0_12px_30px_rgba(15,23,42,0.05)]">
       <div className="mx-auto flex max-w-7xl items-center justify-between gap-4 px-4 py-3 sm:px-6 sm:py-4 lg:hidden">
         <Link href="/" className="flex min-w-0 items-center gap-3 text-slate-950">
           <span className="inline-flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-slate-950 text-sm font-semibold text-white shadow-sm">
@@ -128,12 +128,12 @@ export default function AppHeader() {
       </div>
 
       <div className="mx-auto hidden max-w-7xl items-center justify-between gap-4 px-4 py-3 sm:px-6 sm:py-4 lg:flex">
-        <Link href="/" className={`flex min-w-0 items-center gap-3 ${t.headerText}`}>
+        <Link href="/" className="flex min-w-0 items-center gap-3 text-slate-950">
           <span className={`inline-flex h-10 w-10 shrink-0 items-center justify-center rounded-2xl ${t.brandBadge} shadow-[0_16px_36px_rgba(15,23,42,0.18)]`}>
             M
           </span>
           <span className="min-w-0">
-            <span className={`block text-[11px] font-medium uppercase tracking-[0.32em] ${t.headerMutedText}`}>Local Growth Marketplace</span>
+            <span className="block text-[11px] font-medium uppercase tracking-[0.32em] text-slate-400">Local Growth Marketplace</span>
             <span className="block truncate text-lg font-semibold tracking-tight sm:text-xl">MarketLink</span>
           </span>
         </Link>
@@ -148,7 +148,7 @@ export default function AppHeader() {
           </nav>
 
           {role === null ? (
-            <div className="h-11 w-28 rounded-xl border border-white/10 bg-white/8 opacity-60" aria-hidden="true" />
+            <div className="h-11 w-28 rounded-xl border border-slate-200 bg-slate-100 opacity-60" aria-hidden="true" />
           ) : canSeeDashboard ? (
             <LogoutButton className={actionButtonClass} />
           ) : showLoginAction ? (
