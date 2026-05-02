@@ -91,11 +91,43 @@ export default function AppHeader() {
     'inline-flex items-center rounded-xl px-3 py-2 text-sm font-medium transition text-[rgb(var(--ml-header-muted))] hover:bg-white/10 hover:text-[rgb(var(--ml-header-text))]';
   const desktopActiveLinkClass = 'inline-flex items-center rounded-xl px-3 py-2 text-sm font-medium bg-white/14 text-[rgb(var(--ml-header-text))]';
   const actionButtonClass = `inline-flex min-h-11 items-center justify-center rounded-xl border px-4 text-sm font-medium shadow-sm transition ${t.secondaryBtn}`;
-  const mobileMenuButtonClass = `inline-flex h-11 w-11 items-center justify-center rounded-xl border text-current shadow-sm transition lg:hidden ${t.secondaryBtn} ${t.headerText}`;
+  const mobileMenuButtonClass = 'inline-flex h-11 w-11 items-center justify-center rounded-xl border border-slate-200 bg-white text-slate-950 shadow-sm transition lg:hidden';
 
   return (
-    <header className={`sticky top-0 z-50 border-b ${t.header} relative shadow-[0_12px_30px_rgba(15,23,42,0.05)]`}>
-      <div className="mx-auto flex max-w-7xl items-center justify-between gap-4 px-4 py-3 sm:px-6 sm:py-4">
+    <header className="sticky top-0 z-50 relative border-b border-slate-200 bg-white shadow-[0_12px_30px_rgba(15,23,42,0.05)] lg:ml-header">
+      <div className="mx-auto flex max-w-7xl items-center justify-between gap-4 px-4 py-3 sm:px-6 sm:py-4 lg:hidden">
+        <Link href="/" className="flex min-w-0 items-center gap-3 text-slate-950">
+          <span className="inline-flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-slate-950 text-sm font-semibold text-white shadow-sm">
+            M
+          </span>
+          <span className="block truncate text-xl font-semibold tracking-[-0.04em]">MarketLink</span>
+        </Link>
+
+        <button
+          type="button"
+          className={mobileMenuButtonClass}
+          aria-expanded={mobileOpen}
+          aria-label={mobileOpen ? 'Close navigation menu' : 'Open navigation menu'}
+          onClick={() => setMobileOpen((value) => !value)}
+        >
+          <span className="relative block h-5 w-5 shrink-0">
+            {mobileOpen ? (
+              <>
+                <span className="absolute left-0 top-1/2 h-0.5 w-5 -translate-y-1/2 rotate-45 bg-current" />
+                <span className="absolute left-0 top-1/2 h-0.5 w-5 -translate-y-1/2 -rotate-45 bg-current" />
+              </>
+            ) : (
+              <>
+                <span className="absolute left-0 top-0.5 h-0.5 w-5 bg-current" />
+                <span className="absolute left-0 top-[9px] h-0.5 w-5 bg-current" />
+                <span className="absolute left-0 top-[17px] h-0.5 w-5 bg-current" />
+              </>
+            )}
+          </span>
+        </button>
+      </div>
+
+      <div className="mx-auto hidden max-w-7xl items-center justify-between gap-4 px-4 py-3 sm:px-6 sm:py-4 lg:flex">
         <Link href="/" className={`flex min-w-0 items-center gap-3 ${t.headerText}`}>
           <span className={`inline-flex h-10 w-10 shrink-0 items-center justify-center rounded-2xl ${t.brandBadge} shadow-[0_16px_36px_rgba(15,23,42,0.18)]`}>
             M
@@ -107,53 +139,28 @@ export default function AppHeader() {
         </Link>
 
         <div className="flex items-center gap-3">
-          <div className="hidden lg:flex items-center gap-3">
-            <nav className={desktopNavShellClass}>
-              {navItems.map((item) => (
-                <Link key={item.href} href={item.href} className={item.active ? desktopActiveLinkClass : desktopLinkClass}>
-                  {item.label}
-                </Link>
-              ))}
-            </nav>
-
-            {role === null ? (
-              <div className="h-11 w-28 rounded-xl border border-white/10 bg-white/8 opacity-60" aria-hidden="true" />
-            ) : canSeeDashboard ? (
-              <LogoutButton className={actionButtonClass} />
-            ) : showLoginAction ? (
-              <Link href="/login" className={actionButtonClass}>
-                Sign in
+          <nav className={desktopNavShellClass}>
+            {navItems.map((item) => (
+              <Link key={item.href} href={item.href} className={item.active ? desktopActiveLinkClass : desktopLinkClass}>
+                {item.label}
               </Link>
-            ) : null}
-          </div>
+            ))}
+          </nav>
 
-          <button
-            type="button"
-            className={mobileMenuButtonClass}
-            aria-expanded={mobileOpen}
-            aria-label={mobileOpen ? 'Close navigation menu' : 'Open navigation menu'}
-            onClick={() => setMobileOpen((value) => !value)}
-          >
-            <span className="relative block h-5 w-5 shrink-0">
-              {mobileOpen ? (
-                <>
-                  <span className="absolute left-0 top-1/2 h-0.5 w-5 -translate-y-1/2 rotate-45 bg-current" />
-                  <span className="absolute left-0 top-1/2 h-0.5 w-5 -translate-y-1/2 -rotate-45 bg-current" />
-                </>
-              ) : (
-                <>
-                  <span className="absolute left-0 top-0.5 h-0.5 w-5 bg-current" />
-                  <span className="absolute left-0 top-[9px] h-0.5 w-5 bg-current" />
-                  <span className="absolute left-0 top-[17px] h-0.5 w-5 bg-current" />
-                </>
-              )}
-            </span>
-          </button>
+          {role === null ? (
+            <div className="h-11 w-28 rounded-xl border border-white/10 bg-white/8 opacity-60" aria-hidden="true" />
+          ) : canSeeDashboard ? (
+            <LogoutButton className={actionButtonClass} />
+          ) : showLoginAction ? (
+            <Link href="/login" className={actionButtonClass}>
+              Sign in
+            </Link>
+          ) : null}
         </div>
       </div>
 
       {mobileOpen ? (
-        <div className="fixed inset-x-0 top-[68px] z-[60] h-[calc(100vh-68px)] bg-[#dceff1] px-5 pt-5 sm:px-10 lg:hidden">
+        <div className="fixed inset-x-0 top-[69px] z-[60] h-[calc(100vh-69px)] bg-white/40 px-5 pt-5 backdrop-blur-lg sm:px-10 lg:hidden">
           <div
             data-testid="mobile-navigation-menu"
             className="overflow-hidden border border-slate-200 bg-white text-slate-950 shadow-[0_24px_70px_rgba(15,23,42,0.18)]"
