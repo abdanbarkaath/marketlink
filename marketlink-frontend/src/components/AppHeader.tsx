@@ -134,38 +134,30 @@ export default function AppHeader() {
             aria-label={mobileOpen ? 'Close navigation menu' : 'Open navigation menu'}
             onClick={() => setMobileOpen((value) => !value)}
           >
-            <span className="relative block h-4 w-4 shrink-0">
-              <span className={`absolute left-0 top-0 h-0.5 w-4 bg-current transition ${mobileOpen ? 'translate-y-[7px] rotate-45' : ''}`} />
-              <span className={`absolute left-0 top-[7px] h-0.5 w-4 bg-current transition ${mobileOpen ? 'opacity-0' : ''}`} />
-              <span className={`absolute left-0 top-[14px] h-0.5 w-4 bg-current transition ${mobileOpen ? '-translate-y-[7px] -rotate-45' : ''}`} />
+            <span className="relative block h-5 w-5 shrink-0">
+              {mobileOpen ? (
+                <>
+                  <span className="absolute left-0 top-1/2 h-0.5 w-5 -translate-y-1/2 rotate-45 bg-current" />
+                  <span className="absolute left-0 top-1/2 h-0.5 w-5 -translate-y-1/2 -rotate-45 bg-current" />
+                </>
+              ) : (
+                <>
+                  <span className="absolute left-0 top-0.5 h-0.5 w-5 bg-current" />
+                  <span className="absolute left-0 top-[9px] h-0.5 w-5 bg-current" />
+                  <span className="absolute left-0 top-[17px] h-0.5 w-5 bg-current" />
+                </>
+              )}
             </span>
           </button>
         </div>
       </div>
 
       {mobileOpen ? (
-        <div className="fixed inset-0 z-[60] h-screen bg-[#dceff1] px-5 pt-5 sm:px-10 lg:hidden">
+        <div className="fixed inset-x-0 top-[68px] z-[60] h-[calc(100vh-68px)] bg-[#dceff1] px-5 pt-5 sm:px-10 lg:hidden">
           <div
             data-testid="mobile-navigation-menu"
             className="overflow-hidden border border-slate-200 bg-white text-slate-950 shadow-[0_24px_70px_rgba(15,23,42,0.18)]"
           >
-            <div className="flex min-h-[5.75rem] items-center justify-between px-8">
-              <div className="flex items-center gap-3">
-                <span className="inline-flex h-9 w-9 items-center justify-center rounded-lg bg-slate-950 text-sm font-semibold text-white">
-                  M
-                </span>
-                <span className="text-2xl font-semibold tracking-[-0.04em] text-slate-950">MarketLink</span>
-              </div>
-              <button
-                type="button"
-                className="relative h-11 w-11 text-slate-950"
-                aria-label="Close navigation menu"
-                onClick={() => setMobileOpen(false)}
-              >
-                <span className="absolute left-2 top-1/2 h-0.5 w-8 -translate-y-1/2 rotate-45 bg-current" />
-                <span className="absolute left-2 top-1/2 h-0.5 w-8 -translate-y-1/2 -rotate-45 bg-current" />
-              </button>
-            </div>
             <div>
               {navItems.map((item) => (
                 <Link
