@@ -129,7 +129,7 @@ export default function AppHeader() {
 
       <div className="mx-auto hidden max-w-7xl items-center justify-between gap-4 px-4 py-3 sm:px-6 sm:py-4 lg:flex">
         <Link href="/" className="flex min-w-0 items-center gap-3 text-slate-950">
-          <span className={`inline-flex h-10 w-10 shrink-0 items-center justify-center rounded-2xl ${t.brandBadge} shadow-[0_16px_36px_rgba(15,23,42,0.18)]`}>
+          <span className="inline-flex h-10 w-10 shrink-0 items-center justify-center rounded-lg bg-slate-950 text-sm font-semibold text-white shadow-sm">
             M
           </span>
           <span className="min-w-0">
