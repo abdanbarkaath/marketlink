@@ -39,6 +39,9 @@ test('mobile navigation opens as a readable menu sheet', async ({ page }) => {
   await expect(menu.getByText('MarketLink')).toBeVisible();
   await expect(menu.getByRole('link', { name: /Home/i })).toBeVisible();
   await expect(menu.getByRole('link', { name: /Browse experts/i })).toBeVisible();
+
+  await menu.getByRole('button', { name: 'Close navigation menu' }).click();
+  await expect(menu).not.toBeVisible();
 });
 
 test('desktop hero shows problem-first discovery choices', async ({ page }) => {

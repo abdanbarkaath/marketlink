@@ -82,7 +82,7 @@ export default function AppHeader() {
     { href: '/experts', label: 'Browse experts', active: Boolean(isProvidersPage) },
     ...(canSeeDashboard ? [{ href: dashboardHref, label: 'Dashboard', active: Boolean(isDashboardPage) }] : []),
   ];
-  const mobileMenuBaseClass = 'flex min-h-[4.5rem] items-center justify-between border-t border-slate-200 px-8 text-xl font-semibold tracking-[-0.02em] text-slate-950 transition active:bg-slate-50';
+  const mobileMenuBaseClass = 'flex min-h-[4.65rem] items-center justify-between border-t border-slate-200 px-8 text-[1.35rem] font-semibold tracking-[-0.02em] text-slate-950 transition active:bg-slate-50';
   const mobileMenuRowClass = mobileMenuBaseClass;
   const mobileMenuActiveClass = `${mobileMenuBaseClass} bg-slate-50`;
   const desktopNavShellClass =
@@ -144,18 +144,27 @@ export default function AppHeader() {
       </div>
 
       {mobileOpen ? (
-        <div className="pointer-events-none absolute inset-x-0 top-full z-50 px-5 pt-5 sm:px-10 lg:hidden">
+        <div className="fixed inset-0 z-[60] h-screen bg-[#dceff1] px-5 pt-5 sm:px-10 lg:hidden">
           <div
             data-testid="mobile-navigation-menu"
-            className="pointer-events-auto overflow-hidden border border-slate-200 bg-white text-slate-950 shadow-[0_24px_70px_rgba(15,23,42,0.18)]"
+            className="overflow-hidden border border-slate-200 bg-white text-slate-950 shadow-[0_24px_70px_rgba(15,23,42,0.18)]"
           >
-            <div className="flex min-h-[5.5rem] items-center justify-between px-8">
+            <div className="flex min-h-[5.75rem] items-center justify-between px-8">
               <div className="flex items-center gap-3">
                 <span className="inline-flex h-9 w-9 items-center justify-center rounded-lg bg-slate-950 text-sm font-semibold text-white">
                   M
                 </span>
                 <span className="text-2xl font-semibold tracking-[-0.04em] text-slate-950">MarketLink</span>
               </div>
+              <button
+                type="button"
+                className="relative h-11 w-11 text-slate-950"
+                aria-label="Close navigation menu"
+                onClick={() => setMobileOpen(false)}
+              >
+                <span className="absolute left-2 top-1/2 h-0.5 w-8 -translate-y-1/2 rotate-45 bg-current" />
+                <span className="absolute left-2 top-1/2 h-0.5 w-8 -translate-y-1/2 -rotate-45 bg-current" />
+              </button>
             </div>
             <div>
               {navItems.map((item) => (
