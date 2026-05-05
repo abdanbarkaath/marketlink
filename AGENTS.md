@@ -2,14 +2,14 @@
 
 ## Project Identity
 
-MarketLink is a marketplace that connects local businesses with marketing providers.
+MarketLink is a marketplace that connects local businesses with local marketing providers.
 
-This is a two-app repo:
+This repo has two apps:
 
-- marketlink-frontend → Next.js (App Router)
-- marketlink-backend → Fastify + Prisma
+- `marketlink-frontend`: Next.js App Router frontend
+- `marketlink-backend`: Fastify + Prisma backend
 
-Goal: ship a clean MVP fast, avoid overengineering.
+Goal: ship a clean MVP fast with good code, simple UX, and minimal overengineering.
 
 ---
 
@@ -17,7 +17,7 @@ Goal: ship a clean MVP fast, avoid overengineering.
 
 ### Frontend
 
-- Next.js 15 (App Router)
+- Next.js 15 App Router
 - React 19
 - TypeScript
 - TailwindCSS
@@ -27,172 +27,330 @@ Goal: ship a clean MVP fast, avoid overengineering.
 - Fastify
 - Prisma ORM
 - PostgreSQL
-- bcryptjs (password hashing)
+- bcryptjs
 - Cookie-based sessions
-
----
-
-## Repo Structure
-
-marketlink/
-marketlink-backend/
-marketlink-frontend/
 
 ---
 
 ## Package Manager
 
-- Use npm only
+Use npm only.
+
+Do not use pnpm or yarn.
 
 ---
 
-## Development Philosophy
+## MVP Philosophy
 
-- Speed > perfection
-- Simple > scalable (for MVP)
-- Extend existing code, do not rebuild
+- Ship useful features before perfect features.
+- Prefer simple, readable code over clever abstractions.
+- Improve existing code instead of rebuilding from scratch.
+- Keep changes small and easy to review.
+- Avoid adding new libraries unless there is a clear need.
+- Do not build future-proof architecture before the MVP needs it.
+
+---
+
+## Code Quality Rules
+
+Write clean, maintainable, refactored code.
+
+Good code means:
+
+- Clear naming
+- Small functions
+- Simple conditionals
+- No duplicated logic when it can be safely shared
+- No unnecessary abstraction
+- No unrelated refactors
+- No dead code
+- No console logs left behind unless needed for debugging and explicitly allowed
+- No large rewrites unless requested
+
+Refactor only when it directly improves the requested change.
+
+Do not refactor unrelated files just because they can be improved.
+
+---
+
+## Comment Rules
+
+Use comments only when they add real value.
+
+Good comments explain:
+
+- Why something exists
+- A non-obvious business rule
+- A temporary workaround
+- A risky edge case
+
+Avoid comments that explain obvious code.
+
+Bad comment example:
+
+    // Set loading to true
+    setLoading(true);
+
+Good comment example:
+
+    // Preserve existing query params so provider filters remain shareable.
+
+Do not add excessive comments.
+
+Code should mostly explain itself through naming and structure.
+
+---
+
+## Scope Rules
+
+Before making changes:
+
+1. Inspect the existing code.
+2. Identify the relevant files.
+3. Explain the smallest safe change.
+4. Then edit only what is needed.
+
+For pure UI, copy, styling, or layout changes:
+
+- Inspect only the relevant frontend files.
+- Do not inspect backend unless API behavior is involved.
+- Do not change backend code.
+
+For data, auth, admin, filters, forms, API, or database changes:
+
+- Check backend routes first.
+- Check Prisma schema if database fields are involved.
+- Then check how the frontend consumes the API.
+
+Backend is the source of truth for:
+
+- Data
+- Auth
+- Validation
+- Permissions
+- Business rules
+
+Frontend should handle:
+
+- UI
+- Interaction
+- Display states
+- Client-side UX
 
 ---
 
 ## Strict Working Rules
 
-- Always read existing code before suggesting changes
-- Never assume anything exists — verify
-- Work step-by-step
-- Do not refactor unrelated code
+- Always verify existing code before changing it.
+- Never assume a route, schema field, helper, prop, env var, or UI path exists.
+- Do not invent API endpoints.
+- Do not invent database fields.
+- Do not invent frontend props.
+- Do not invent environment variables.
+- Do not touch unrelated files.
+- Do not browse or research online unless explicitly asked.
+- Do not make broad architectural changes unless requested.
+- Preserve existing behavior unless the task clearly asks to change it.
 
 ---
 
-## Working Rules
+## Frontend Rules
 
-- Always inspect BOTH folders before making changes:
+Frontend lives in `marketlink-frontend`.
 
-  - marketlink-backend
-  - marketlink-frontend
+Use:
 
-- Never assume where logic lives.
+- React functional components
+- TypeScript
+- TailwindCSS
+- Next.js App Router patterns
 
-  - Backend = source of truth (data, auth, validation)
-  - Frontend = UI + interaction
+Frontend code should be:
 
-- For ANY feature:
-  - Check backend routes first
-  - Then check how frontend consumes them
+- Accessible
+- Responsive
+- Easy to scan
+- Componentized only when it helps readability
+- Consistent with existing styling
 
----
+Accessibility expectations:
 
-- Always inspect the existing file before proposing or making changes.
-- Never assume a route, schema field, env var, helper, or UI path exists. Verify it first.
+- Use semantic HTML where possible.
+- Use labels for form fields.
+- Keep keyboard navigation working.
+- Keep focus states visible.
+- Use ARIA only when semantic HTML is not enough.
+- Do not create clickable `div`s when a `button` or `a` is correct.
 
-- Work step by step.
-- Change ONE file at a time unless explicitly told otherwise.
-- Do not refactor unrelated code.
+Avoid:
 
----
-
-- Do NOT invent:
-
-  - API endpoints
-  - database fields
-  - frontend props
-  - env variables
-
-- Prefer extending existing logic over creating new patterns.
-
----
-
-- Before coding:
-
-  1. List relevant files (backend + frontend)
-  2. Explain what exists
-  3. Identify smallest change
-
-- After editing ONE file:
-  - Stop
-  - Explain what changed
+- Overcomplicated state
+- Large components with mixed responsibilities
+- Unnecessary client components
+- Heavy animations unless requested
+- Duplicating backend validation as the source of truth
 
 ---
 
-- For backend-related features:
+## Backend Rules
 
-  - Validate logic server-side first
-  - Then update frontend
+Backend lives in `marketlink-backend`.
 
-- For frontend changes:
-  - Do NOT duplicate backend logic
-  - Always rely on API
+Use:
+
+- Fastify
+- Prisma
+- PostgreSQL
+
+Backend code should be:
+
+- Simple
+- Validated server-side
+- Easy to debug
+- Consistent with existing routes and patterns
+
+Rules:
+
+- Do not change Prisma schema unless explicitly asked.
+- Do not create migrations unless explicitly asked.
+- Preserve existing filters, sorting, pagination, auth, and admin behavior unless requested.
+- Keep route handlers readable.
+- Extract helpers only when they reduce real duplication.
+- Do not hide simple logic behind unnecessary abstractions.
 
 ---
 
-- For auth/admin features:
-  - Always verify server-side authorization
-  - Never rely only on hidden routes or UI protection
+## Auth Rules
 
----
-
-- For email features:
-  - First check if email system already exists
-  - If not, introduce it cleanly (single helper file)
-
----
-
-- When unsure:
-  → STOP  
-  → Ask for the file  
-  → Do NOT guess
-
-## Auth System
+Current auth system:
 
 - Email + password
 - Session-based auth
-- bcryptjs hashing
+- bcryptjs password hashing
 
-Endpoints:
+Known endpoints:
 
-- POST /auth/login
-- GET /auth/me
-- POST /auth/logout
-- GET /me/summary
+- `POST /auth/login`
+- `GET /auth/me`
+- `POST /auth/logout`
+- `GET /me/summary`
+
+Rules:
+
+- Always verify authorization server-side.
+- Never rely only on hidden frontend routes.
+- Never rely only on UI protection.
+- Keep protected dashboard and admin behavior secure.
 
 ---
 
 ## Admin Rules
 
-- Must validate: user.role === 'admin'
-- Admin UI lives in /dashboard/admin
-- Extend existing PATCH /admin/providers/:id
+Admin UI lives in `/dashboard/admin`.
+
+Admin actions must validate:
+
+    user.role === "admin"
+
+Existing provider admin route:
+
+    PATCH /admin/providers/:id
+
+Prefer extending existing admin behavior instead of creating new admin patterns.
 
 ---
 
-## Email System
+## Email Rules
 
-- Not implemented yet
-- Use Resend when adding
+Email is not implemented yet.
 
-Rules:
+When adding email:
 
-- Never send permanent passwords
-- Always use mustChangePassword = true
+- Use Resend only if explicitly requested.
+- First check if an email helper already exists.
+- If no helper exists, create one clean helper file.
+- Never send permanent passwords.
+- If temporary passwords or invited users are added, verify or create a `mustChangePassword` flow explicitly.
+
+Do not assume `mustChangePassword` exists unless verified in the schema.
+
+---
+
+## Refactoring Rules
+
+Refactor when:
+
+- It reduces duplication directly related to the task.
+- It makes the changed code easier to understand.
+- It removes dead or confusing code from the touched area.
+- It improves safety without changing behavior.
+
+Do not refactor when:
+
+- The refactor is unrelated to the task.
+- It touches many files for a small UX change.
+- It changes behavior accidentally.
+- It delays MVP progress.
+
+Small cleanup is good. Random renovation is not.
 
 ---
 
 ## Commands
 
 Frontend:
-cd marketlink-frontend
-npm install
-npm run dev
+
+    cd marketlink-frontend
+    npm install
+    npm run dev
+    npm run build
+    npm run lint
 
 Backend:
-cd marketlink-backend
-npm install
-npm run dev
-npx prisma generate
-npx prisma migrate dev
+
+    cd marketlink-backend
+    npm install
+    npm run dev
+    npm run build
+    npx prisma generate
+
+Run Prisma migrations only when schema changes are explicitly requested:
+
+    cd marketlink-backend
+    npx prisma migrate dev
+
+---
+
+## Response Style
+
+Keep responses short and practical.
+
+After changes, include:
+
+- Files changed
+- What changed
+- How to verify
+- Any risk or follow-up
+
+Do not write long explanations unless asked.
+
+---
+
+## Done Means
+
+A task is done only when:
+
+- The requested behavior works.
+- The change is scoped.
+- Code is clean and readable.
+- Comments are useful but not excessive.
+- No unrelated files are changed.
+- Existing behavior is preserved unless explicitly changed.
+- TypeScript/build/lint issues are not introduced.
+- Verification steps are provided.
 
 ---
 
 ## Final Principle
 
-Ship fast.
-Keep it simple.
+Ship fast. Keep it simple. Leave the code cleaner than you found it.
