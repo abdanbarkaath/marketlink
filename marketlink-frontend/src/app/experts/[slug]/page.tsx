@@ -135,6 +135,14 @@ type MediaPresentation =
   | { kind: 'website'; src: string; hostname: string }
   | { kind: 'link'; href: string; label: string };
 
+type InstagramEmbedWindow = Window & {
+  instgrm?: {
+    Embeds?: {
+      process: () => void;
+    };
+  };
+};
+
 const IMAGE_EXT_RE = /\.(png|jpe?g|gif|webp|avif|svg)(\?.*)?$/i;
 
 function parseUrl(raw: string): URL | null {
@@ -316,7 +324,10 @@ function ProviderPageContent({ provider: p }: { provider: Provider }) {
   const pageSurfaceMuted = t.surfaceMuted;
   const [fitOpen, setFitOpen] = useState(false);
   const [credentialsOpen, setCredentialsOpen] = useState(false);
-  const [contactOpen, setContactOpen] = useState(false);
+  const [instagramSlide, setInstagramSlide] = useState(0);
+  useEffect(() => {
+    setInstagramSlide(0);
+  }, [p.slug]);
   const featuredProjects = (p.projects || []).filter((project) => project.isFeatured);
   const visibleProjects = featuredProjects.length ? featuredProjects : p.projects || [];
   const featuredClients = (p.clients || []).filter((client) => client.isFeatured);
@@ -340,6 +351,7 @@ function ProviderPageContent({ provider: p }: { provider: Provider }) {
     null;
   const locationLabel = formatLocation(p.city, p.state, p.zip);
   const mapEmbedSrc = `https://maps.google.com/maps?hl=en&q=${encodeURIComponent(locationLabel)}&t=&z=11&ie=UTF8&iwloc=B&output=embed`;
+  const instagramProfileLink = p.instagramUrl ? getInstagramProfile(parseUrl(p.instagramUrl) ?? new URL('https://instagram.com')) : null;
   const decisionCards = [
     { label: 'Expert type', value: expertTypeLabel },
     hourlyRange ? { label: 'Hourly range', value: hourlyRange } : null,
@@ -353,110 +365,147 @@ function ProviderPageContent({ provider: p }: { provider: Provider }) {
     ...(p.industries || []).map((value) => ({ group: 'Industry', value: formatToken(value) })),
     ...(p.specialties || []).map((value) => ({ group: 'Specialty', value: formatToken(value) })),
   ].slice(0, 4);
-  const heroServices = p.services.slice(0, 4);
+  const heroServices = p.services.slice(0, 3);
   const heroServicesOverflow = Math.max(0, p.services.length - heroServices.length);
-  const selectedWorkSection = visibleMedia.length ? (
-    <section className={`overflow-hidden rounded-[2rem] ${pageSurface} ${pageBorder} border shadow-[0_20px_70px_rgba(15,23,42,0.08)]`}>
-      <div className="px-6 py-6 md:px-8 md:py-8">
-        <div className={`text-[11px] font-medium uppercase tracking-[0.22em] ${t.mutedText}`}>Selected work</div>
-        <div className="mt-4 grid gap-4 lg:grid-cols-[minmax(0,1fr)_220px] lg:items-end">
-          <div>
-            <h2 className={`${displayFont.className} text-3xl font-semibold tracking-[-0.03em] text-slate-900 md:text-[2.35rem]`}>Recent examples of how they present the work.</h2>
-            <p className="mt-3 max-w-2xl text-sm leading-7 text-slate-700 md:text-base md:leading-8">
-              Use this section to gauge visual quality, brand polish, and whether the public-facing work feels close to what your project needs.
-            </p>
-          </div>
-          <div className={`rounded-[1.35rem] ${pageSurfaceMuted} ${pageBorder} border px-4 py-4 text-left shadow-sm lg:text-right`}>
-            <div className={`text-[11px] font-medium uppercase tracking-[0.18em] ${t.mutedText}`}>Portfolio items</div>
-            <div className="mt-2 text-2xl font-semibold tracking-[-0.03em] text-slate-900">{visibleMedia.length}</div>
-          </div>
-        </div>
-      </div>
-      <div className="grid gap-4 border-t border-slate-200/80 p-6 md:grid-cols-2 md:px-8 md:py-8">
-        {visibleMedia.map((item) => {
-          const media = getMediaPresentation(item);
-          const spanClass = media.kind === 'website' ? 'md:col-span-2' : '';
+  const secondaryServiceText = p.services.slice(3, 7).map((service) => formatToken(service)).join(' • ');
+  const primaryServiceText = heroServices.map((service) => formatToken(service)).join(', ');
+  const fitSummaryText = fitChips.map((chip) => chip.value).join(' • ');
+  const prioritizedVisibleMedia = [...visibleMedia]
+    .filter((item) => {
+      const media = getMediaPresentation(item);
+      return media.kind !== 'embed' && media.kind !== 'instagramProfile';
+    })
+    .sort((a, b) => {
+    const score = (item: ProviderMediaItem) => {
+      const media = getMediaPresentation(item);
+      if (item.type === 'cover') return 0;
+      if (media.kind === 'image') return 1;
+      if (media.kind === 'website') return 2;
+      return 3;
+    };
 
-          return (
-            <div key={item.id} className={`${spanClass} overflow-hidden rounded-[1.75rem] ${pageSurfaceMuted} ${pageBorder} border shadow-sm`}>
-              {media.kind === 'embed' ? (
-                <>
-                  <iframe
-                    src={media.src}
-                    title={item.altText || media.label}
-                    className="h-72 w-full"
-                    loading="lazy"
-                    allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share"
-                    referrerPolicy="strict-origin-when-cross-origin"
-                    allowFullScreen
-                  />
-                  <div className="border-t border-slate-200/80 p-4 md:p-5">
-                    <div className={`text-xs font-medium uppercase tracking-[0.18em] ${t.mutedText}`}>{media.label}</div>
-                    {item.altText ? <p className="mt-3 text-sm leading-7 text-slate-700">{item.altText}</p> : null}
-                    {media.label === 'Instagram embed' ? (
-                      <a className="mt-3 inline-block text-sm font-medium underline text-slate-900" href={item.url} target="_blank" rel="noreferrer">
-                        Open on Instagram
-                      </a>
-                    ) : null}
-                  </div>
-                </>
-              ) : null}
+    return score(a) - score(b);
+  });
+  const instagramProofItems = visibleMedia.filter((item) => getMediaPresentation(item).kind === 'embed').slice(0, 10);
+  const activeInstagramItem = instagramProofItems.length ? instagramProofItems[instagramSlide % instagramProofItems.length] : null;
+  const activeInstagramMedia = activeInstagramItem ? getMediaPresentation(activeInstagramItem) : null;
+  const instagramProfilePreview = instagramProfileLink;
+  const instagramProfileEmbedUrl = instagramProfilePreview ? `${instagramProfilePreview.href}?utm_source=ig_embed&utm_campaign=loading` : null;
+  const proofHighlights = [
+    p.verified ? { label: 'Status', value: 'Verified expert' } : null,
+    visibleClients.length ? { label: 'Clients', value: `${visibleClients.length} highlighted` } : null,
+    visibleProjects.length ? { label: 'Projects', value: `${visibleProjects.length} case studies` } : null,
+    creatorAudienceLabel ? { label: 'Audience', value: creatorAudienceLabel } : null,
+    p.foundedYear ? { label: 'Founded', value: String(p.foundedYear) } : null,
+  ].filter(Boolean) as Array<{ label: string; value: string }>;
+  useEffect(() => {
+    if (!instagramProfileEmbedUrl || typeof window === 'undefined') return;
 
-              {media.kind === 'image' ? (
-                <>
-                  {/* eslint-disable-next-line @next/next/no-img-element */}
-                  <img src={media.src} alt={item.altText || 'Expert media'} className="h-56 w-full object-cover" />
-                  {item.altText ? <div className="p-4 text-sm leading-7 text-slate-700 md:p-5">{item.altText}</div> : null}
-                </>
-              ) : null}
+    const win = window as InstagramEmbedWindow;
+    const processEmbeds = () => win.instgrm?.Embeds?.process();
+    const existingScript = document.querySelector<HTMLScriptElement>('script[data-marketlink-instagram-embed="true"]');
 
-              {media.kind === 'website' ? (
-                <>
-                  <iframe
-                    src={media.src}
-                    title={item.altText || `${media.hostname} website preview`}
-                    className="h-[30rem] w-full bg-white"
-                    loading="lazy"
-                    sandbox="allow-forms allow-popups allow-same-origin allow-scripts"
-                    referrerPolicy="strict-origin-when-cross-origin"
-                  />
-                  <div className="border-t border-slate-200/80 p-4 md:p-5">
-                    <div className={`text-xs font-medium uppercase tracking-[0.18em] ${t.mutedText}`}>Website preview</div>
-                    <div className="mt-3 text-sm leading-7 text-slate-700">{item.altText || `Embedded preview for ${media.hostname}`}</div>
-                    <a className="mt-3 inline-block text-sm font-medium underline text-slate-900" href={media.src} target="_blank" rel="noreferrer">
-                      {media.hostname.includes('instagram.com') ? 'Open on Instagram' : 'Open website'}
+    if (existingScript) {
+      processEmbeds();
+      return;
+    }
+
+    const script = document.createElement('script');
+    script.async = true;
+    script.src = 'https://www.instagram.com/embed.js';
+    script.setAttribute('data-marketlink-instagram-embed', 'true');
+    script.onload = processEmbeds;
+    document.body.appendChild(script);
+
+    return () => {
+      script.onload = null;
+    };
+  }, [instagramProfileEmbedUrl]);
+  const workGallery = prioritizedVisibleMedia.length ? (
+    <div className="grid gap-4 md:grid-cols-2">
+      {prioritizedVisibleMedia.map((item) => {
+        const media = getMediaPresentation(item);
+        const spanClass = media.kind === 'website' ? 'md:col-span-2' : '';
+
+        return (
+          <div key={item.id} className={`${spanClass} overflow-hidden rounded-[1.75rem] ${pageSurfaceMuted} ${pageBorder} border shadow-sm`}>
+            {media.kind === 'embed' ? (
+              <>
+                <iframe
+                  src={media.src}
+                  title={item.altText || media.label}
+                  className="h-72 w-full"
+                  loading="lazy"
+                  allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share"
+                  referrerPolicy="strict-origin-when-cross-origin"
+                  allowFullScreen
+                />
+                <div className="border-t border-slate-200/80 p-4 md:p-5">
+                  <div className={`text-xs font-medium uppercase tracking-[0.18em] ${t.mutedText}`}>{media.label}</div>
+                  {item.altText ? <p className="mt-3 text-sm leading-7 text-slate-700">{item.altText}</p> : null}
+                  {media.label === 'Instagram embed' ? (
+                    <a className="mt-3 inline-block text-sm font-medium underline text-slate-900" href={item.url} target="_blank" rel="noreferrer">
+                      Open on Instagram
                     </a>
-                    <div className={`mt-2 text-xs ${t.mutedText}`}>Some websites block iframes. If that happens, use the direct link.</div>
-                  </div>
-                </>
-              ) : null}
-
-              {media.kind === 'instagramProfile' ? (
-                <div className="p-5 md:p-6">
-                  <div className={`text-xs font-medium uppercase tracking-[0.18em] ${t.mutedText}`}>Instagram profile</div>
-                  <div className="mt-3 text-lg font-semibold text-slate-900">{media.handle}</div>
-                  {item.altText ? <p className="mt-3 text-sm leading-7 text-slate-700">{item.altText}</p> : null}
-                  <a className="mt-4 inline-block text-sm font-medium underline text-slate-900" href={media.href} target="_blank" rel="noreferrer">
-                    Open on Instagram
-                  </a>
+                  ) : null}
                 </div>
-              ) : null}
+              </>
+            ) : null}
 
-              {media.kind === 'link' ? (
-                <div className="p-4 md:p-5">
-                  <div className={`text-xs font-medium uppercase tracking-[0.18em] ${t.mutedText}`}>External media</div>
-                  <a className="mt-2 block break-all text-sm font-medium underline text-slate-900" href={media.href} target="_blank" rel="noreferrer">
-                    {media.label}
+            {media.kind === 'image' ? (
+              <>
+                {/* eslint-disable-next-line @next/next/no-img-element */}
+                <img src={media.src} alt={item.altText || 'Expert media'} className="h-56 w-full object-cover" />
+                {item.altText ? <div className="p-4 text-sm leading-7 text-slate-700 md:p-5">{item.altText}</div> : null}
+              </>
+            ) : null}
+
+            {media.kind === 'website' ? (
+              <>
+                <iframe
+                  src={media.src}
+                  title={item.altText || `${media.hostname} website preview`}
+                  className="h-[30rem] w-full bg-white"
+                  loading="lazy"
+                  sandbox="allow-forms allow-popups allow-same-origin allow-scripts"
+                  referrerPolicy="strict-origin-when-cross-origin"
+                />
+                <div className="border-t border-slate-200/80 p-4 md:p-5">
+                  <div className={`text-xs font-medium uppercase tracking-[0.18em] ${t.mutedText}`}>Website preview</div>
+                  <div className="mt-3 text-sm leading-7 text-slate-700">{item.altText || `Embedded preview for ${media.hostname}`}</div>
+                  <a className="mt-3 inline-block text-sm font-medium underline text-slate-900" href={media.src} target="_blank" rel="noreferrer">
+                    {media.hostname.includes('instagram.com') ? 'Open on Instagram' : 'Open website'}
                   </a>
-                  <div className={`mt-2 text-xs ${t.mutedText}`}>{media.href}</div>
-                  {item.altText ? <p className="mt-3 text-sm leading-7 text-slate-700">{item.altText}</p> : null}
+                  <div className={`mt-2 text-xs ${t.mutedText}`}>Some websites block iframes. If that happens, use the direct link.</div>
                 </div>
-              ) : null}
-            </div>
-          );
-        })}
-      </div>
-    </section>
+              </>
+            ) : null}
+
+            {media.kind === 'instagramProfile' ? (
+              <div className="p-5 md:p-6">
+                <div className={`text-xs font-medium uppercase tracking-[0.18em] ${t.mutedText}`}>Instagram profile</div>
+                <div className="mt-3 text-lg font-semibold text-slate-900">{media.handle}</div>
+                {item.altText ? <p className="mt-3 text-sm leading-7 text-slate-700">{item.altText}</p> : null}
+                <a className="mt-4 inline-block text-sm font-medium underline text-slate-900" href={media.href} target="_blank" rel="noreferrer">
+                  Open on Instagram
+                </a>
+              </div>
+            ) : null}
+
+            {media.kind === 'link' ? (
+              <div className="p-4 md:p-5">
+                <div className={`text-xs font-medium uppercase tracking-[0.18em] ${t.mutedText}`}>External media</div>
+                <a className="mt-2 block break-all text-sm font-medium underline text-slate-900" href={media.href} target="_blank" rel="noreferrer">
+                  {media.label}
+                </a>
+                <div className={`mt-2 text-xs ${t.mutedText}`}>{media.href}</div>
+                {item.altText ? <p className="mt-3 text-sm leading-7 text-slate-700">{item.altText}</p> : null}
+              </div>
+            ) : null}
+          </div>
+        );
+      })}
+    </div>
   ) : null;
 
   return (
@@ -476,29 +525,29 @@ function ProviderPageContent({ provider: p }: { provider: Provider }) {
           )}
 
           <header className="overflow-hidden rounded-[2rem] ml-card shadow-[0_28px_80px_rgba(23,26,31,0.10)]">
-            <div className="grid gap-6 xl:grid-cols-[minmax(0,1.12fr)_380px] xl:gap-0">
-              <div className="px-5 py-5 sm:px-6 sm:py-6 md:px-8 md:py-8">
-                <div className="space-y-5 md:space-y-7">
-                  <div className="flex flex-wrap items-center gap-2">
-                    <span className={`rounded-xl px-3 py-1 text-[11px] font-medium uppercase tracking-[0.18em] ${t.brandBadge}`}>
-                      Expert profile
-                    </span>
-                    <span className="ml-pill-muted rounded-xl px-3 py-1 text-[11px] font-medium uppercase tracking-[0.18em]">
-                      {expertTypeLabel}
-                    </span>
-                    {p.verified ? (
-                      <span className="ml-pill-muted rounded-xl px-3 py-1 text-[11px] font-medium uppercase tracking-[0.18em]">
-                        Verified
-                      </span>
-                    ) : null}
-                    <span className={`rounded-xl px-3 py-1 text-[11px] font-medium uppercase tracking-[0.18em] ${t.brandBadge}`}>
-                      {locationLabel}
-                    </span>
-                  </div>
+            <div className="px-4 py-5 sm:px-6 sm:py-6 md:px-8 md:py-8">
+              <div className="space-y-6 md:space-y-7">
+                <div className="grid gap-6 xl:grid-cols-[minmax(0,1fr)_minmax(460px,520px)] xl:items-start xl:gap-8">
+                  <div className="min-w-0 space-y-6 xl:pr-4">
+                    <div>
+                      <div className="flex flex-wrap items-center gap-2">
+                        <span className={`rounded-xl px-3 py-1 text-[11px] font-medium uppercase tracking-[0.18em] ${t.brandBadge}`}>
+                          Expert profile
+                        </span>
+                        <span className="ml-pill-muted rounded-xl px-3 py-1 text-[11px] font-medium uppercase tracking-[0.18em]">
+                          {expertTypeLabel}
+                        </span>
+                        {p.verified ? (
+                          <span className="ml-pill-muted rounded-xl px-3 py-1 text-[11px] font-medium uppercase tracking-[0.18em]">
+                            Verified
+                          </span>
+                        ) : null}
+                        <span className={`rounded-xl px-3 py-1 text-[11px] font-medium uppercase tracking-[0.18em] ${t.brandBadge}`}>
+                          {locationLabel}
+                        </span>
+                      </div>
 
-                  <div className="grid gap-5 lg:grid-cols-[minmax(0,1fr)_260px] lg:items-start">
-                    <div className="min-w-0">
-                      <div className="flex items-start gap-4 md:gap-5">
+                      <div className="mt-5 grid grid-cols-[auto_minmax(0,1fr)] items-start gap-4 md:gap-5">
                         {p.logo ? (
                           // eslint-disable-next-line @next/next/no-img-element
                           <img src={p.logo} alt={p.businessName} className="h-16 w-16 shrink-0 rounded-[1.1rem] border border-[rgba(var(--ml-border),0.7)] bg-white object-cover shadow-sm md:h-20 md:w-20 md:rounded-[1.35rem]" />
@@ -507,131 +556,217 @@ function ProviderPageContent({ provider: p }: { provider: Provider }) {
                         )}
 
                         <div className="min-w-0">
-                          <h1 className={`${displayFont.className} text-3xl font-semibold tracking-[-0.05em] text-slate-950 sm:text-4xl md:text-5xl`}>{p.businessName}</h1>
+                          <h1 className={`${displayFont.className} text-3xl font-semibold leading-[0.92] tracking-[-0.05em] text-slate-950 sm:text-4xl md:text-5xl`}>{p.businessName}</h1>
                           {p.tagline ? <p className="mt-3 max-w-3xl text-lg leading-tight tracking-[-0.03em] text-slate-800 sm:text-xl md:text-[1.75rem]">{p.tagline}</p> : null}
                           {p.shortDescription || p.overview ? <p className="mt-4 max-w-3xl text-sm leading-7 text-slate-600 md:text-base md:leading-8">{p.shortDescription || p.overview}</p> : null}
                         </div>
                       </div>
 
-                      <div className="mt-5 flex flex-col gap-3 sm:flex-row sm:flex-wrap">
-                        <a className="ml-btn-primary rounded-xl px-5 py-2.5 text-sm font-semibold text-white" href={`mailto:${p.email}`}>
-                            Start a conversation
-                          </a>
+                      <div className="mt-5 grid min-w-0 gap-2.5 sm:flex sm:flex-row sm:flex-wrap">
+                        <a className="ml-btn-primary inline-flex w-full min-w-0 items-center justify-center rounded-xl px-4 py-2.5 text-sm font-semibold text-white sm:w-auto sm:px-5" href={`mailto:${p.email}`}>
+                          Start a conversation
+                        </a>
                         {p.websiteUrl ? (
-                          <a className="ml-btn-secondary rounded-xl px-5 py-2.5 text-sm font-semibold" href={p.websiteUrl} target="_blank" rel="noreferrer">
+                          <a className="ml-btn-secondary inline-flex w-full min-w-0 items-center justify-center rounded-xl border border-slate-900/10 bg-white px-4 py-2.5 text-sm font-semibold shadow-sm sm:w-auto sm:px-5" href={p.websiteUrl} target="_blank" rel="noreferrer">
                             Visit website
                           </a>
                         ) : null}
                       </div>
+                    </div>
 
-                      {heroServices.length ? (
-                        <div className="mt-5">
-                          <div className="text-[11px] font-medium uppercase tracking-[0.22em] text-slate-500">Core services</div>
-                          <div className="mt-3 flex flex-wrap gap-2">
-                            {heroServices.map((service) => (
-                            <span key={service} className="ml-pill rounded-xl px-3 py-1.5 text-xs font-medium shadow-sm md:px-4 md:py-2">
-                                {formatToken(service)}
-                              </span>
-                            ))}
-                            {heroServicesOverflow > 0 ? (
-                      <span className="ml-pill-muted rounded-xl px-3 py-1.5 text-xs font-medium shadow-sm">
-                                +{heroServicesOverflow} more
-                              </span>
-                            ) : null}
+                    {heroServices.length ? (
+                      <div className={`rounded-[1.35rem] ${pageSurfaceMuted} ${pageBorder} border px-4 py-4 shadow-sm`}>
+                        <div className="text-[11px] font-medium uppercase tracking-[0.22em] text-slate-500">Core services</div>
+                        <p className="mt-2 text-base font-semibold text-slate-900 md:text-lg">{primaryServiceText}</p>
+                        {secondaryServiceText ? (
+                          <p className="mt-2 text-sm leading-6 text-slate-500">{secondaryServiceText}</p>
+                        ) : heroServicesOverflow > 0 ? (
+                          <p className="mt-2 text-sm leading-6 text-slate-500">+{heroServicesOverflow} more service{heroServicesOverflow === 1 ? '' : 's'}</p>
+                        ) : null}
+                        {fitSummaryText ? (
+                          <div className="mt-3 border-t border-slate-200/80 pt-3">
+                            <div className="text-[11px] font-medium uppercase tracking-[0.18em] text-slate-500">Best for</div>
+                            <p className="mt-2 text-sm leading-6 text-slate-600">{fitSummaryText}</p>
                           </div>
-                        </div>
-                      ) : null}
+                        ) : null}
+                      </div>
+                    ) : null}
 
-                      {fitChips.length ? (
-                      <div className="mt-5 hidden flex-wrap gap-2 lg:flex">
-                          {fitChips.map((chip) => (
-                            <span key={`${chip.group}-${chip.value}`} className="ml-pill rounded-xl px-3 py-1.5 text-xs font-medium">
-                              {chip.value}
-                            </span>
+                    {decisionCards.length ? (
+                      <div className="ml-dark-panel rounded-[1.75rem] px-5 py-5 text-white shadow-[0_20px_60px_rgba(23,26,31,0.18)]">
+                        <div className="text-[11px] font-medium uppercase tracking-[0.22em] text-white/60">Quick snapshot</div>
+                        <div className="mt-5 grid grid-cols-2 gap-3 xl:grid-cols-4">
+                          {decisionCards.slice(0, 4).map((fact) => (
+                            <div key={fact.label} className="rounded-[1.15rem] border border-white/10 bg-white/6 px-4 py-3.5">
+                              <div className="text-[11px] font-medium uppercase tracking-[0.18em] text-white/65">{fact.label}</div>
+                              <div className="mt-2 text-base font-semibold text-white">{fact.value}</div>
+                            </div>
                           ))}
                         </div>
-                      ) : null}
-                    </div>
+                      </div>
+                    ) : null}
 
-                    <div className="ml-dark-panel rounded-[1.75rem] px-5 py-5 text-white shadow-[0_20px_60px_rgba(23,26,31,0.18)]">
-                      <div className="text-[11px] font-medium uppercase tracking-[0.22em] text-white/60">Quick snapshot</div>
-                      <div className="mt-5 grid gap-3 sm:grid-cols-2 lg:grid-cols-1">
-                        {decisionCards.slice(0, 4).map((fact) => (
-                          <div key={fact.label} className="rounded-[1.15rem] border border-white/10 bg-white/6 px-4 py-3.5">
-                            <div className="text-[11px] font-medium uppercase tracking-[0.18em] text-white/65">{fact.label}</div>
-                            <div className="mt-2 text-base font-semibold text-white">{fact.value}</div>
-                          </div>
-                        ))}
-                      </div>
-                    </div>
-                  </div>
-                </div>
-              </div>
-
-              <div className={`border-t ${pageBorder} ${pageSurfaceMuted} px-5 py-5 sm:px-6 sm:py-6 xl:border-l xl:border-t-0 xl:px-7`}>
-                <div className="space-y-5">
-                  {coverMedia && getMediaPresentation(coverMedia).kind === 'image' ? (
-                    <div className="overflow-hidden rounded-[1.75rem] border border-[rgba(var(--ml-border),0.7)] bg-white shadow-sm">
-                      {/* eslint-disable-next-line @next/next/no-img-element */}
-                      <img src={coverMedia.url} alt={coverMedia.altText || `${p.businessName} cover`} className="h-64 w-full object-cover" />
-                    </div>
-                  ) : null}
-
-                  <div className="ml-surface rounded-[1.75rem] px-5 py-5 shadow-sm">
-                    <div className="text-[11px] font-medium uppercase tracking-[0.22em] text-slate-500">Contact details</div>
-                    <p className="mt-3 text-sm leading-7 text-slate-600">Everything a buyer usually checks before they send the first message.</p>
-                    <div className="mt-5 space-y-4 text-sm text-slate-700">
-                      <div>
-                        <div className="text-[11px] font-medium uppercase tracking-[0.18em] text-slate-500">Expert type</div>
-                        <div className="mt-2 font-medium text-slate-900">{expertTypeLabel}</div>
-                      </div>
-                      <div>
-                        <div className="text-[11px] font-medium uppercase tracking-[0.18em] text-slate-500">Location</div>
-                        <div className="mt-2 font-medium text-slate-900">{locationLabel}</div>
-                      </div>
-                      {p.websiteUrl ? (
-                        <div>
-                          <div className="text-[11px] font-medium uppercase tracking-[0.18em] text-slate-500">Website</div>
-                          <a className="mt-2 inline-block break-all underline text-slate-900" href={p.websiteUrl} target="_blank" rel="noreferrer">
-                            {p.websiteUrl}
-                          </a>
-                        </div>
-                      ) : null}
-                      {p.phone ? (
-                        <div>
-                          <div className="text-[11px] font-medium uppercase tracking-[0.18em] text-slate-500">Phone</div>
-                          <div className="mt-2 font-medium text-slate-900">{p.phone}</div>
-                        </div>
-                      ) : null}
-                      <div>
-                        <div className="text-[11px] font-medium uppercase tracking-[0.18em] text-slate-500">Email</div>
-                        <div className="mt-2 break-all font-medium text-slate-900">{p.email}</div>
-                      </div>
-                    </div>
                   </div>
 
-                  {p.expertType === 'creator' && creatorProofBody ? (
-                    <div className="ml-surface rounded-[1.75rem] px-5 py-5 shadow-sm">
-                      <div className="text-[11px] font-medium uppercase tracking-[0.22em] text-slate-500">Creator proof</div>
-                      <p className="mt-3 text-sm leading-7 text-slate-600">Signals that help a business judge audience fit and creator-specific credibility.</p>
-                      <div className="mt-5 space-y-4 text-sm text-slate-700">
-                        {creatorPlatformsLabel ? (
-                          <div>
-                            <div className="text-[11px] font-medium uppercase tracking-[0.18em] text-slate-500">Platforms</div>
-                            <div className="mt-2 font-medium text-slate-900">{creatorPlatformsLabel}</div>
-                          </div>
-                        ) : null}
-                        {creatorAudienceLabel ? (
-                          <div>
-                            <div className="text-[11px] font-medium uppercase tracking-[0.18em] text-slate-500">Audience size</div>
-                            <div className="mt-2 font-medium text-slate-900">{creatorAudienceLabel}</div>
-                          </div>
-                        ) : null}
-                        <div>
-                          <div className="text-[11px] font-medium uppercase tracking-[0.18em] text-slate-500">Proof summary</div>
-                          <p className="mt-2 leading-7 text-slate-700">{creatorProofBody}</p>
-                        </div>
+                  <div className="min-w-0 space-y-5 xl:justify-self-end xl:w-full xl:max-w-[520px]">
+                    {!instagramProfileEmbedUrl && !instagramProofItems.length && coverMedia && getMediaPresentation(coverMedia).kind === 'image' ? (
+                      <div className="overflow-hidden rounded-[1.75rem] border border-[rgba(var(--ml-border),0.7)] bg-white shadow-sm">
+                        {/* eslint-disable-next-line @next/next/no-img-element */}
+                        <img src={coverMedia.url} alt={coverMedia.altText || `${p.businessName} cover`} className="h-72 w-full object-cover" />
                       </div>
+                    ) : null}
+
+                    <div className="ml-surface rounded-[1.75rem] px-3 py-4 shadow-sm sm:px-5 sm:py-5">
+                      {instagramProfilePreview ? (
+                        <div className={`rounded-[1.15rem] ${pageSurfaceMuted} ${pageBorder} border px-3 py-3 sm:px-4 sm:py-3.5`}>
+                          <div className="flex items-start justify-between gap-4">
+                            <div>
+                              <div className={`text-[11px] font-medium uppercase tracking-[0.18em] ${t.mutedText}`}>Instagram</div>
+                              <div className="mt-0.5 text-base font-semibold text-slate-900">{instagramProfilePreview.handle}</div>
+                            </div>
+                            <a
+                              className="shrink-0 rounded-xl border border-slate-900/12 bg-white px-3 py-2 text-sm font-semibold text-slate-900 shadow-sm"
+                              href={instagramProfilePreview.href}
+                              target="_blank"
+                              rel="noreferrer"
+                            >
+                              Open
+                            </a>
+                          </div>
+                          {instagramProfileEmbedUrl ? (
+                            <div className="mt-3">
+                              <div className="w-full overflow-hidden rounded-[1.25rem] border border-slate-200/80 bg-white shadow-sm">
+                                <div className="h-[390px] overflow-hidden sm:h-[360px] xl:h-[430px]">
+                                  <blockquote
+                                    className="instagram-media"
+                                    data-instgrm-permalink={instagramProfileEmbedUrl}
+                                  data-instgrm-version="14"
+                                  style={{
+                                    background: '#FFF',
+                                    border: 0,
+                                    borderRadius: '0',
+                                    boxShadow: 'none',
+                                    margin: '0',
+                                    maxWidth: '100%',
+                                    minWidth: '0',
+                                    padding: 0,
+                                    width: '100%',
+                                  }}
+                                >
+                                  <div style={{ padding: '16px' }}>
+                                    <a
+                                      href={instagramProfileEmbedUrl}
+                                      style={{ background: '#FFFFFF', lineHeight: 0, padding: 0, textAlign: 'center', textDecoration: 'none', width: '100%' }}
+                                      target="_blank"
+                                      rel="noreferrer"
+                                    >
+                                      <div style={{ display: 'flex', flexDirection: 'row', alignItems: 'center' }}>
+                                        <div style={{ backgroundColor: '#F4F4F4', borderRadius: '50%', flexGrow: 0, height: '40px', marginRight: '14px', width: '40px' }} />
+                                        <div style={{ display: 'flex', flexDirection: 'column', flexGrow: 1, justifyContent: 'center' }}>
+                                          <div style={{ backgroundColor: '#F4F4F4', borderRadius: '4px', flexGrow: 0, height: '14px', marginBottom: '6px', width: '100px' }} />
+                                          <div style={{ backgroundColor: '#F4F4F4', borderRadius: '4px', flexGrow: 0, height: '14px', width: '60px' }} />
+                                        </div>
+                                      </div>
+                                      <div style={{ padding: '19% 0' }} />
+                                      <div style={{ paddingTop: '8px' }}>
+                                        <div style={{ color: '#3897f0', fontFamily: 'Arial,sans-serif', fontSize: '14px', fontStyle: 'normal', fontWeight: 550, lineHeight: '18px' }}>
+                                          View this profile on Instagram
+                                        </div>
+                                      </div>
+                                    </a>
+                                  </div>
+                                  </blockquote>
+                                </div>
+                              </div>
+                            </div>
+                          ) : null}
+                          {(!instagramProfileEmbedUrl && instagramProofItems.length > 0 && activeInstagramItem && activeInstagramMedia?.kind === 'embed') ? (
+                            <div className="mt-4">
+                              <div className={`overflow-hidden rounded-[1.25rem] ${pageBorder} border bg-white shadow-sm`}>
+                                <div className="aspect-[4/5] w-full bg-white">
+                                  <iframe
+                                    src={activeInstagramMedia.src}
+                                    title={activeInstagramItem.altText || activeInstagramMedia.label}
+                                    className="h-full w-full"
+                                    loading="lazy"
+                                    allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share"
+                                    referrerPolicy="strict-origin-when-cross-origin"
+                                    allowFullScreen
+                                  />
+                                </div>
+                                {activeInstagramItem.altText ? (
+                                  <div className="border-t border-slate-200/80 px-4 py-3">
+                                    <p className="text-sm leading-6 text-slate-700">{activeInstagramItem.altText}</p>
+                                  </div>
+                                ) : null}
+                              </div>
+
+                              {instagramProofItems.length > 1 ? (
+                                <div className="mt-3 flex items-center justify-between gap-3">
+                                  <button
+                                    type="button"
+                                    onClick={() => setInstagramSlide((current) => (current - 1 + instagramProofItems.length) % instagramProofItems.length)}
+                                    className="rounded-xl border border-slate-900/12 bg-white px-3 py-2 text-xs font-semibold uppercase tracking-[0.14em] text-slate-900 shadow-sm"
+                                  >
+                                    Prev
+                                  </button>
+
+                                  <div className="flex items-center gap-2">
+                                    {instagramProofItems.map((item, index) => (
+                                      <button
+                                        key={item.id}
+                                        type="button"
+                                        aria-label={`Show Instagram proof ${index + 1}`}
+                                        onClick={() => setInstagramSlide(index)}
+                                        className={`h-2.5 rounded-full transition-all ${index === instagramSlide ? 'w-6 bg-slate-900' : 'w-2.5 bg-slate-300 hover:bg-slate-400'}`}
+                                      />
+                                    ))}
+                                  </div>
+
+                                  <button
+                                    type="button"
+                                    onClick={() => setInstagramSlide((current) => (current + 1) % instagramProofItems.length)}
+                                    className="rounded-xl border border-slate-900/12 bg-white px-3 py-2 text-xs font-semibold uppercase tracking-[0.14em] text-slate-900 shadow-sm"
+                                  >
+                                    Next
+                                  </button>
+                                </div>
+                              ) : null}
+                            </div>
+                          ) : null}
+                        </div>
+                      ) : null}
+
+                      {creatorProofBody ? (
+                        <div className={`mt-5 rounded-[1.15rem] ${pageSurfaceMuted} ${pageBorder} border px-4 py-4`}>
+                          <div className={`text-[11px] font-medium uppercase tracking-[0.18em] ${t.mutedText}`}>Proof note</div>
+                          <p className="mt-2 text-sm leading-7 text-slate-700">{creatorProofBody}</p>
+                        </div>
+                      ) : null}
+
+                      {visibleClients.length ? (
+                        <div className="mt-5">
+                          <div className={`text-[11px] font-medium uppercase tracking-[0.18em] ${t.mutedText}`}>Trusted by</div>
+                          <div className="mt-3 flex flex-wrap gap-2">
+                            {visibleClients.slice(0, 4).map((client) => (
+                              <span key={client.id} className="ml-pill rounded-xl px-3 py-1 text-xs font-medium">
+                                {client.name}
+                              </span>
+                            ))}
+                          </div>
+                        </div>
+                      ) : null}
+                    </div>
+                  </div>
+
+                  {proofHighlights.length ? (
+                    <div className="grid grid-cols-2 gap-3 pt-1 xl:col-span-2 xl:grid-cols-4">
+                      {proofHighlights.slice(0, 4).map((fact) => (
+                        <div key={fact.label} className={`rounded-[1.15rem] ${pageSurfaceMuted} ${pageBorder} border px-3 py-3 shadow-sm sm:px-4 sm:py-3.5`}>
+                          <div className={`text-[11px] font-medium uppercase tracking-[0.18em] ${t.mutedText}`}>{fact.label}</div>
+                          <div className="mt-2 text-sm font-semibold text-slate-900 sm:text-base">{fact.value}</div>
+                        </div>
+                      ))}
                     </div>
                   ) : null}
                 </div>
@@ -639,68 +774,24 @@ function ProviderPageContent({ provider: p }: { provider: Provider }) {
             </div>
           </header>
 
-          {visibleClients.length ? (
-            <section className={`rounded-[1.75rem] ${pageSurface} ${pageBorder} border px-6 py-5 shadow-[0_18px_50px_rgba(15,23,42,0.06)]`}>
-              <div className="grid gap-5 lg:grid-cols-[260px_minmax(0,1fr)] lg:items-start">
-                <div>
-                  <div className="text-[11px] font-medium uppercase tracking-[0.22em] text-slate-500">Trusted by</div>
-                    <p className="mt-2 text-sm text-slate-700">Representative clients and teams this expert highlights when explaining fit.</p>
-                </div>
-                <div className="grid gap-x-6 gap-y-4 border-t border-slate-200/80 pt-4 sm:grid-cols-2 xl:grid-cols-3 lg:border-t-0 lg:pt-0">
-                  {visibleClients.slice(0, 6).map((client) => (
-                    <div key={client.id} className="flex items-center gap-3 border-b border-slate-200/70 pb-4 last:border-b-0">
-                      {client.logoUrl ? (
-                        // eslint-disable-next-line @next/next/no-img-element
-                        <img src={client.logoUrl} alt={client.name} className="h-9 w-9 rounded-full border object-cover" />
-                      ) : (
-                        <div className="flex h-9 w-9 items-center justify-center rounded-full border bg-white text-[10px] font-medium text-slate-500">Logo</div>
-                      )}
-                      <span className="min-w-0 text-sm font-medium text-slate-900">{client.name}</span>
-                    </div>
-                  ))}
-                </div>
-              </div>
-            </section>
-          ) : null}
-
           <div className="grid gap-6 xl:grid-cols-[minmax(0,1fr)_320px] xl:items-start">
             <div className="min-w-0 space-y-8">
-              {selectedWorkSection}
-
-              {(p.shortDescription || p.overview) ? (
-                <section className={`rounded-[2rem] ${pageSurface} ${pageBorder} border px-6 py-6 shadow-[0_20px_70px_rgba(15,23,42,0.08)]`}>
-                  <div className="text-[11px] font-medium uppercase tracking-[0.22em] text-slate-500">About the team</div>
-                  <div className="mt-4 grid gap-5 lg:grid-cols-[minmax(0,1fr)_220px] lg:items-start">
-                    <div>
-                      <h2 className={`${displayFont.className} text-3xl font-semibold tracking-[-0.03em] text-slate-900 md:text-[2.35rem]`}>How they approach the work.</h2>
-                      {p.overview ? (
-                        <p className="mt-4 text-sm leading-8 text-slate-700 whitespace-pre-line md:text-base">
-                          {p.overview}
-                        </p>
-                      ) : p.shortDescription ? (
-                        <p className="mt-4 text-sm leading-8 text-slate-700 md:text-base">{p.shortDescription}</p>
-                      ) : null}
-                    </div>
-                    <div className={`rounded-[1.25rem] ${pageSurfaceMuted} ${pageBorder} border px-4 py-4 lg:px-5`}>
-                      <div className={`text-[11px] font-medium uppercase tracking-[0.18em] ${t.mutedText}`}>Read this for</div>
-                      <p className="mt-2 text-sm leading-7 text-slate-700">Positioning, tone, operating style, and whether the team sounds aligned with your type of project.</p>
-                    </div>
-                  </div>
-                </section>
-              ) : null}
-
-              {visibleProjects.length ? (
+              {(visibleProjects.length || prioritizedVisibleMedia.length) ? (
                 <section className={`rounded-[2rem] ${pageSurface} ${pageBorder} border px-6 py-6 shadow-[0_20px_70px_rgba(15,23,42,0.08)]`}>
                   <div className="flex flex-wrap items-end justify-between gap-4">
                     <div>
                       <div className="text-[11px] font-medium uppercase tracking-[0.22em] text-slate-500">Proof of work</div>
-                      <h2 className={`${displayFont.className} mt-3 text-3xl font-semibold tracking-[-0.03em] text-slate-900 md:text-[2.35rem]`}>Case studies</h2>
-                    <p className="mt-2 max-w-2xl text-sm leading-7 text-slate-700">A more detailed read on the brief, the response, and the outcomes this expert chooses to highlight.</p>
+                      <h2 className={`${displayFont.className} mt-3 text-3xl font-semibold tracking-[-0.03em] text-slate-900 md:text-[2.35rem]`}>Work and proof</h2>
+                      <p className="mt-2 max-w-2xl text-sm leading-7 text-slate-700">This appears early on purpose so a buyer can judge quality and fit before reading too much copy.</p>
                     </div>
-                    <span className={`text-xs font-medium uppercase tracking-[0.18em] ${t.mutedText}`}>{visibleProjects.length} project{visibleProjects.length === 1 ? '' : 's'}</span>
+                    <span className={`text-xs font-medium uppercase tracking-[0.18em] ${t.mutedText}`}>
+                      {prioritizedVisibleMedia.length ? `${prioritizedVisibleMedia.length} media item${prioritizedVisibleMedia.length === 1 ? '' : 's'}` : `${visibleProjects.length} project${visibleProjects.length === 1 ? '' : 's'}`}
+                    </span>
                   </div>
 
-                  <div className="mt-6 grid gap-5">
+                  {workGallery ? <div className="mt-6">{workGallery}</div> : null}
+
+                  {visibleProjects.length ? <div className="mt-6 grid gap-5">
                     {visibleProjects.map((project) => (
                       <article key={project.id} className={`overflow-hidden rounded-[1.75rem] ${pageSurfaceMuted} ${pageBorder} border shadow-sm`}>
                         <div className="grid gap-0 lg:grid-cols-[320px_minmax(0,1fr)]">
@@ -779,6 +870,22 @@ function ProviderPageContent({ provider: p }: { provider: Provider }) {
                         </div>
                       </article>
                     ))}
+                  </div> : null}
+                </section>
+              ) : null}
+
+              {(p.shortDescription || p.overview) ? (
+                <section className={`rounded-[2rem] ${pageSurface} ${pageBorder} border px-6 py-6 shadow-[0_20px_70px_rgba(15,23,42,0.08)]`}>
+                  <div className="text-[11px] font-medium uppercase tracking-[0.22em] text-slate-500">About</div>
+                  <div className="mt-4 max-w-4xl">
+                    <h2 className={`${displayFont.className} text-3xl font-semibold tracking-[-0.03em] text-slate-900 md:text-[2.35rem]`}>About this expert.</h2>
+                    {p.overview ? (
+                      <p className="mt-4 text-sm leading-8 text-slate-700 whitespace-pre-line md:text-base">
+                        {p.overview}
+                      </p>
+                    ) : p.shortDescription ? (
+                      <p className="mt-4 text-sm leading-8 text-slate-700 md:text-base">{p.shortDescription}</p>
+                    ) : null}
                   </div>
                 </section>
               ) : null}
@@ -815,6 +922,46 @@ function ProviderPageContent({ provider: p }: { provider: Provider }) {
 
                 <div className="px-6 py-6">
                   {p.status === 'active' ? <InquiryForm expertSlug={p.slug} /> : <div className="text-sm text-slate-600">Contact form will be available once this expert profile is active.</div>}
+
+                  <div className="mt-6 grid gap-4">
+                    <div className="rounded-[1.25rem] border border-white/10 bg-white/5 px-4 py-4 text-sm text-slate-200">
+                      <div className="text-[11px] font-medium uppercase tracking-[0.18em] text-slate-400">Direct details</div>
+                      <div className="mt-3 space-y-3">
+                        <div>
+                          <div className="text-[11px] font-medium uppercase tracking-[0.18em] text-slate-400">Location</div>
+                          <div className="mt-1 text-white">{locationLabel}</div>
+                        </div>
+                        <div>
+                          <div className="text-[11px] font-medium uppercase tracking-[0.18em] text-slate-400">Email</div>
+                          <div className="mt-1 break-all text-white">{p.email}</div>
+                        </div>
+                        {p.phone ? (
+                          <div>
+                            <div className="text-[11px] font-medium uppercase tracking-[0.18em] text-slate-400">Phone</div>
+                            <div className="mt-1 text-white">{p.phone}</div>
+                          </div>
+                        ) : null}
+                      </div>
+                    </div>
+
+                    {(p.linkedinUrl || p.instagramUrl || p.facebookUrl) ? (
+                      <div className="flex flex-wrap gap-2">
+                        {p.linkedinUrl ? <a className="rounded-xl border border-white/12 bg-white/6 px-3 py-1.5 text-xs font-semibold text-white" href={p.linkedinUrl} target="_blank" rel="noreferrer">LinkedIn</a> : null}
+                        {p.instagramUrl ? <a className="rounded-xl border border-white/12 bg-white/6 px-3 py-1.5 text-xs font-semibold text-white" href={p.instagramUrl} target="_blank" rel="noreferrer">Instagram</a> : null}
+                        {p.facebookUrl ? <a className="rounded-xl border border-white/12 bg-white/6 px-3 py-1.5 text-xs font-semibold text-white" href={p.facebookUrl} target="_blank" rel="noreferrer">Facebook</a> : null}
+                      </div>
+                    ) : null}
+
+                    <div className="overflow-hidden rounded-[1.25rem] border border-white/10 bg-white">
+                      <iframe
+                        src={mapEmbedSrc}
+                        title={`${p.businessName} location map`}
+                        className="h-48 w-full"
+                        loading="lazy"
+                        referrerPolicy="no-referrer-when-downgrade"
+                      />
+                    </div>
+                  </div>
                 </div>
               </section>
 
@@ -978,76 +1125,6 @@ function ProviderPageContent({ provider: p }: { provider: Provider }) {
                 </section>
               ) : null}
 
-              <section className={`rounded-[1.75rem] ${pageSurface} ${pageBorder} border p-6 shadow-[0_18px_50px_rgba(15,23,42,0.06)] backdrop-blur`}>
-                <button
-                  type="button"
-                  className="flex w-full items-center justify-between gap-4 text-left md:hidden"
-                  onClick={() => setContactOpen((value) => !value)}
-                  aria-expanded={contactOpen}
-                >
-                  <div>
-                    <div className="text-[11px] font-medium uppercase tracking-[0.22em] text-slate-500">Contact</div>
-                    <h2 className={`${displayFont.className} mt-3 text-2xl font-semibold tracking-[-0.02em] text-slate-900`}>Reach out</h2>
-                  </div>
-                    <span className="ml-pill rounded-xl px-4 py-2 text-sm font-medium">
-                      {contactOpen ? 'Hide' : 'Show'}
-                    </span>
-                </button>
-                <div className="hidden md:block">
-                  <div className="text-[11px] font-medium uppercase tracking-[0.22em] text-slate-500">Contact</div>
-                  <h2 className={`${displayFont.className} mt-3 text-2xl font-semibold tracking-[-0.02em] text-slate-900`}>Reach out</h2>
-                  <p className="mt-2 text-sm leading-7 text-slate-700">Use these details if you want to contact the expert directly outside the inquiry flow.</p>
-                </div>
-
-                <div className={`${contactOpen ? 'mt-5 block' : 'hidden'} space-y-4 md:mt-5 md:block`}>
-                  <p className="text-sm leading-7 text-slate-700 md:hidden">Use these details if you want to contact the expert directly outside the inquiry flow.</p>
-                  <div className={`rounded-2xl ${pageSurfaceMuted} ${pageBorder} border p-4 shadow-sm`}>
-                    <div className={`text-[11px] font-medium uppercase tracking-[0.18em] ${t.mutedText}`}>Location</div>
-                    <div className="mt-2 text-sm font-semibold text-slate-900">{locationLabel}</div>
-                    {p.zip ? <div className="mt-1 text-sm text-slate-600">ZIP {p.zip}</div> : null}
-                  </div>
-
-                  <div className={`rounded-2xl ${pageSurfaceMuted} ${pageBorder} border p-4 shadow-sm`}>
-                    <div className={`text-[11px] font-medium uppercase tracking-[0.18em] ${t.mutedText}`}>Email</div>
-                    <div className="mt-2 break-all text-sm text-slate-900">{p.email}</div>
-                    {p.phone ? (
-                      <>
-                        <div className={`mt-4 text-[11px] font-medium uppercase tracking-[0.18em] ${t.mutedText}`}>Phone</div>
-                        <div className="mt-2 text-sm text-slate-900">{p.phone}</div>
-                      </>
-                    ) : null}
-                    {p.websiteUrl ? (
-                      <>
-                        <div className={`mt-4 text-[11px] font-medium uppercase tracking-[0.18em] ${t.mutedText}`}>Website</div>
-                        <a className="mt-2 block break-all text-sm underline text-slate-900" href={p.websiteUrl} target="_blank" rel="noreferrer">
-                          {p.websiteUrl}
-                        </a>
-                      </>
-                    ) : null}
-                    {(p.linkedinUrl || p.instagramUrl || p.facebookUrl) ? (
-                      <>
-                        <div className={`mt-4 text-[11px] font-medium uppercase tracking-[0.18em] ${t.mutedText}`}>Social</div>
-                        <div className="mt-3 flex flex-wrap gap-2 text-sm">
-                          {p.linkedinUrl ? <a className="ml-pill rounded-xl px-3 py-1 text-xs font-medium" href={p.linkedinUrl} target="_blank" rel="noreferrer">LinkedIn</a> : null}
-                          {p.instagramUrl ? <a className="ml-pill rounded-xl px-3 py-1 text-xs font-medium" href={p.instagramUrl} target="_blank" rel="noreferrer">Instagram</a> : null}
-                          {p.facebookUrl ? <a className="ml-pill rounded-xl px-3 py-1 text-xs font-medium" href={p.facebookUrl} target="_blank" rel="noreferrer">Facebook</a> : null}
-                        </div>
-                      </>
-                    ) : null}
-                  </div>
-
-                  <div className={`overflow-hidden rounded-2xl ${pageSurfaceMuted} ${pageBorder} border shadow-sm`}>
-                    <iframe
-                      src={mapEmbedSrc}
-                      title={`${p.businessName} location map`}
-                      className="h-56 w-full"
-                      loading="lazy"
-                      referrerPolicy="no-referrer-when-downgrade"
-                    />
-                  </div>
-
-                </div>
-              </section>
             </aside>
           </div>
         </div>
