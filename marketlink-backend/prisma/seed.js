@@ -73,8 +73,18 @@ async function main() {
         },
         {
           type: 'video',
-          url: 'https://www.instagram.com/windycitygrowth/',
-          altText: 'Windy City Growth Instagram profile',
+          url: 'https://www.instagram.com/p/CQs3bJGImp_/',
+          altText: 'Sample public Instagram post used as visible proof on the profile page',
+        },
+        {
+          type: 'video',
+          url: 'https://www.instagram.com/p/Cn0Ru6uPJuX/',
+          altText: 'Sample public Instagram reel used as visible proof on the profile page',
+        },
+        {
+          type: 'video',
+          url: 'https://www.instagram.com/p/C-dfz2ZpBpv/',
+          altText: 'Second sample public Instagram reel used as visible proof on the profile page',
         },
       ],
       certifications: [

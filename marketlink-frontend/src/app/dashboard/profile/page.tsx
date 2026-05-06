@@ -122,6 +122,22 @@ const MEDIA_TYPE_OPTIONS: Array<{ value: MediaType; label: string }> = [
   { value: 'logo', label: 'Logo' },
 ];
 
+function getInstagramUrlKind(raw: string): 'profile' | 'post' | 'reel' | 'other' | null {
+  try {
+    const url = new URL(raw);
+    const host = url.hostname.replace(/^www\./, '');
+    if (host !== 'instagram.com') return null;
+
+    const path = url.pathname.split('/').filter(Boolean);
+    if (path.length === 1) return 'profile';
+    if (path[0] === 'p') return 'post';
+    if (path[0] === 'reel' || path[0] === 'reels') return 'reel';
+    return 'other';
+  } catch {
+    return null;
+  }
+}
+
 export default function ProfileEditorPage() {
   const router = useRouter();
 
@@ -780,6 +796,9 @@ export default function ProfileEditorPage() {
               <div>
                 <label className="mb-1 block text-sm font-medium text-slate-700">Instagram</label>
                 <input autoComplete="url" className={fieldClass} value={data.instagramUrl ?? ''} onChange={(e) => setField('instagramUrl', e.target.value)} placeholder="https://instagram.com/..." />
+                {data.expertType === 'creator' ? (
+                  <p className="mt-2 text-xs leading-6 text-slate-500">Use your public Instagram profile URL here. Specific proof posts and reels go in the media section below.</p>
+                ) : null}
               </div>
               <div>
                 <label className="mb-1 block text-sm font-medium text-slate-700">Facebook</label>
@@ -1068,7 +1087,11 @@ export default function ProfileEditorPage() {
             <button type="button" onClick={() => setMediaOpen((open) => !open)} className="flex flex-1 items-center justify-between text-left md:pointer-events-none">
               <div>
                 <h2 className="text-lg font-semibold text-slate-900">Media gallery</h2>
-                <p className="mt-1 text-sm text-slate-500">Add image URLs, Instagram links, or website URLs for embedded showcases.</p>
+                <p className="mt-1 text-sm text-slate-500">
+                  {data.expertType === 'creator'
+                    ? 'Add the public Instagram posts or reels you want buyers to see first, plus any other work samples.'
+                    : 'Add image URLs, social proof links, or website URLs for embedded showcases.'}
+                </p>
               </div>
               <span className="ml-4 rounded-full border border-slate-200/80 bg-white px-3 py-1 text-xs font-medium text-slate-600 shadow-sm md:hidden">
                 {mediaOpen ? 'Hide' : 'Show'}
@@ -1086,6 +1109,17 @@ export default function ProfileEditorPage() {
           </div>
 
           <div className={`mt-4 ${mediaOpen ? 'grid gap-4' : 'hidden'} md:grid md:gap-4`}>
+            {data.expertType === 'creator' ? (
+              <div className="rounded-[24px] border border-slate-200/80 bg-[linear-gradient(180deg,rgba(248,250,252,0.98),rgba(226,232,240,0.72))] p-4 shadow-[0_10px_30px_rgba(15,23,42,0.04)]">
+                <div className="text-sm font-semibold text-slate-900">Instagram proof setup</div>
+                <ul className="mt-3 space-y-2 text-sm leading-7 text-slate-600">
+                  <li>Use the Instagram field above for your public profile homepage.</li>
+                  <li>Add up to 3 public Instagram post or reel URLs here for visible proof on the expert page.</li>
+                  <li>Use image or website URLs only when they strengthen the profile beyond those proof posts.</li>
+                </ul>
+              </div>
+            ) : null}
+
             {data.media.length ? (
               data.media.map((item, index) => (
                 <div key={item.id || index} className="rounded-[24px] border border-slate-200/80 bg-[linear-gradient(180deg,rgba(248,250,252,0.98),rgba(226,232,240,0.72))] p-4 shadow-[0_10px_30px_rgba(15,23,42,0.04)]">
@@ -1110,13 +1144,23 @@ export default function ProfileEditorPage() {
                     <div>
                       <label className="mb-1 block text-sm font-medium text-slate-700">URL</label>
                       <input className={fieldClass} value={item.url} onChange={(e) => setMediaField(index, 'url', e.target.value)} placeholder="https://instagram.com/... or https://your-site.com" />
+                      {(() => {
+                        const kind = getInstagramUrlKind(item.url);
+                        if (kind === 'profile') {
+                          return <p className="mt-2 text-xs leading-6 text-amber-700">This looks like an Instagram profile URL. Put profile links in the Instagram field above and use post or reel URLs here.</p>;
+                        }
+                        if (kind === 'post' || kind === 'reel') {
+                          return <p className="mt-2 text-xs leading-6 text-emerald-700">Good. This is the kind of Instagram URL we can surface as visible proof on the public profile.</p>;
+                        }
+                        return null;
+                      })()}
                     </div>
                     <div className="sm:col-span-2">
                       <label className="mb-1 block text-sm font-medium text-slate-700">Alt text</label>
                       <input className={fieldClass} value={item.altText ?? ''} onChange={(e) => setMediaField(index, 'altText', e.target.value)} placeholder="Describe what this media shows." />
                     </div>
                     <div className="sm:col-span-2 rounded-2xl border border-dashed border-slate-300 bg-white px-4 py-3 text-xs text-slate-500">
-                      Supported embeds: Instagram posts/reels and website previews when the site allows it.
+                      Supported embeds: public Instagram posts/reels and website previews when the site allows it.
                     </div>
                   </div>
                 </div>
