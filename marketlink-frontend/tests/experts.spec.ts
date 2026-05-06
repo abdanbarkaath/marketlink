@@ -20,3 +20,17 @@ test('problem-context desktop results keep filters in a side rail', async ({ pag
   const columnCount = await resultsList.evaluate((node) => getComputedStyle(node).gridTemplateColumns.split(' ').length);
   expect(columnCount).toBe(1);
 });
+
+test('expert cards expand inline without forcing a profile navigation', async ({ page }) => {
+  await page.setViewportSize({ width: 1440, height: 900 });
+  await page.goto(`${BASE_URL}/experts`);
+
+  const firstCard = page.getByTestId('expert-result-card').first();
+  await expect(firstCard).toBeVisible();
+
+  await firstCard.getByTestId('expert-card-toggle').click();
+
+  await expect(page).toHaveURL(`${BASE_URL}/experts`);
+  await expect(firstCard.getByTestId('expert-card-expanded-panel')).toBeVisible();
+  await expect(firstCard.getByRole('link', { name: 'View full profile' })).toBeVisible();
+});
