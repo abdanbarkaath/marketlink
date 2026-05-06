@@ -53,7 +53,6 @@ const FIELD_CLASS = 'ml-input w-full rounded-2xl px-4 py-3 text-sm';
 const CHECKBOX_CLASS = 'ml-checkbox h-4 w-4 rounded';
 const PRIMARY_BUTTON_CLASS = 'ml-btn-primary inline-flex min-h-12 items-center justify-center rounded-xl px-6 text-sm font-semibold shadow-sm';
 const PILL_CLASS = 'ml-pill rounded-xl px-3 py-1 text-[11px] font-medium uppercase tracking-[0.18em]';
-const PILL_MUTED_CLASS = 'ml-pill-muted rounded-xl px-3 py-1 text-[11px] font-medium uppercase tracking-[0.18em]';
 const SECTION_CLASS = 'ml-card rounded-[1.8rem] px-5 py-5 shadow-[0_16px_40px_rgba(23,26,31,0.06)] sm:px-6 sm:py-6';
 
 function formatExpertTypeLabel(expertType: Provider['expertType']) {
@@ -211,7 +210,6 @@ function FiltersForm({ name, city, service, problemId, match, minRating, sort, o
 function ProviderCard({ provider }: { provider: Provider }) {
   const p = provider;
   const topServices = (p.services ?? []).slice(0, 3);
-  const overflow = Math.max(0, (p.services?.length ?? 0) - topServices.length);
   const expertTypeLabel = formatExpertTypeLabel(p.expertType);
   const pricingLabel = p.minProjectBudget
     ? `${p.currencyCode || 'USD'} ${p.minProjectBudget}+ min`
@@ -225,13 +223,14 @@ function ProviderCard({ provider }: { provider: Provider }) {
     p.creatorProofSummary ||
     [creatorPlatformsLabel, creatorAudienceLabel ? `${creatorAudienceLabel} audience` : null].filter(Boolean).join(' • ') ||
     null;
+  const trustLabel = p.verified ? 'Verified expert' : p.expertType === 'creator' && creatorProofBody ? 'Creator proof available' : 'Profile available';
 
   return (
-    <li data-testid="expert-result-card" className="ml-card ml-card-hover rounded-[1.55rem] transition hover:-translate-y-0.5">
-      <Link href={`/experts/${p.slug}`} className="group block">
-        <div className="p-4 sm:p-5">
-          <div className="flex flex-col gap-4 sm:flex-row sm:items-start">
-            <div className="ml-surface-muted h-14 w-14 shrink-0 overflow-hidden rounded-2xl shadow-sm sm:h-16 sm:w-16">
+    <li data-testid="expert-result-card" className="list-none">
+      <details name="expert-card" className="group relative ml-card overflow-visible rounded-[1.55rem] transition open:shadow-[0_18px_42px_rgba(23,26,31,0.08)]">
+        <summary data-testid="expert-card-toggle" className="relative block cursor-pointer list-none pb-8 sm:pb-10">
+          <div className="flex flex-col sm:grid sm:grid-cols-[176px_minmax(0,1fr)]">
+            <div className="ml-surface-muted h-44 overflow-hidden sm:min-h-[210px]">
               {p.logo ? (
                 // eslint-disable-next-line @next/next/no-img-element
                 <img src={p.logo} alt={p.businessName} className="h-full w-full object-cover" />
@@ -240,7 +239,7 @@ function ProviderCard({ provider }: { provider: Provider }) {
               )}
             </div>
 
-            <div className="min-w-0 flex-1 sm:grid sm:grid-cols-[minmax(0,1fr)_190px] sm:gap-5">
+            <div className="min-w-0 px-4 pt-4 sm:grid sm:grid-cols-[minmax(0,1fr)_190px] sm:gap-5 sm:px-5 sm:py-5">
               <div className="min-w-0">
                 <div className="flex flex-wrap items-center gap-2 text-[11px] font-medium uppercase tracking-[0.18em] text-slate-500">
                   <span>{expertTypeLabel}</span>
@@ -257,7 +256,6 @@ function ProviderCard({ provider }: { provider: Provider }) {
                 </div>
 
                 <h3 className="mt-2 truncate text-[1.2rem] font-semibold tracking-tight text-slate-900 sm:text-[1.35rem]">{p.businessName}</h3>
-                <p className="mt-2 line-clamp-2 text-sm leading-6 text-slate-600">{profileSummary}</p>
 
                 {topServices.length > 0 ? (
                   <div className="mt-3 flex flex-wrap gap-2" title={p.services.join(', ')}>
@@ -266,45 +264,74 @@ function ProviderCard({ provider }: { provider: Provider }) {
                         {service}
                       </span>
                     ))}
-                    {overflow > 0 ? (
-                      <span className={`${PILL_MUTED_CLASS} px-3 text-[10px]`}>
-                        +{overflow} more
-                      </span>
-                    ) : null}
                   </div>
                 ) : null}
+
               </div>
 
-              <div className="mt-4 flex items-center justify-between gap-4 border-t border-slate-200/75 pt-4 sm:mt-0 sm:flex-col sm:items-end sm:justify-between sm:border-t-0 sm:pt-0">
-                <div className="text-right">
-                  <div className="text-[11px] font-medium uppercase tracking-[0.18em] text-slate-500">Rating</div>
-                  <div className="mt-1 text-lg font-semibold text-slate-900">{p.rating?.toFixed?.(1) ?? '0.0'}</div>
-                  <div className="mt-2 text-sm font-semibold text-slate-900">{pricingLabel}</div>
-                </div>
-
-                <div className="ml-btn-primary inline-flex min-h-10 items-center gap-2 rounded-xl px-4 text-sm font-semibold text-white">
-                  Open profile
-                  <span className="text-base transition group-hover:translate-x-1" aria-hidden="true">&rarr;</span>
+              <div className="mt-4 border-t border-slate-200/75 pt-4 sm:mt-0 sm:border-t-0 sm:pt-0">
+                <div className="text-left sm:text-right">
+                  <div className="text-lg font-semibold text-slate-900">{pricingLabel}</div>
+                  <div className="mt-1 text-sm text-slate-600">{trustLabel}</div>
                 </div>
               </div>
+            </div>
+          </div>
 
-              {p.expertType === 'creator' && creatorProofBody ? (
-                <div className="mt-4 rounded-[1.05rem] bg-slate-50 px-3 py-3 ring-1 ring-slate-200/80 sm:col-span-2">
-                  <div className="flex flex-wrap items-center gap-2">
-                    <span className={`${PILL_CLASS} px-2.5 text-[10px]`}>Creator proof</span>
-                    {creatorPlatformsLabel ? (
-                      <span className="text-[11px] font-medium uppercase tracking-[0.18em] text-slate-500">
-                        {creatorPlatformsLabel}
+          <span className="pointer-events-none absolute bottom-0 left-1/2 inline-flex h-7 w-14 -translate-x-1/2 translate-y-1/2 items-center justify-center rounded-b-[1rem] border border-slate-200 border-t-0 bg-white text-slate-500 shadow-[0_8px_18px_rgba(15,23,42,0.08)]">
+            <span className="text-sm leading-none transition-transform duration-200 group-hover:animate-bounce group-open:animate-none group-open:rotate-180" aria-hidden="true">
+              &darr;
+            </span>
+          </span>
+        </summary>
+
+        <div data-testid="expert-card-expanded-panel" className="border-t border-slate-200/80 bg-slate-50/45 px-4 pb-4 pt-7 sm:px-5 sm:pb-5 sm:pt-8">
+          <div className="grid gap-5 lg:grid-cols-[minmax(0,1.15fr)_minmax(260px,0.85fr)]">
+            <div>
+              <div className="text-[11px] font-medium uppercase tracking-[0.18em] text-slate-500">Why this expert</div>
+              <p className="mt-2 text-sm leading-7 text-slate-700">{profileSummary}</p>
+
+              {p.expertType === 'creator' && (creatorProofBody || creatorPlatformsLabel || creatorAudienceLabel) ? (
+                <div className="mt-4 rounded-[1.15rem] bg-white/80 px-4 py-4 ring-1 ring-slate-200/80">
+                  <div className="text-[11px] font-medium uppercase tracking-[0.18em] text-slate-500">Creator proof</div>
+                  {creatorPlatformsLabel ? <div className="mt-2 text-sm font-medium text-slate-900">{creatorPlatformsLabel}</div> : null}
+                  {creatorAudienceLabel ? <div className="mt-1 text-sm text-slate-600">{creatorAudienceLabel} audience</div> : null}
+                  {creatorProofBody ? <p className="mt-2 text-sm leading-6 text-slate-700">{creatorProofBody}</p> : null}
+                </div>
+              ) : (
+                <div className="mt-4 rounded-[1.15rem] bg-white/80 px-4 py-4 ring-1 ring-slate-200/80">
+                  <div className="text-[11px] font-medium uppercase tracking-[0.18em] text-slate-500">Trust signal</div>
+                  <p className="mt-2 text-sm leading-6 text-slate-700">{trustLabel}</p>
+                </div>
+              )}
+            </div>
+
+            <div className="grid gap-4">
+              <div>
+                <div className="text-[11px] font-medium uppercase tracking-[0.18em] text-slate-500">What they offer</div>
+                {p.services?.length ? (
+                  <div className="mt-3 flex flex-wrap gap-2">
+                    {p.services.map((service) => (
+                      <span key={service} className={`${PILL_CLASS} px-3 text-[10px]`}>
+                        {service}
                       </span>
-                    ) : null}
+                    ))}
                   </div>
-                  <p className="mt-2 text-sm leading-6 text-slate-700">{creatorProofBody}</p>
-                </div>
-              ) : null}
+                ) : (
+                  <p className="mt-2 text-sm leading-6 text-slate-600">Open the full profile to view the complete service list.</p>
+                )}
+              </div>
+
+              <Link
+                href={`/experts/${p.slug}`}
+                className="ml-btn-primary inline-flex min-h-11 items-center justify-center rounded-xl px-5 text-sm font-semibold text-white"
+              >
+                View full profile
+              </Link>
             </div>
           </div>
         </div>
-      </Link>
+      </details>
     </li>
   );
 }
