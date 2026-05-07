@@ -216,8 +216,6 @@ const expertDetailSelect = {
   remoteFriendly: true,
   servesNationwide: true,
   responseTimeHours: true,
-  featured: true,
-  completionScore: true,
   city: true,
   state: true,
   zip: true,
@@ -227,8 +225,6 @@ const expertDetailSelect = {
   logo: true,
   status: true,
   disabledReason: true,
-  createdAt: true,
-  updatedAt: true,
   projects: {
     select: expertProjectSelect,
     orderBy: [{ sortOrder: 'asc' }, { createdAt: 'asc' }],
@@ -240,10 +236,6 @@ const expertDetailSelect = {
   media: {
     select: expertMediaSelect,
     orderBy: [{ sortOrder: 'asc' }, { createdAt: 'asc' }],
-  },
-  reviews: {
-    select: expertReviewSelect,
-    orderBy: [{ sortOrder: 'asc' }, { publishedAt: 'desc' }, { createdAt: 'desc' }],
   },
   certifications: {
     select: expertCertificationSelect,
