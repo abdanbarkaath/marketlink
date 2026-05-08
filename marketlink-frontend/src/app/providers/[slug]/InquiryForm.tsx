@@ -10,6 +10,7 @@ export default function InquiryForm({ expertSlug }: { expertSlug: string }) {
   const [saving, setSaving] = useState(false);
   const [sent, setSent] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [messageLength, setMessageLength] = useState(0);
   const fieldClass = 'ml-input w-full rounded-2xl px-4 py-3 text-sm text-slate-900';
 
   async function onSubmit(e: React.FormEvent<HTMLFormElement>) {
@@ -83,7 +84,11 @@ export default function InquiryForm({ expertSlug }: { expertSlug: string }) {
         </span>
       </div>
 
-      {sent ? <div className="mb-4 rounded-2xl border border-green-200 bg-green-50 px-4 py-3 text-sm text-green-800">Inquiry sent!</div> : null}
+      {sent ? (
+        <div className="mb-4 rounded-2xl border border-green-200 bg-green-50 px-4 py-3 text-sm text-green-800">
+          Inquiry sent. The expert now has your name, email, phone if provided, and project details.
+        </div>
+      ) : null}
 
       {error ? (
         <div role="alert" className="mb-4 rounded-2xl border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-800">
@@ -96,7 +101,7 @@ export default function InquiryForm({ expertSlug }: { expertSlug: string }) {
           <label htmlFor="name" className={`text-sm font-medium ${t.mutedText}`}>
             Name *
           </label>
-          <input id="name" name="name" required disabled={saving} className={fieldClass} placeholder="Jane" />
+          <input id="name" name="name" required maxLength={100} disabled={saving} className={fieldClass} placeholder="Jane" />
         </div>
 
         <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
@@ -104,34 +109,40 @@ export default function InquiryForm({ expertSlug }: { expertSlug: string }) {
             <label htmlFor="email" className={`text-sm font-medium ${t.mutedText}`}>
               Email *
             </label>
-            <input id="email" name="email" type="email" required disabled={saving} className={fieldClass} placeholder="you@cafe.com" />
+            <input id="email" name="email" type="email" required maxLength={200} disabled={saving} className={fieldClass} placeholder="you@cafe.com" />
           </div>
 
           <div className="grid gap-2">
             <label htmlFor="phone" className={`text-sm font-medium ${t.mutedText}`}>
               Phone
             </label>
-            <input id="phone" name="phone" disabled={saving} className={fieldClass} placeholder="Optional" />
+            <input id="phone" name="phone" maxLength={40} disabled={saving} className={fieldClass} placeholder="Optional" />
           </div>
         </div>
 
         <div className="grid gap-2">
-          <label htmlFor="message" className={`text-sm font-medium ${t.mutedText}`}>
-            Project details *
-          </label>
+          <div className="flex items-center justify-between gap-3">
+            <label htmlFor="message" className={`text-sm font-medium ${t.mutedText}`}>
+              Project details *
+            </label>
+            <span className={`text-xs ${t.mutedText}`}>{messageLength}/2000</span>
+          </div>
           <textarea
             id="message"
             name="message"
             required
             rows={4}
+            maxLength={2000}
             disabled={saving}
             className={`${fieldClass} min-h-[132px] resize-none`}
             placeholder="What do you need help with, and when do you need it?"
+            onChange={(e) => setMessageLength(e.currentTarget.value.length)}
           />
+          <p className={`text-xs ${t.mutedText}`}>Include the goal, timeline, and any budget guidance.</p>
         </div>
 
         <div className="flex flex-col gap-3 border-t border-[#d4c6b4]/70 pt-4 sm:flex-row sm:items-center sm:justify-between">
-          <p className={`text-sm ${t.mutedText}`}>* required</p>
+          <p className={`text-sm ${t.mutedText}`}>* required. Phone is optional.</p>
           <button
             type="submit"
             disabled={saving}
