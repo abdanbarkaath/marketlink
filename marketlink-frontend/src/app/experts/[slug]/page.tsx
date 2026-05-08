@@ -774,7 +774,7 @@ function ProviderPageContent({ provider: p }: { provider: Provider }) {
             </div>
           </header>
 
-          <div className="grid gap-6 xl:grid-cols-[minmax(0,1fr)_320px] xl:items-start">
+          <div className="grid gap-6 xl:grid-cols-[minmax(0,1fr)_380px] xl:items-start">
             <div className="min-w-0 space-y-8">
               {(visibleProjects.length || prioritizedVisibleMedia.length) ? (
                 <section className={`rounded-[2rem] ${pageSurface} ${pageBorder} border px-6 py-6 shadow-[0_20px_70px_rgba(15,23,42,0.08)]`}>
