@@ -55,6 +55,11 @@ model Expert {
   city                String                @db.Citext
   state               String                @db.Citext
   zip                 String?
+  latitude            Float?
+  longitude           Float?
+  locationPrecision   LocationPrecision     @default(exact)
+  geocodedAt          DateTime?
+  geocodeProvider     String?
   rating              Float                 @default(0)
   verified            Boolean               @default(false)
   logo                String?
@@ -138,6 +143,11 @@ enum ExpertStatus {
   pending
   active
   disabled
+}
+
+enum LocationPrecision {
+  exact
+  approximate
 }
 
 ///
