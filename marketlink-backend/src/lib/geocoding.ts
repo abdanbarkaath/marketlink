@@ -4,6 +4,10 @@ type ExpertLocationInput = {
   zip?: string | null;
 };
 
+type SearchCenterInput = {
+  zip: string;
+};
+
 type GeocodeSuccess = {
   ok: true;
   latitude: number;
@@ -30,17 +34,21 @@ function buildExpertLocationText({ city, state, zip }: ExpertLocationInput) {
   return zip ? `${cityState} ${zip}, United States` : `${cityState}, United States`;
 }
 
+function buildSearchCenterText({ zip }: SearchCenterInput) {
+  return `${zip}, United States`;
+}
+
 export function hasGeocodingConfig() {
   return Boolean(GEOAPIFY_API_KEY);
 }
 
-export async function geocodeExpertLocation(input: ExpertLocationInput): Promise<GeocodeResult> {
+async function geocodeSearchText(text: string): Promise<GeocodeResult> {
   if (!hasGeocodingConfig()) {
     return { ok: false, error: 'missing-config' };
   }
 
   const url = new URL('/v1/geocode/search', GEOAPIFY_BASE_URL);
-  url.searchParams.set('text', buildExpertLocationText(input));
+  url.searchParams.set('text', text);
   url.searchParams.set('format', 'json');
   url.searchParams.set('limit', '1');
   url.searchParams.set('apiKey', GEOAPIFY_API_KEY);
@@ -73,4 +81,12 @@ export async function geocodeExpertLocation(input: ExpertLocationInput): Promise
   } catch {
     return { ok: false, error: 'network' };
   }
+}
+
+export async function geocodeExpertLocation(input: ExpertLocationInput): Promise<GeocodeResult> {
+  return geocodeSearchText(buildExpertLocationText(input));
+}
+
+export async function geocodeSearchCenter(input: SearchCenterInput): Promise<GeocodeResult> {
+  return geocodeSearchText(buildSearchCenterText(input));
 }

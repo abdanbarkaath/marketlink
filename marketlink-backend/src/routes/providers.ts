@@ -3,11 +3,12 @@ import type { Prisma } from '@prisma/client';
 import { prisma } from '../lib/prisma';
 import { getUserFromRequest } from '../lib/session';
 import { ExpertMediaType, ExpertStatus, ExpertType, LocationPrecision } from '@prisma/client';
-import { geocodeExpertLocation } from '../lib/geocoding';
+import { geocodeExpertLocation, geocodeSearchCenter } from '../lib/geocoding';
 
 type SortKey = 'newest' | 'name' | 'rating' | 'verified';
 type OrderDir = 'asc' | 'desc';
 type MatchMode = 'any' | 'all';
+type RadiusMiles = 5 | 10 | 25 | 50;
 
 const asSortKey = (v?: string): SortKey => {
   if (v === 'name' || v === 'rating' || v === 'verified') return v;
@@ -105,6 +106,29 @@ const parseOptionalDate = (raw: unknown): Date | null | undefined => {
   return d;
 };
 
+const ALLOWED_RADIUS_MILES = new Set<RadiusMiles>([5, 10, 25, 50]);
+
+const parseRadiusMiles = (raw: unknown): RadiusMiles | undefined | 'invalid' => {
+  if (typeof raw === 'undefined') return undefined;
+  const n = Number(raw);
+  if (!Number.isFinite(n)) return 'invalid';
+  const value = Math.trunc(n) as RadiusMiles;
+  return ALLOWED_RADIUS_MILES.has(value) ? value : 'invalid';
+};
+
+const toRadians = (value: number) => (value * Math.PI) / 180;
+
+const haversineMiles = (fromLat: number, fromLng: number, toLat: number, toLng: number) => {
+  const earthRadiusMiles = 3958.7613;
+  const dLat = toRadians(toLat - fromLat);
+  const dLng = toRadians(toLng - fromLng);
+  const a =
+    Math.sin(dLat / 2) ** 2 +
+    Math.cos(toRadians(fromLat)) * Math.cos(toRadians(toLat)) * Math.sin(dLng / 2) ** 2;
+
+  return earthRadiusMiles * (2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a)));
+};
+
 const expertProjectSelect = {
   id: true,
   title: true,
@@ -194,6 +218,8 @@ const listQuerySchema = {
   properties: {
     name: { type: 'string' },
     city: { type: 'string' },
+    zip: { type: 'string' },
+    radius: { type: 'string', enum: ['5', '10', '25', '50'] },
     service: { type: 'string' }, // comma-separated services
     minRating: { type: 'string', pattern: '^[0-9]+(\\.[0-9]+)?$' }, // keep string, we parse to number
     verified: { type: 'string' }, // "1" | "true" | "0" | "false"
@@ -357,6 +383,13 @@ const expertsRoutes: FastifyPluginAsync = async (fastify) => {
             },
             required: ['meta', 'data'],
           },
+          400: {
+            type: 'object',
+            properties: {
+              error: { type: 'string' },
+            },
+            required: ['error'],
+          },
         },
       },
     },
@@ -364,6 +397,8 @@ const expertsRoutes: FastifyPluginAsync = async (fastify) => {
       const {
         name,
         city,
+        zip,
+        radius: radiusRaw,
         service,
         minRating,
         verified,
@@ -377,6 +412,8 @@ const expertsRoutes: FastifyPluginAsync = async (fastify) => {
       } = (req.query || {}) as {
         name?: string;
         city?: string;
+        zip?: string;
+        radius?: string;
         service?: string;
         minRating?: string;
         verified?: string;
@@ -391,6 +428,15 @@ const expertsRoutes: FastifyPluginAsync = async (fastify) => {
       const pageNum = parsePage(pageRaw, 1);
       const skip = (pageNum - 1) * limitNum;
       const take = limitNum;
+      const zipQuery = zip?.trim();
+      const radiusMiles = parseRadiusMiles(radiusRaw);
+
+      if (radiusMiles === 'invalid') {
+        return reply.code(400).send({ error: 'radius must be one of: 5, 10, 25, 50.' });
+      }
+      if (Boolean(zipQuery) !== Boolean(radiusMiles)) {
+        return reply.code(400).send({ error: 'zip and radius must be provided together.' });
+      }
 
       const andFilters: Prisma.ExpertWhereInput[] = [];
 
@@ -431,6 +477,23 @@ const expertsRoutes: FastifyPluginAsync = async (fastify) => {
         if (v === '0' || v === 'false') andFilters.push({ verified: false });
       }
 
+      let searchCenter:
+        | {
+            latitude: number;
+            longitude: number;
+          }
+        | undefined;
+
+      if (zipQuery && radiusMiles) {
+        const geocoded = await geocodeSearchCenter({ zip: zipQuery });
+        if (!geocoded.ok) {
+          return reply.code(400).send({ error: 'Could not resolve zip code for radius search.' });
+        }
+        searchCenter = { latitude: geocoded.latitude, longitude: geocoded.longitude };
+        andFilters.push({ latitude: { not: null } });
+        andFilters.push({ longitude: { not: null } });
+      }
+
       const baseFilter: Prisma.ExpertWhereInput = { status: ExpertStatus.active };
       const where: Prisma.ExpertWhereInput = andFilters.length ? { AND: [...andFilters, baseFilter] } : baseFilter;
 
@@ -448,37 +511,79 @@ const expertsRoutes: FastifyPluginAsync = async (fastify) => {
       if (!hasPrimary('businessName')) orderBy.push({ businessName: 'asc' });
       if (!hasPrimary('createdAt')) orderBy.push({ createdAt: 'desc' });
 
-      const [total, rows] = await Promise.all([
-        prisma.expert.count({ where }),
-        prisma.expert.findMany({
+      const listSelect = {
+        id: true,
+        slug: true,
+        businessName: true,
+        expertType: true,
+        tagline: true,
+        shortDescription: true,
+        city: true,
+        state: true,
+        zip: true,
+        latitude: true,
+        longitude: true,
+        verified: true,
+        logo: true,
+        services: true,
+        creatorPlatforms: true,
+        creatorAudienceSize: true,
+        creatorProofSummary: true,
+        rating: true,
+        hourlyRateMin: true,
+        hourlyRateMax: true,
+        minProjectBudget: true,
+        currencyCode: true,
+        createdAt: true,
+      } satisfies Prisma.ExpertSelect;
+
+      type ListRow = Prisma.ExpertGetPayload<{
+        select: typeof listSelect;
+      }>;
+
+      let total = 0;
+      let rows: Array<ListRow & { distanceMiles?: number }> = [];
+
+      if (searchCenter && radiusMiles) {
+        const allCandidates = await prisma.expert.findMany({
           where,
           orderBy,
-          skip,
-          take,
-          select: {
-            id: true,
-            slug: true,
-            businessName: true,
-            expertType: true,
-            tagline: true,
-            shortDescription: true,
-            city: true,
-            state: true,
-            verified: true,
-            logo: true,
-            services: true,
-            creatorPlatforms: true,
-            creatorAudienceSize: true,
-            creatorProofSummary: true,
-            rating: true,
-            hourlyRateMin: true,
-            hourlyRateMax: true,
-            minProjectBudget: true,
-            currencyCode: true,
-            createdAt: true,
-          },
-        }),
-      ]);
+          select: listSelect,
+        });
+
+        const nearby: Array<ListRow & { distanceMiles: number }> = [];
+        for (const row of allCandidates) {
+          if (typeof row.latitude !== 'number' || typeof row.longitude !== 'number') {
+            continue;
+          }
+          const distanceMiles = Number(
+            haversineMiles(searchCenter.latitude, searchCenter.longitude, row.latitude, row.longitude).toFixed(1),
+          );
+          if (distanceMiles > radiusMiles) {
+            continue;
+          }
+          nearby.push({
+            ...row,
+            distanceMiles,
+          });
+        }
+
+        total = nearby.length;
+        rows = nearby.slice(skip, skip + take);
+      } else {
+        const result = await Promise.all([
+          prisma.expert.count({ where }),
+          prisma.expert.findMany({
+            where,
+            orderBy,
+            skip,
+            take,
+            select: listSelect,
+          }),
+        ]);
+        total = result[0];
+        rows = result[1];
+      }
 
       const totalPages = Math.max(1, Math.ceil(total / take));
 
