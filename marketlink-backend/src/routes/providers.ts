@@ -2,7 +2,8 @@ import type { FastifyPluginAsync } from 'fastify';
 import type { Prisma } from '@prisma/client';
 import { prisma } from '../lib/prisma';
 import { getUserFromRequest } from '../lib/session';
-import { ExpertMediaType, ExpertStatus, ExpertType } from '@prisma/client';
+import { ExpertMediaType, ExpertStatus, ExpertType, LocationPrecision } from '@prisma/client';
+import { geocodeExpertLocation } from '../lib/geocoding';
 
 type SortKey = 'newest' | 'name' | 'rating' | 'verified';
 type OrderDir = 'asc' | 'desc';
@@ -57,6 +58,16 @@ const parseOptionalInt = (raw: unknown): number | null | undefined => {
   return Math.trunc(n);
 };
 
+const parseOptionalFloat = (raw: unknown): number | null | undefined => {
+  if (typeof raw === 'undefined') return undefined;
+  if (raw === null) return null;
+  const s = String(raw).trim();
+  if (!s) return null;
+  const n = Number(s);
+  if (!Number.isFinite(n)) return NaN;
+  return n;
+};
+
 const parseOptionalBool = (raw: unknown): boolean | undefined => {
   if (typeof raw === 'undefined') return undefined;
   if (typeof raw === 'boolean') return raw;
@@ -74,6 +85,15 @@ const parseOptionalExpertType = (raw: unknown): ExpertType | null | undefined | 
   const value = raw.trim().toLowerCase();
   if (!value) return null;
   return Object.values(ExpertType).includes(value as ExpertType) ? (value as ExpertType) : 'invalid';
+};
+
+const parseOptionalLocationPrecision = (raw: unknown): LocationPrecision | undefined | 'invalid' => {
+  if (typeof raw === 'undefined') return undefined;
+  if (typeof raw !== 'string') return 'invalid';
+
+  const value = raw.trim().toLowerCase();
+  if (!value) return undefined;
+  return Object.values(LocationPrecision).includes(value as LocationPrecision) ? (value as LocationPrecision) : 'invalid';
 };
 
 const parseOptionalDate = (raw: unknown): Date | null | undefined => {
@@ -219,6 +239,11 @@ const expertDetailSelect = {
   city: true,
   state: true,
   zip: true,
+  latitude: true,
+  longitude: true,
+  locationPrecision: true,
+  geocodedAt: true,
+  geocodeProvider: true,
   services: true,
   rating: true,
   verified: true,
@@ -277,6 +302,11 @@ const expertEditorSelect = {
   city: true,
   state: true,
   zip: true,
+  latitude: true,
+  longitude: true,
+  locationPrecision: true,
+  geocodedAt: true,
+  geocodeProvider: true,
   tagline: true,
   logo: true,
   services: true,
@@ -516,6 +546,11 @@ const expertsRoutes: FastifyPluginAsync = async (fastify) => {
       city?: string;
       state?: string;
       zip?: string;
+      latitude?: number | string | null;
+      longitude?: number | string | null;
+      locationPrecision?: string;
+      geocodedAt?: string | null;
+      geocodeProvider?: string | null;
       services?: string[] | string;
       tagline?: string;
       logo?: string;
@@ -575,9 +610,15 @@ const expertsRoutes: FastifyPluginAsync = async (fastify) => {
     const city = (body.city || '').trim();
     const state = (body.state || '').trim();
     const zip = (body.zip || '').trim() || null;
+    const latitude = parseOptionalFloat(body.latitude);
+    const longitude = parseOptionalFloat(body.longitude);
     const tagline = (body.tagline || '').trim() || null;
     const logo = (body.logo || '').trim() || null;
     const expertType = parseOptionalExpertType(body.expertType);
+    const locationPrecision = parseOptionalLocationPrecision(body.locationPrecision);
+    const geocodedAt = parseOptionalDate(body.geocodedAt);
+    const geocodeProvider = typeof body.geocodeProvider === 'string' ? body.geocodeProvider.trim() || null : undefined;
+    const defaultLocationPrecision = expertType === ExpertType.creator ? LocationPrecision.approximate : LocationPrecision.exact;
 
     if (!businessName) return reply.code(400).send({ error: 'businessName is required' });
     if (!city) return reply.code(400).send({ error: 'city is required' });
@@ -586,8 +627,29 @@ const expertsRoutes: FastifyPluginAsync = async (fastify) => {
     if (expertType === 'invalid') {
       return reply.code(400).send({ error: `expertType must be one of: ${Object.values(ExpertType).join(', ')}.` });
     }
+    if (locationPrecision === 'invalid') {
+      return reply.code(400).send({ error: `locationPrecision must be one of: ${Object.values(LocationPrecision).join(', ')}.` });
+    }
     if (!expertType) {
       return reply.code(400).send({ error: 'expertType is required.' });
+    }
+    if (Number.isNaN(latitude)) {
+      return reply.code(400).send({ error: 'latitude must be a number.' });
+    }
+    if (Number.isNaN(longitude)) {
+      return reply.code(400).send({ error: 'longitude must be a number.' });
+    }
+    if ((latitude === null) !== (longitude === null) || (typeof latitude === 'undefined') !== (typeof longitude === 'undefined')) {
+      return reply.code(400).send({ error: 'latitude and longitude must be provided together.' });
+    }
+    if (typeof latitude === 'number' && (latitude < -90 || latitude > 90)) {
+      return reply.code(400).send({ error: 'latitude must be between -90 and 90.' });
+    }
+    if (typeof longitude === 'number' && (longitude < -180 || longitude > 180)) {
+      return reply.code(400).send({ error: 'longitude must be between -180 and 180.' });
+    }
+    if (geocodedAt instanceof Date && Number.isNaN(geocodedAt.getTime())) {
+      return reply.code(400).send({ error: 'geocodedAt must be a valid date.' });
     }
 
     let services: string[] = [];
@@ -641,6 +703,21 @@ const expertsRoutes: FastifyPluginAsync = async (fastify) => {
       slug = `${base}-${i++}`;
     }
 
+    let resolvedLatitude = typeof latitude === 'undefined' ? undefined : latitude;
+    let resolvedLongitude = typeof longitude === 'undefined' ? undefined : longitude;
+    let resolvedGeocodedAt = typeof geocodedAt === 'undefined' ? undefined : geocodedAt;
+    let resolvedGeocodeProvider = typeof geocodeProvider === 'undefined' ? undefined : geocodeProvider;
+
+    if (typeof resolvedLatitude === 'undefined' && typeof resolvedLongitude === 'undefined') {
+      const geocoded = await geocodeExpertLocation({ city, state, zip });
+      if (geocoded.ok) {
+        resolvedLatitude = geocoded.latitude;
+        resolvedLongitude = geocoded.longitude;
+        resolvedGeocodedAt = geocoded.geocodedAt;
+        resolvedGeocodeProvider = geocoded.geocodeProvider;
+      }
+    }
+
     try {
       const created = await prisma.expert.create({
         data: {
@@ -653,6 +730,11 @@ const expertsRoutes: FastifyPluginAsync = async (fastify) => {
           city,
           state,
           zip: zip || undefined,
+          latitude: resolvedLatitude,
+          longitude: resolvedLongitude,
+          locationPrecision: locationPrecision ?? defaultLocationPrecision,
+          geocodedAt: resolvedGeocodedAt,
+          geocodeProvider: resolvedGeocodeProvider,
           services,
           logo: logo || undefined,
           creatorPlatforms: creatorPlatforms || undefined,
@@ -666,6 +748,12 @@ const expertsRoutes: FastifyPluginAsync = async (fastify) => {
           expertType: true,
           city: true,
           state: true,
+          zip: true,
+          latitude: true,
+          longitude: true,
+          locationPrecision: true,
+          geocodedAt: true,
+          geocodeProvider: true,
           services: true,
           creatorPlatforms: true,
           creatorAudienceSize: true,
@@ -699,6 +787,11 @@ const expertsRoutes: FastifyPluginAsync = async (fastify) => {
       city?: string;
       state?: string;
       zip?: string;
+      latitude?: number | string | null;
+      longitude?: number | string | null;
+      locationPrecision?: string;
+      geocodedAt?: string | null;
+      geocodeProvider?: string | null;
       services?: string[] | string;
       tagline?: string;
       logo?: string;
@@ -754,10 +847,20 @@ const expertsRoutes: FastifyPluginAsync = async (fastify) => {
       }>;
     };
 
+    if ((typeof body.latitude !== 'undefined') !== (typeof body.longitude !== 'undefined')) {
+      return reply.code(400).send({ error: 'latitude and longitude must be provided together.' });
+    }
+
     const data: Prisma.ExpertUpdateInput = {};
     let projectCreates: Prisma.ExpertProjectCreateManyExpertInput[] | undefined;
     let clientCreates: Prisma.ExpertClientCreateManyExpertInput[] | undefined;
     let mediaCreates: Prisma.ExpertMediaCreateManyExpertInput[] | undefined;
+    let nextCity = expert.city;
+    let nextState = expert.state;
+    let nextZip = expert.zip;
+    let nextExpertType = expert.expertType;
+    let locationChanged = false;
+    let coordinatesTouched = false;
 
     if (typeof body.businessName === 'string') {
       const v = body.businessName.trim();
@@ -768,15 +871,80 @@ const expertsRoutes: FastifyPluginAsync = async (fastify) => {
       const v = body.city.trim();
       if (!v) return reply.code(400).send({ error: 'city cannot be empty' });
       data.city = v;
+      nextCity = v;
+      locationChanged = true;
     }
     if (typeof body.state === 'string') {
       const v = body.state.trim();
       if (!v) return reply.code(400).send({ error: 'state cannot be empty' });
       data.state = v;
+      nextState = v;
+      locationChanged = true;
     }
     if (typeof body.zip === 'string') {
       const v = body.zip.trim();
       (data as any).zip = v || null;
+      nextZip = v || null;
+      locationChanged = true;
+    }
+    if (typeof body.latitude !== 'undefined') {
+      const latitude = parseOptionalFloat(body.latitude);
+      if (Number.isNaN(latitude)) return reply.code(400).send({ error: 'latitude must be a number.' });
+      if (typeof latitude === 'number' && (latitude < -90 || latitude > 90)) return reply.code(400).send({ error: 'latitude must be between -90 and 90.' });
+      (data as any).latitude = latitude;
+      coordinatesTouched = true;
+    }
+    if (typeof body.longitude !== 'undefined') {
+      const longitude = parseOptionalFloat(body.longitude);
+      if (Number.isNaN(longitude)) return reply.code(400).send({ error: 'longitude must be a number.' });
+      if (typeof longitude === 'number' && (longitude < -180 || longitude > 180)) return reply.code(400).send({ error: 'longitude must be between -180 and 180.' });
+      (data as any).longitude = longitude;
+      coordinatesTouched = true;
+    }
+    if (coordinatesTouched) {
+      const currentExpert = expert as any;
+      const nextLatitude = typeof body.latitude !== 'undefined' ? (data as any).latitude : currentExpert.latitude;
+      const nextLongitude = typeof body.longitude !== 'undefined' ? (data as any).longitude : currentExpert.longitude;
+      if ((nextLatitude === null) !== (nextLongitude === null)) {
+        return reply.code(400).send({ error: 'latitude and longitude must be provided together.' });
+      }
+    }
+    if (typeof body.locationPrecision !== 'undefined') {
+      const locationPrecision = parseOptionalLocationPrecision(body.locationPrecision);
+      if (locationPrecision === 'invalid') {
+        return reply.code(400).send({ error: `locationPrecision must be one of: ${Object.values(LocationPrecision).join(', ')}.` });
+      }
+      if (locationPrecision) (data as any).locationPrecision = locationPrecision;
+    }
+    if (typeof body.geocodedAt !== 'undefined') {
+      const geocodedAt = parseOptionalDate(body.geocodedAt);
+      if (geocodedAt instanceof Date && Number.isNaN(geocodedAt.getTime())) return reply.code(400).send({ error: 'geocodedAt must be a valid date.' });
+      (data as any).geocodedAt = typeof geocodedAt === 'undefined' ? undefined : geocodedAt;
+    }
+    if (typeof body.geocodeProvider === 'string') {
+      const v = body.geocodeProvider.trim();
+      (data as any).geocodeProvider = v || null;
+    }
+    if (coordinatesTouched && typeof body.geocodedAt === 'undefined' && typeof body.geocodeProvider === 'undefined') {
+      (data as any).geocodedAt = null;
+      (data as any).geocodeProvider = null;
+    }
+    if (!coordinatesTouched && locationChanged) {
+      const geocoded = await geocodeExpertLocation({ city: nextCity, state: nextState, zip: nextZip });
+      if (geocoded.ok) {
+        (data as any).latitude = geocoded.latitude;
+        (data as any).longitude = geocoded.longitude;
+        (data as any).geocodedAt = geocoded.geocodedAt;
+        (data as any).geocodeProvider = geocoded.geocodeProvider;
+      } else {
+        (data as any).latitude = null;
+        (data as any).longitude = null;
+        (data as any).geocodedAt = null;
+        (data as any).geocodeProvider = null;
+      }
+    }
+    if (nextExpertType === ExpertType.creator && expert.expertType !== ExpertType.creator && typeof body.locationPrecision === 'undefined') {
+      (data as any).locationPrecision = LocationPrecision.approximate;
     }
     if (typeof body.tagline === 'string') {
       const v = body.tagline.trim();
@@ -823,6 +991,7 @@ const expertsRoutes: FastifyPluginAsync = async (fastify) => {
         return reply.code(400).send({ error: 'expertType is required.' });
       }
       (data as any).expertType = expertType;
+      nextExpertType = expertType;
     }
     const creatorPlatforms = normalizeTokenArray(body.creatorPlatforms);
     if (creatorPlatforms === null) return reply.code(400).send({ error: 'creatorPlatforms must be an array or comma-separated string.' });
