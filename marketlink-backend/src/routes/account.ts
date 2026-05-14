@@ -25,6 +25,8 @@ const accountRoutes: FastifyPluginAsync = async (fastify) => {
         city: true,
         state: true,
         zip: true,
+        streetAddress: true,
+        locationPrecision: true,
         tagline: true,
         shortDescription: true,
         overview: true,

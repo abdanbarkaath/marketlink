@@ -3,7 +3,7 @@ import type { Prisma } from '@prisma/client';
 import { prisma } from '../lib/prisma';
 import { getUserFromRequest } from '../lib/session';
 import { ExpertMediaType, ExpertStatus, ExpertType, LocationPrecision } from '@prisma/client';
-import { geocodeExpertLocation, geocodeSearchCenter } from '../lib/geocoding';
+import { autocompleteLocation, geocodeExpertLocation, geocodeSearchCenter, lookupZipLocation } from '../lib/geocoding';
 
 type SortKey = 'newest' | 'name' | 'rating' | 'verified';
 type OrderDir = 'asc' | 'desc';
@@ -265,6 +265,7 @@ const expertDetailSelect = {
   city: true,
   state: true,
   zip: true,
+  streetAddress: true,
   latitude: true,
   longitude: true,
   locationPrecision: true,
@@ -328,6 +329,7 @@ const expertEditorSelect = {
   city: true,
   state: true,
   zip: true,
+  streetAddress: true,
   latitude: true,
   longitude: true,
   locationPrecision: true,
@@ -356,6 +358,47 @@ const expertCollectionPaths = ['/experts', '/providers'] as const;
 const expertDetailPaths = ['/experts/:slug', '/providers/:slug'] as const;
 
 const expertsRoutes: FastifyPluginAsync = async (fastify) => {
+  fastify.get('/location/autocomplete', async (req, reply) => {
+    const { q, type } = (req.query || {}) as { q?: string; type?: string };
+    const query = String(q || '').trim();
+    const lookupType = String(type || '').trim().toLowerCase();
+
+    if (!query) {
+      return reply.send({ ok: true, suggestions: [] });
+    }
+
+    if (lookupType !== 'city' && lookupType !== 'state' && lookupType !== 'postcode' && lookupType !== 'address') {
+      return reply.code(400).send({ error: 'type must be one of: city, state, postcode, address.' });
+    }
+
+    const result = await autocompleteLocation(query, lookupType);
+    if (!result.ok) {
+      return reply.code(result.error === 'missing-config' ? 503 : 400).send({
+        error: result.error === 'missing-config' ? 'Location lookup is not configured.' : 'Failed to autocomplete location.',
+      });
+    }
+
+    return reply.send(result);
+  });
+
+  fastify.get('/location/zip/:zip', async (req, reply) => {
+    const { zip } = req.params as { zip: string };
+    const normalizedZip = String(zip || '').trim();
+
+    if (!normalizedZip) {
+      return reply.code(400).send({ error: 'zip is required.' });
+    }
+
+    const result = await lookupZipLocation({ zip: normalizedZip });
+    if (!result.ok) {
+      return reply.code(result.error === 'missing-config' ? 503 : 400).send({
+        error: result.error === 'missing-config' ? 'Location lookup is not configured.' : 'Could not resolve zip code.',
+      });
+    }
+
+    return reply.send(result);
+  });
+
   // LIST: GET /experts (with /providers kept as a compatibility alias)
   for (const path of expertCollectionPaths) {
     fastify.get(
@@ -651,6 +694,7 @@ const expertsRoutes: FastifyPluginAsync = async (fastify) => {
       city?: string;
       state?: string;
       zip?: string;
+      streetAddress?: string;
       latitude?: number | string | null;
       longitude?: number | string | null;
       locationPrecision?: string;
@@ -715,6 +759,7 @@ const expertsRoutes: FastifyPluginAsync = async (fastify) => {
     const city = (body.city || '').trim();
     const state = (body.state || '').trim();
     const zip = (body.zip || '').trim() || null;
+    const streetAddress = (body.streetAddress || '').trim() || null;
     const latitude = parseOptionalFloat(body.latitude);
     const longitude = parseOptionalFloat(body.longitude);
     const tagline = (body.tagline || '').trim() || null;
@@ -814,7 +859,7 @@ const expertsRoutes: FastifyPluginAsync = async (fastify) => {
     let resolvedGeocodeProvider = typeof geocodeProvider === 'undefined' ? undefined : geocodeProvider;
 
     if (typeof resolvedLatitude === 'undefined' && typeof resolvedLongitude === 'undefined') {
-      const geocoded = await geocodeExpertLocation({ city, state, zip });
+      const geocoded = await geocodeExpertLocation({ streetAddress, city, state, zip });
       if (geocoded.ok) {
         resolvedLatitude = geocoded.latitude;
         resolvedLongitude = geocoded.longitude;
@@ -832,6 +877,7 @@ const expertsRoutes: FastifyPluginAsync = async (fastify) => {
           slug,
           expertType,
           tagline,
+          streetAddress: streetAddress || undefined,
           city,
           state,
           zip: zip || undefined,
@@ -851,6 +897,7 @@ const expertsRoutes: FastifyPluginAsync = async (fastify) => {
           slug: true,
           businessName: true,
           expertType: true,
+          streetAddress: true,
           city: true,
           state: true,
           zip: true,
@@ -892,6 +939,7 @@ const expertsRoutes: FastifyPluginAsync = async (fastify) => {
       city?: string;
       state?: string;
       zip?: string;
+      streetAddress?: string;
       latitude?: number | string | null;
       longitude?: number | string | null;
       locationPrecision?: string;
@@ -963,6 +1011,7 @@ const expertsRoutes: FastifyPluginAsync = async (fastify) => {
     let nextCity = expert.city;
     let nextState = expert.state;
     let nextZip = expert.zip;
+    let nextStreetAddress = (expert as any).streetAddress ?? null;
     let nextExpertType = expert.expertType;
     let locationChanged = false;
     let coordinatesTouched = false;
@@ -990,6 +1039,12 @@ const expertsRoutes: FastifyPluginAsync = async (fastify) => {
       const v = body.zip.trim();
       (data as any).zip = v || null;
       nextZip = v || null;
+      locationChanged = true;
+    }
+    if (typeof body.streetAddress === 'string') {
+      const v = body.streetAddress.trim();
+      (data as any).streetAddress = v || null;
+      nextStreetAddress = v || null;
       locationChanged = true;
     }
     if (typeof body.latitude !== 'undefined') {
@@ -1035,7 +1090,7 @@ const expertsRoutes: FastifyPluginAsync = async (fastify) => {
       (data as any).geocodeProvider = null;
     }
     if (!coordinatesTouched && locationChanged) {
-      const geocoded = await geocodeExpertLocation({ city: nextCity, state: nextState, zip: nextZip });
+      const geocoded = await geocodeExpertLocation({ streetAddress: nextStreetAddress, city: nextCity, state: nextState, zip: nextZip });
       if (geocoded.ok) {
         (data as any).latitude = geocoded.latitude;
         (data as any).longitude = geocoded.longitude;
