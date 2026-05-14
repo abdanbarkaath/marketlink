@@ -8,7 +8,7 @@ import { autocompleteLocation, geocodeExpertLocation, geocodeSearchCenter, looku
 type SortKey = 'newest' | 'name' | 'rating' | 'verified';
 type OrderDir = 'asc' | 'desc';
 type MatchMode = 'any' | 'all';
-type RadiusMiles = 5 | 10 | 25 | 50;
+type RadiusMiles = 5 | 10 | 20 | 50 | 100;
 
 const asSortKey = (v?: string): SortKey => {
   if (v === 'name' || v === 'rating' || v === 'verified') return v;
@@ -106,7 +106,7 @@ const parseOptionalDate = (raw: unknown): Date | null | undefined => {
   return d;
 };
 
-const ALLOWED_RADIUS_MILES = new Set<RadiusMiles>([5, 10, 25, 50]);
+const ALLOWED_RADIUS_MILES = new Set<RadiusMiles>([5, 10, 20, 50, 100]);
 
 const parseRadiusMiles = (raw: unknown): RadiusMiles | undefined | 'invalid' => {
   if (typeof raw === 'undefined') return undefined;
@@ -219,7 +219,7 @@ const listQuerySchema = {
     name: { type: 'string' },
     city: { type: 'string' },
     zip: { type: 'string' },
-    radius: { type: 'string', enum: ['5', '10', '25', '50'] },
+    radius: { type: 'string', enum: ['5', '10', '20', '50', '100'] },
     service: { type: 'string' }, // comma-separated services
     minRating: { type: 'string', pattern: '^[0-9]+(\\.[0-9]+)?$' }, // keep string, we parse to number
     verified: { type: 'string' }, // "1" | "true" | "0" | "false"
@@ -475,10 +475,13 @@ const expertsRoutes: FastifyPluginAsync = async (fastify) => {
       const radiusMiles = parseRadiusMiles(radiusRaw);
 
       if (radiusMiles === 'invalid') {
-        return reply.code(400).send({ error: 'radius must be one of: 5, 10, 25, 50.' });
+        return reply.code(400).send({ error: 'radius must be one of: 5, 10, 20, 50, 100.' });
       }
       if (Boolean(zipQuery) !== Boolean(radiusMiles)) {
         return reply.code(400).send({ error: 'zip and radius must be provided together.' });
+      }
+      if (zipQuery && !/^\d{5}$/.test(zipQuery)) {
+        return reply.code(400).send({ error: 'zip must be a 5-digit US ZIP code.' });
       }
 
       const andFilters: Prisma.ExpertWhereInput[] = [];

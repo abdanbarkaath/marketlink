@@ -7,6 +7,7 @@ import {
   getDiscoveryServicePathsForProblem,
 } from '@/lib/discovery';
 import type { DiscoveryProblemCard } from '@/lib/discovery';
+import NearbyRadiusField from '@/components/NearbyRadiusField';
 
 export const metadata: Metadata = {
   title: 'Experts | MarketLink',
@@ -33,11 +34,13 @@ type Provider = {
   minProjectBudget?: number | null;
   currencyCode?: string | null;
   createdAt: string;
+  distanceMiles?: number;
 };
 
 type FiltersFormProps = {
   name?: string;
-  city?: string;
+  zip?: string;
+  radius?: string;
   service?: string;
   problemId?: string;
   match: 'any' | 'all';
@@ -79,7 +82,7 @@ function formatAudienceSize(value: number | null | undefined) {
   }).format(value);
 }
 
-function FiltersForm({ name, city, service, problemId, match, minRating, sort, order, limit, verified, compact = false }: FiltersFormProps) {
+function FiltersForm({ name, zip, radius, service, problemId, match, minRating, sort, order, limit, verified, compact = false }: FiltersFormProps) {
   return (
     <form method="GET" className={`grid gap-4 ${compact ? '' : 'lg:grid-cols-12'}`}>
       <input type="hidden" name="page" value="1" />
@@ -96,16 +99,16 @@ function FiltersForm({ name, city, service, problemId, match, minRating, sort, o
         />
       </label>
 
-      <label className={compact ? '' : 'lg:col-span-2'}>
-        <span className="mb-2 block text-sm font-medium text-slate-700">City</span>
-        <input
-          type="text"
-          name="city"
-          defaultValue={city ?? ''}
-          placeholder="Chicago"
-          className={FIELD_CLASS}
+      <div className={compact ? '' : 'lg:col-span-4'}>
+        <NearbyRadiusField
+          initialZip={zip}
+          initialRadius={radius}
+          fieldClassName={FIELD_CLASS}
+          zipLabel="ZIP code"
+          zipPlaceholder="60559"
+          helperText="Search nearby experts by ZIP. The slider appears once the ZIP is ready."
         />
-      </label>
+      </div>
 
       <label className={compact ? '' : 'lg:col-span-3'}>
         <span className="mb-2 block text-sm font-medium text-slate-700">Service</span>
@@ -247,6 +250,12 @@ function ProviderCard({ provider }: { provider: Provider }) {
                   <span>
                     {p.city}, {p.state}
                   </span>
+                  {typeof p.distanceMiles === 'number' ? (
+                    <>
+                      <span aria-hidden="true">/</span>
+                      <span className="text-slate-700">{p.distanceMiles} miles away</span>
+                    </>
+                  ) : null}
                   {p.verified ? (
                     <>
                       <span aria-hidden="true">/</span>
@@ -429,7 +438,8 @@ export default async function ProvidersPage({ searchParams }: ProvidersPageProps
   const resolvedSearchParams = await searchParams;
 
   const name = typeof resolvedSearchParams.name === 'string' ? resolvedSearchParams.name : undefined;
-  const city = typeof resolvedSearchParams.city === 'string' ? resolvedSearchParams.city : undefined;
+  const zip = typeof resolvedSearchParams.zip === 'string' ? resolvedSearchParams.zip : undefined;
+  const radius = typeof resolvedSearchParams.radius === 'string' ? resolvedSearchParams.radius : undefined;
   const service = typeof resolvedSearchParams.service === 'string' ? resolvedSearchParams.service : undefined;
   const problemId = typeof resolvedSearchParams.problem === 'string' ? resolvedSearchParams.problem : undefined;
   const problemContext = getDiscoveryProblemById(problemId);
@@ -444,7 +454,8 @@ export default async function ProvidersPage({ searchParams }: ProvidersPageProps
 
   const qs = toQS({
     name,
-    city,
+    zip,
+    radius,
     service,
     match,
     minRating,
@@ -481,7 +492,8 @@ export default async function ProvidersPage({ searchParams }: ProvidersPageProps
 
   const baseParams = {
     name,
-    city,
+    zip,
+    radius,
     service,
     problem: problemContext?.id,
     match,
@@ -498,7 +510,8 @@ export default async function ProvidersPage({ searchParams }: ProvidersPageProps
 
   const activeFilters = [
     name ? { label: `Name: ${name}` } : null,
-    city ? { label: `City: ${city}` } : null,
+    zip ? { label: `ZIP: ${zip}` } : null,
+    radius ? { label: `Radius: ${radius} miles` } : null,
     service ? { label: `Service: ${service}` } : null,
     minRating ? { label: `Rating ${minRating}+` } : null,
     verified === '1' || (verified ?? '').toLowerCase() === 'true' ? { label: 'Verified only' } : null,
@@ -511,9 +524,9 @@ export default async function ProvidersPage({ searchParams }: ProvidersPageProps
           <div className="flex flex-col gap-4 lg:flex-row lg:items-end lg:justify-between">
             <div className="max-w-3xl">
               <div className="text-[11px] font-medium uppercase tracking-[0.26em] text-slate-500">Expert directory</div>
-              <h1 className="mt-3 text-[2rem] font-semibold tracking-[-0.04em] text-slate-900 sm:text-4xl">Find local experts by city, service, and fit.</h1>
+              <h1 className="mt-3 text-[2rem] font-semibold tracking-[-0.04em] text-slate-900 sm:text-4xl">Find local experts by ZIP, distance, service, and fit.</h1>
               <p className="mt-3 text-sm leading-7 text-slate-600">
-                Use filters to narrow the list quickly, then open expert profiles to compare services, pricing guidance, and contact details.
+                Search by ZIP and radius, then compare nearby experts by service, trust, pricing guidance, and proof.
               </p>
             </div>
             <div className="ml-dark-panel w-full rounded-[1.4rem] px-5 py-4 text-white sm:w-auto">
@@ -551,7 +564,7 @@ export default async function ProvidersPage({ searchParams }: ProvidersPageProps
                     Clear filters
                   </Link>
                 </div>
-                <FiltersForm name={name} city={city} service={service} problemId={problemContext?.id} match={match} minRating={minRating} sort={sort} order={order} limit={limit} verified={verified} compact />
+                <FiltersForm name={name} zip={zip} radius={radius} service={service} problemId={problemContext?.id} match={match} minRating={minRating} sort={sort} order={order} limit={limit} verified={verified} compact />
               </div>
             </details>
           </section>
@@ -569,7 +582,7 @@ export default async function ProvidersPage({ searchParams }: ProvidersPageProps
             </div>
 
             <div className="mt-5">
-              <FiltersForm name={name} city={city} service={service} problemId={problemContext?.id} match={match} minRating={minRating} sort={sort} order={order} limit={limit} verified={verified} compact />
+              <FiltersForm name={name} zip={zip} radius={radius} service={service} problemId={problemContext?.id} match={match} minRating={minRating} sort={sort} order={order} limit={limit} verified={verified} compact />
             </div>
           </aside>
 
