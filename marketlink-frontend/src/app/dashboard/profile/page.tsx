@@ -2,6 +2,8 @@
 
 import { useEffect, useMemo, useState } from 'react';
 import { useRouter } from 'next/navigation';
+import LocationAutocompleteField, { type LocationSuggestion } from '@/components/LocationAutocompleteField';
+import { getStateDisplayName, normalizeStateCode } from '@/lib/usStates';
 
 const API_BASE = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:4000';
 
@@ -48,6 +50,8 @@ type Provider = {
   slug: string;
   businessName: string;
   expertType?: 'agency' | 'freelancer' | 'creator' | 'specialist' | null;
+  locationPrecision?: 'exact' | 'approximate' | null;
+  streetAddress?: string | null;
   shortDescription?: string | null;
   overview?: string | null;
   websiteUrl?: string | null;
@@ -180,6 +184,7 @@ export default function ProfileEditorPage() {
           slug: p.slug ?? '',
           businessName: p.businessName ?? '',
           expertType: p.expertType ?? null,
+          streetAddress: p.streetAddress ?? '',
           shortDescription: p.shortDescription ?? '',
           overview: p.overview ?? '',
           websiteUrl: p.websiteUrl ?? '',
@@ -203,8 +208,9 @@ export default function ProfileEditorPage() {
           servesNationwide: Boolean(p.servesNationwide),
           responseTimeHours: p.responseTimeHours ?? '',
           city: p.city ?? '',
-          state: String(p.state ?? ''),
+          state: getStateDisplayName(String(p.state ?? '')),
           zip: p.zip ?? '',
+          locationPrecision: p.locationPrecision ?? (p.expertType === 'creator' ? 'approximate' : 'exact'),
           tagline: p.tagline ?? '',
           logo: p.logo ?? '',
           services: Array.isArray(p.services) ? p.services : [],
@@ -267,9 +273,11 @@ export default function ProfileEditorPage() {
   }, [dirty, saving]);
 
   function setField<K extends keyof Provider>(key: K, val: Provider[K]) {
-    if (!data) return;
     setDirty(true);
-    setData({ ...data, [key]: val });
+    setData((current) => {
+      if (!current) return current;
+      return { ...current, [key]: val };
+    });
   }
 
   function toggleService(val: string) {
@@ -277,6 +285,14 @@ export default function ProfileEditorPage() {
     setDirty(true);
     const next = data.services.includes(val) ? data.services.filter((v) => v !== val) : [...data.services, val];
     setData({ ...data, services: next });
+  }
+
+  function applyResolvedLocation(suggestion: LocationSuggestion) {
+    if (!data) return;
+    if (suggestion.label) setField('streetAddress', suggestion.label);
+    if (suggestion.zip) setField('zip', suggestion.zip);
+    if (suggestion.city) setField('city', suggestion.city);
+    if (suggestion.stateCode || suggestion.state) setField('state', getStateDisplayName(suggestion.stateCode || suggestion.state || ''));
   }
 
   function parseTokenInput(raw: string) {
@@ -409,16 +425,22 @@ export default function ProfileEditorPage() {
 
     try {
       if (!data.businessName.trim()) throw new Error('Business name is required.');
+      if (!(data.streetAddress || '').trim()) throw new Error('Address is required.');
       if (!data.city.trim()) throw new Error('City is required.');
       if (!data.state.trim()) throw new Error('State is required.');
       if (!data.expertType) throw new Error('Expert type is required.');
       if (!data.services.map((s) => s.trim()).filter(Boolean).length) throw new Error('Select at least one service.');
 
+      const normalizedState = normalizeStateCode(data.state);
+      if (!normalizedState) throw new Error('Select a valid US state.');
+
       const basePayload: Record<string, unknown> = {
         businessName: data.businessName.trim(),
+        streetAddress: (data.streetAddress || '').trim(),
         city: data.city.trim(),
-        state: data.state.trim().toUpperCase(),
+        state: normalizedState,
         zip: (data.zip || '').trim(),
+        locationPrecision: data.locationPrecision || (data.expertType === 'creator' ? 'approximate' : 'exact'),
         tagline: (data.tagline || '').trim(),
         logo: (data.logo || '').trim(),
         expertType: data.expertType || '',
@@ -690,18 +712,49 @@ export default function ProfileEditorPage() {
             </div>
 
             <div className="grid grid-cols-1 gap-4 sm:grid-cols-3">
+              <div className="sm:col-span-3">
+                <LocationAutocompleteField
+                  label="Business address *"
+                  value={data.streetAddress ?? ''}
+                  onChange={(value) => setField('streetAddress', value)}
+                  onResolve={applyResolvedLocation}
+                  type="address"
+                  placeholder="Start typing your exact address or place name"
+                  required
+                  fieldClass={fieldClass}
+                  autoComplete="street-address"
+                  helperText="Pick the exact business location from the dropdown. City, state, and ZIP will fill in automatically."
+                />
+              </div>
               <div>
                 <label className="mb-1 block text-sm font-medium text-slate-700">City *</label>
-                <input autoComplete="address-level2" className={fieldClass} value={data.city} onChange={(e) => setField('city', e.target.value)} />
+                <input autoComplete="address-level2" className={`${fieldClass} bg-slate-50 text-slate-600`} value={data.city} readOnly />
               </div>
               <div>
                 <label className="mb-1 block text-sm font-medium text-slate-700">State *</label>
-                <input autoComplete="address-level1" className={fieldClass} value={data.state} onChange={(e) => setField('state', e.target.value)} />
+                <input autoComplete="address-level1" className={`${fieldClass} bg-slate-50 text-slate-600`} value={data.state} readOnly />
               </div>
               <div>
                 <label className="mb-1 block text-sm font-medium text-slate-700">ZIP</label>
-                <input autoComplete="postal-code" className={fieldClass} value={data.zip ?? ''} onChange={(e) => setField('zip', e.target.value)} />
+                <input autoComplete="postal-code" className={`${fieldClass} bg-slate-50 text-slate-600`} value={data.zip ?? ''} readOnly />
               </div>
+            </div>
+
+            <div>
+              <label className="mb-1 block text-sm font-medium text-slate-700">Location display</label>
+              <select
+                className={fieldClass}
+                value={data.locationPrecision ?? (data.expertType === 'creator' ? 'approximate' : 'exact')}
+                onChange={(e) => setField('locationPrecision', e.target.value as Provider['locationPrecision'])}
+              >
+                <option value="exact">Exact area</option>
+                <option value="approximate">Approximate area</option>
+              </select>
+              <p className="mt-2 text-xs leading-6 text-slate-500">
+                {data.expertType === 'creator'
+                  ? 'Creators should usually stay approximate so the public map shows a broader city-level area.'
+                  : 'Choose how precisely your public location should appear in search and map views.'}
+              </p>
             </div>
 
             <div>

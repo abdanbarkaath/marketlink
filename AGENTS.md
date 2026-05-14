@@ -139,6 +139,28 @@ Frontend should handle:
 
 ---
 
+## Product Inspiration Rules
+
+When making UX, layout, trust, discovery, or profile-page decisions, use Winnie and Thumbtack as the primary product references unless the user overrides that direction.
+
+Treat:
+
+- Winnie as the reference for warmth, clarity, and trust presentation.
+- Thumbtack as the reference for marketplace structure, local discovery, results scanning, and conversion-oriented service flows.
+
+Do not copy branding or visuals directly.
+
+Borrow:
+
+- Interaction patterns
+- Information hierarchy
+- Density
+- Trust mechanics
+
+See `docs/product/inspiration.md` for the concrete reference guidance.
+
+---
+
 ## Strict Working Rules
 
 - Always verify existing code before changing it.

@@ -52,6 +52,7 @@ model Expert {
   responseTimeHours   Int?
   featured            Boolean               @default(false)
   completionScore     Int                   @default(0)
+  streetAddress       String?
   city                String                @db.Citext
   state               String                @db.Citext
   zip                 String?
