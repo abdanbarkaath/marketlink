@@ -20,6 +20,8 @@ type MapProvider = {
 
 type Props = {
   providers: MapProvider[];
+  showDesktop?: boolean;
+  showMobile?: boolean;
 };
 
 const MAP_STYLE = {
@@ -41,9 +43,11 @@ const MAP_STYLE = {
   ],
 } as const;
 
-export default function ExpertsDiscoveryMap({ providers }: Props) {
+export default function ExpertsDiscoveryMap({ providers, showDesktop = true, showMobile = true }: Props) {
   const desktopMapRef = useRef<MapRef | null>(null);
   const mobileMapRef = useRef<MapRef | null>(null);
+  const desktopContainerRef = useRef<HTMLDivElement | null>(null);
+  const mobileContainerRef = useRef<HTMLDivElement | null>(null);
   const [hoveredId, setHoveredId] = useState<string | null>(null);
   const [selectedId, setSelectedId] = useState<string | null>(null);
 
@@ -134,15 +138,46 @@ export default function ExpertsDiscoveryMap({ providers }: Props) {
       mobileMapRef.current?.resize();
     };
 
+    const scheduleResizes = () => {
+      const delays = [0, 150, 500, 1200];
+      delays.forEach((delay) => {
+        window.setTimeout(() => {
+          window.requestAnimationFrame(resizeMaps);
+        }, delay);
+      });
+    };
+
     const handleLayoutChange = () => {
       window.requestAnimationFrame(resizeMaps);
     };
 
+    const resizeObserver = new ResizeObserver(() => {
+      handleLayoutChange();
+    });
+
+    if (desktopContainerRef.current) resizeObserver.observe(desktopContainerRef.current);
+    if (mobileContainerRef.current) resizeObserver.observe(mobileContainerRef.current);
+
+    const intersectionObserver = new IntersectionObserver(
+      (entries) => {
+        if (entries.some((entry) => entry.isIntersecting)) {
+          scheduleResizes();
+        }
+      },
+      { threshold: 0.1 },
+    );
+
+    if (desktopContainerRef.current) intersectionObserver.observe(desktopContainerRef.current);
+    if (mobileContainerRef.current) intersectionObserver.observe(mobileContainerRef.current);
+
     handleLayoutChange();
+    scheduleResizes();
     window.addEventListener('resize', handleLayoutChange);
     window.addEventListener('scroll', handleLayoutChange, { passive: true });
 
     return () => {
+      resizeObserver.disconnect();
+      intersectionObserver.disconnect();
       window.removeEventListener('resize', handleLayoutChange);
       window.removeEventListener('scroll', handleLayoutChange);
     };
@@ -194,11 +229,15 @@ export default function ExpertsDiscoveryMap({ providers }: Props) {
     });
   }
 
-  function renderFocusedCard() {
+  function renderFocusedCard(position: 'desktop' | 'mobile') {
     if (!focusedProvider) return null;
 
     return (
-      <div className="pointer-events-auto absolute inset-x-4 bottom-4 rounded-[1.2rem] bg-white/96 px-4 py-4 shadow-[0_18px_40px_rgba(15,23,42,0.16)] ring-1 ring-slate-200/90">
+      <div
+        className={`pointer-events-auto absolute z-20 rounded-[1.2rem] bg-white/96 px-4 py-4 shadow-[0_18px_40px_rgba(15,23,42,0.16)] ring-1 ring-slate-200/90 ${
+          position === 'desktop' ? 'left-4 top-4 max-w-[320px] xl:max-w-[340px]' : 'inset-x-4 bottom-4'
+        }`}
+      >
         <div className="flex items-start justify-between gap-3">
           <div>
             <div className="text-[11px] font-medium uppercase tracking-[0.18em] text-slate-500">Highlighted expert</div>
@@ -234,32 +273,37 @@ export default function ExpertsDiscoveryMap({ providers }: Props) {
   if (!mappableProviders.length) {
     return (
       <>
-        <section className="ml-card rounded-[1.6rem] px-5 py-5 shadow-[0_16px_40px_rgba(23,26,31,0.06)] lg:hidden">
-          <div className="text-[11px] font-medium uppercase tracking-[0.22em] text-slate-500">Map view</div>
-          <h2 className="mt-2 text-lg font-semibold tracking-tight text-slate-900">Locations will appear here</h2>
-          <p className="mt-3 text-sm leading-6 text-slate-600">Map pins show up once the current result set has saved coordinates.</p>
-        </section>
-        <aside className="hidden lg:block lg:sticky lg:top-24">
-          <div className="ml-card rounded-[1.8rem] px-5 py-5 shadow-[0_16px_40px_rgba(23,26,31,0.06)] sm:px-6 sm:py-6">
+        {showMobile ? (
+          <section className="ml-card rounded-[1.6rem] px-5 py-5 shadow-[0_16px_40px_rgba(23,26,31,0.06)] lg:hidden">
             <div className="text-[11px] font-medium uppercase tracking-[0.22em] text-slate-500">Map view</div>
-            <h2 className="mt-2 text-xl font-semibold tracking-tight text-slate-900">Locations will appear here</h2>
+            <h2 className="mt-2 text-lg font-semibold tracking-tight text-slate-900">Locations will appear here</h2>
             <p className="mt-3 text-sm leading-6 text-slate-600">Map pins show up once the current result set has saved coordinates.</p>
-          </div>
-        </aside>
+          </section>
+        ) : null}
+        {showDesktop ? (
+          <aside className="hidden lg:block lg:sticky lg:top-24">
+            <div className="ml-card rounded-[1.8rem] px-5 py-5 shadow-[0_16px_40px_rgba(23,26,31,0.06)] sm:px-6 sm:py-6">
+              <div className="text-[11px] font-medium uppercase tracking-[0.22em] text-slate-500">Map view</div>
+              <h2 className="mt-2 text-xl font-semibold tracking-tight text-slate-900">Locations will appear here</h2>
+              <p className="mt-3 text-sm leading-6 text-slate-600">Map pins show up once the current result set has saved coordinates.</p>
+            </div>
+          </aside>
+        ) : null}
       </>
     );
   }
 
   return (
     <>
-      <section className="lg:hidden">
-        <div className="ml-card overflow-hidden rounded-[1.6rem] shadow-[0_16px_40px_rgba(23,26,31,0.06)]">
+      {showMobile ? (
+        <section className="lg:hidden">
+        <div className="ml-card ml-ambient-shell overflow-hidden rounded-[1.6rem] shadow-[0_16px_40px_rgba(23,26,31,0.06)]">
           <div className="border-b border-slate-200/80 px-5 py-4">
             <div className="text-[11px] font-medium uppercase tracking-[0.22em] text-slate-500">Map view</div>
             <h2 className="mt-2 text-lg font-semibold tracking-tight text-slate-900">Tap a pin to see the expert</h2>
             <p className="mt-1 text-sm leading-6 text-slate-600">{mappableProviders.length} pinned experts in this result set.</p>
           </div>
-          <div className="relative">
+          <div ref={mobileContainerRef} className="relative">
             <div className="h-[320px] w-full">
               <Map
                 ref={mobileMapRef}
@@ -275,13 +319,15 @@ export default function ExpertsDiscoveryMap({ providers }: Props) {
                 <NavigationControl position="top-right" showCompass={false} />
               </Map>
             </div>
-            {renderFocusedCard()}
+            {renderFocusedCard('mobile')}
           </div>
         </div>
-      </section>
+        </section>
+      ) : null}
 
-      <aside className="hidden lg:block lg:sticky lg:top-24">
-        <div className="ml-card overflow-hidden rounded-[1.8rem] shadow-[0_16px_40px_rgba(23,26,31,0.06)]">
+      {showDesktop ? (
+        <aside className="hidden lg:block lg:sticky lg:top-24">
+        <div className="ml-card ml-ambient-shell overflow-hidden rounded-[1.8rem] shadow-[0_16px_40px_rgba(23,26,31,0.06)]">
           <div className="border-b border-slate-200/80 px-5 py-4 sm:px-6">
             <div className="text-[11px] font-medium uppercase tracking-[0.22em] text-slate-500">Map view</div>
             <div className="mt-2 flex items-center justify-between gap-3">
@@ -291,7 +337,7 @@ export default function ExpertsDiscoveryMap({ providers }: Props) {
             <p className="mt-2 text-sm leading-6 text-slate-600">Hover a result card to highlight its location on the map.</p>
           </div>
 
-          <div className="relative">
+          <div ref={desktopContainerRef} className="relative">
             <div className="h-[min(560px,calc(100vh-190px))] min-h-[420px] w-full">
               <Map
                 ref={desktopMapRef}
@@ -304,14 +350,15 @@ export default function ExpertsDiscoveryMap({ providers }: Props) {
                 mapStyle={MAP_STYLE}
               >
                 {renderMarkers()}
-                <NavigationControl position="top-right" showCompass={false} />
+                <NavigationControl position="bottom-right" showCompass={false} />
               </Map>
             </div>
 
-            {renderFocusedCard()}
+            {renderFocusedCard('desktop')}
           </div>
         </div>
-      </aside>
+        </aside>
+      ) : null}
     </>
   );
 }

@@ -238,6 +238,13 @@ function formatLocation(city: string, state: string, zip: string | null) {
   return [city, state, zip].filter(Boolean).join(', ');
 }
 
+function truncateCopy(value: string | null | undefined, maxLength = 220) {
+  if (!value) return null;
+  const normalized = value.replace(/\s+/g, ' ').trim();
+  if (normalized.length <= maxLength) return normalized;
+  return `${normalized.slice(0, maxLength).trimEnd()}...`;
+}
+
 function getMediaPresentation(item: ProviderMediaItem): MediaPresentation {
   const url = parseUrl(item.url);
   if (!url) {
@@ -267,6 +274,41 @@ function getMediaPresentation(item: ProviderMediaItem): MediaPresentation {
   }
 
   return { kind: 'link', href: item.url, label: 'Open link' };
+}
+
+function LinkIcon({ kind }: { kind: 'website' | 'linkedin' | 'instagram' | 'facebook' }) {
+  const baseClass = 'h-4 w-4 shrink-0';
+
+  switch (kind) {
+    case 'website':
+      return (
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" className={baseClass} aria-hidden="true">
+          <circle cx="12" cy="12" r="8.5" />
+          <path d="M3.5 12h17" />
+          <path d="M12 3.5c2.5 2.4 3.9 5.3 3.9 8.5S14.5 18.1 12 20.5c-2.5-2.4-3.9-5.3-3.9-8.5S9.5 5.9 12 3.5Z" />
+        </svg>
+      );
+    case 'linkedin':
+      return (
+        <svg viewBox="0 0 24 24" fill="currentColor" className={baseClass} aria-hidden="true">
+          <path d="M6.2 8.1A1.9 1.9 0 1 0 6.2 4.3a1.9 1.9 0 0 0 0 3.8Zm-1.6 2.1h3.3V20H4.6v-9.8Zm5.3 0h3.2v1.4h.1c.5-.9 1.7-1.8 3.6-1.8 3.8 0 4.5 2.4 4.5 5.6V20H18v-4.1c0-1 0-2.3-1.4-2.3s-1.6 1.1-1.6 2.2V20H9.9v-9.8Z" />
+        </svg>
+      );
+    case 'instagram':
+      return (
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" className={baseClass} aria-hidden="true">
+          <rect x="4" y="4" width="16" height="16" rx="4.5" />
+          <circle cx="12" cy="12" r="3.7" />
+          <circle cx="17.2" cy="6.8" r="1" fill="currentColor" stroke="none" />
+        </svg>
+      );
+    case 'facebook':
+      return (
+        <svg viewBox="0 0 24 24" fill="currentColor" className={baseClass} aria-hidden="true">
+          <path d="M13.4 20v-6h2.1l.3-2.4h-2.4v-1.5c0-.7.2-1.2 1.2-1.2h1.3V6.8c-.2 0-.9-.1-1.8-.1-1.8 0-3 1.1-3 3.1v1.8H9v2.4h2.3v6h2.1Z" />
+        </svg>
+      );
+  }
 }
 
 export default function ProviderPage({ params }: PageProps) {
@@ -325,11 +367,11 @@ function ProviderPageContent({ provider: p }: { provider: Provider }) {
   const pageBorder = 'border-[rgba(var(--ml-border),0.7)]';
   const pageSurface = t.surface;
   const pageSurfaceMuted = t.surfaceMuted;
-  const [fitOpen, setFitOpen] = useState(false);
-  const [credentialsOpen, setCredentialsOpen] = useState(false);
   const [instagramSlide, setInstagramSlide] = useState(0);
+  const [projectSlide, setProjectSlide] = useState(0);
   useEffect(() => {
     setInstagramSlide(0);
+    setProjectSlide(0);
   }, [p.slug]);
   const featuredProjects = (p.projects || []).filter((project) => project.isFeatured);
   const visibleProjects = featuredProjects.length ? featuredProjects : p.projects || [];
@@ -346,11 +388,11 @@ function ProviderPageContent({ provider: p }: { provider: Provider }) {
   const hourlyRange = formatMoneyRange(p.hourlyRateMin, p.hourlyRateMax, p.currencyCode, ' / hr');
   const startingBudget = formatMoney(p.minProjectBudget, p.currencyCode);
   const expertTypeLabel = formatExpertTypeLabel(p.expertType);
-  const creatorPlatformsLabel = p.creatorPlatforms?.length ? p.creatorPlatforms.join(' • ') : null;
+  const creatorPlatformsLabel = p.creatorPlatforms?.length ? p.creatorPlatforms.join(', ') : null;
   const creatorAudienceLabel = formatAudienceSize(p.creatorAudienceSize);
   const creatorProofBody =
     p.creatorProofSummary ||
-    [creatorPlatformsLabel, creatorAudienceLabel ? `${creatorAudienceLabel} audience` : null].filter(Boolean).join(' • ') ||
+    [creatorPlatformsLabel, creatorAudienceLabel ? `${creatorAudienceLabel} audience` : null].filter(Boolean).join(' | ') ||
     null;
   const locationLabel = formatLocation(p.city, p.state, p.zip);
   const instagramProfileLink = p.instagramUrl ? getInstagramProfile(parseUrl(p.instagramUrl) ?? new URL('https://instagram.com')) : null;
@@ -369,21 +411,34 @@ function ProviderPageContent({ provider: p }: { provider: Provider }) {
   ].slice(0, 4);
   const heroServices = p.services.slice(0, 3);
   const heroServicesOverflow = Math.max(0, p.services.length - heroServices.length);
-  const secondaryServiceText = p.services.slice(3, 7).map((service) => formatToken(service)).join(' • ');
+  const secondaryServiceText = p.services.slice(3, 7).map((service) => formatToken(service)).join(', ');
   const primaryServiceText = heroServices.map((service) => formatToken(service)).join(', ');
-  const fitSummaryText = fitChips.map((chip) => chip.value).join(' • ');
+  const fitSummaryText = fitChips.map((chip) => chip.value).join(', ');
+  const linkItems = [
+    p.websiteUrl ? { href: p.websiteUrl, label: 'Website', kind: 'website' as const } : null,
+    p.linkedinUrl ? { href: p.linkedinUrl, label: 'LinkedIn', kind: 'linkedin' as const } : null,
+    p.instagramUrl ? { href: p.instagramUrl, label: 'Instagram', kind: 'instagram' as const } : null,
+    p.facebookUrl ? { href: p.facebookUrl, label: 'Facebook', kind: 'facebook' as const } : null,
+  ].filter(Boolean) as Array<{ href: string; label: string; kind: 'website' | 'linkedin' | 'instagram' | 'facebook' }>;
+  const hasWorkingStyle =
+    Boolean(p.industries?.length) ||
+    Boolean(p.languages?.length) ||
+    Boolean(p.clientSizes?.length) ||
+    Boolean(p.specialties?.length) ||
+    Boolean(p.remoteFriendly) ||
+    Boolean(p.servesNationwide) ||
+    Boolean(p.responseTimeHours);
   const prioritizedVisibleMedia = [...visibleMedia]
     .filter((item) => {
       const media = getMediaPresentation(item);
-      return media.kind !== 'embed' && media.kind !== 'instagramProfile';
+      return media.kind !== 'embed' && media.kind !== 'instagramProfile' && media.kind !== 'website';
     })
     .sort((a, b) => {
     const score = (item: ProviderMediaItem) => {
       const media = getMediaPresentation(item);
       if (item.type === 'cover') return 0;
       if (media.kind === 'image') return 1;
-      if (media.kind === 'website') return 2;
-      return 3;
+      return 2;
     };
 
     return score(a) - score(b);
@@ -391,15 +446,9 @@ function ProviderPageContent({ provider: p }: { provider: Provider }) {
   const instagramProofItems = visibleMedia.filter((item) => getMediaPresentation(item).kind === 'embed').slice(0, 10);
   const activeInstagramItem = instagramProofItems.length ? instagramProofItems[instagramSlide % instagramProofItems.length] : null;
   const activeInstagramMedia = activeInstagramItem ? getMediaPresentation(activeInstagramItem) : null;
+  const activeProject = visibleProjects.length ? visibleProjects[projectSlide % visibleProjects.length] : null;
   const instagramProfilePreview = instagramProfileLink;
   const instagramProfileEmbedUrl = instagramProfilePreview ? `${instagramProfilePreview.href}?utm_source=ig_embed&utm_campaign=loading` : null;
-  const proofHighlights = [
-    p.verified ? { label: 'Status', value: 'Verified expert' } : null,
-    visibleClients.length ? { label: 'Clients', value: `${visibleClients.length} highlighted` } : null,
-    visibleProjects.length ? { label: 'Projects', value: `${visibleProjects.length} case studies` } : null,
-    creatorAudienceLabel ? { label: 'Audience', value: creatorAudienceLabel } : null,
-    p.foundedYear ? { label: 'Founded', value: String(p.foundedYear) } : null,
-  ].filter(Boolean) as Array<{ label: string; value: string }>;
   useEffect(() => {
     if (!instagramProfileEmbedUrl || typeof window === 'undefined') return;
 
@@ -526,7 +575,7 @@ function ProviderPageContent({ provider: p }: { provider: Provider }) {
             </div>
           )}
 
-          <header className="overflow-hidden rounded-[2rem] ml-card shadow-[0_28px_80px_rgba(23,26,31,0.10)]">
+          <header className="ml-card ml-ambient-shell overflow-hidden rounded-[2rem] shadow-[0_28px_80px_rgba(23,26,31,0.10)]">
             <div className="px-4 py-5 sm:px-6 sm:py-6 md:px-8 md:py-8">
               <div className="space-y-6 md:space-y-7">
                 <div className="grid gap-6 xl:grid-cols-[minmax(0,1fr)_minmax(460px,520px)] xl:items-start xl:gap-8">
@@ -565,15 +614,44 @@ function ProviderPageContent({ provider: p }: { provider: Provider }) {
                       </div>
 
                       <div className="mt-5 grid min-w-0 gap-2.5 sm:flex sm:flex-row sm:flex-wrap">
-                        <a className="ml-btn-primary inline-flex w-full min-w-0 items-center justify-center rounded-xl px-4 py-2.5 text-sm font-semibold text-white sm:w-auto sm:px-5" href={`mailto:${p.email}`}>
+                        <a className="ml-btn-primary inline-flex w-full min-w-0 items-center justify-center rounded-xl px-4 py-2.5 text-sm font-semibold text-white sm:w-auto sm:px-5" href="#expert-inquiry-form">
                           Start a conversation
                         </a>
-                        {p.websiteUrl ? (
-                          <a className="ml-btn-secondary inline-flex w-full min-w-0 items-center justify-center rounded-xl border border-slate-900/10 bg-white px-4 py-2.5 text-sm font-semibold shadow-sm sm:w-auto sm:px-5" href={p.websiteUrl} target="_blank" rel="noreferrer">
-                            Visit website
-                          </a>
-                        ) : null}
                       </div>
+
+                      {linkItems.length ? (
+                        <div className="mt-4 rounded-[1.2rem] border border-slate-200/80 bg-white/78 px-4 py-3 shadow-sm">
+                          <div className={`text-[11px] font-medium uppercase tracking-[0.18em] ${t.mutedText}`}>Website and socials</div>
+                          <div className="mt-3 flex flex-wrap gap-2">
+                            {linkItems.map((item) => (
+                              <a
+                                key={item.label}
+                                className="ml-icon-chip px-3.5 py-2 text-sm font-semibold text-slate-800 hover:text-slate-950"
+                                href={item.href}
+                                target="_blank"
+                                rel="noreferrer"
+                              >
+                                <LinkIcon kind={item.kind} />
+                                <span>{item.label}</span>
+                              </a>
+                            ))}
+                          </div>
+                        </div>
+                      ) : null}
+
+                      {visibleClients.length ? (
+                        <div className="mt-4 rounded-[1.3rem] border border-[#1f314d]/12 bg-[linear-gradient(180deg,rgba(31,49,77,0.98),rgba(23,35,58,0.98))] px-4 py-4 text-white shadow-[0_18px_45px_rgba(18,26,42,0.14)]">
+                          <div className="text-[11px] font-medium uppercase tracking-[0.18em] text-white/68">Trusted by</div>
+                          <h3 className="mt-2 text-lg font-semibold text-white">Teams already working with this expert</h3>
+                          <div className="mt-3 flex flex-wrap gap-2">
+                            {visibleClients.slice(0, 5).map((client) => (
+                              <span key={client.id} className="rounded-full border border-white/12 bg-white/10 px-3 py-1.5 text-xs font-semibold text-white">
+                                {client.name}
+                              </span>
+                            ))}
+                          </div>
+                        </div>
+                      ) : null}
                     </div>
 
                     {heroServices.length ? (
@@ -596,7 +674,7 @@ function ProviderPageContent({ provider: p }: { provider: Provider }) {
 
                     {decisionCards.length ? (
                       <div className="ml-dark-panel rounded-[1.75rem] px-5 py-5 text-white shadow-[0_20px_60px_rgba(23,26,31,0.18)]">
-                        <div className="text-[11px] font-medium uppercase tracking-[0.22em] text-white/60">Quick snapshot</div>
+                        <div className="text-[11px] font-medium uppercase tracking-[0.22em] text-white/60">At a glance</div>
                         <div className="mt-5 grid grid-cols-2 gap-3 xl:grid-cols-4">
                           {decisionCards.slice(0, 4).map((fact) => (
                             <div key={fact.label} className="rounded-[1.15rem] border border-white/10 bg-white/6 px-4 py-3.5">
@@ -605,6 +683,45 @@ function ProviderPageContent({ provider: p }: { provider: Provider }) {
                             </div>
                           ))}
                         </div>
+                      </div>
+                    ) : null}
+
+                    {hasWorkingStyle ? (
+                      <div className={`rounded-[1.35rem] ${pageSurfaceMuted} ${pageBorder} border px-4 py-4 shadow-sm`}>
+                        <div className="text-[11px] font-medium uppercase tracking-[0.22em] text-slate-500">How this expert works</div>
+                        <div className="mt-4 grid gap-4 md:grid-cols-2">
+                          {p.industries?.length ? (
+                            <div>
+                              <div className={`text-[11px] font-medium uppercase tracking-[0.18em] ${t.mutedText}`}>Industries</div>
+                              <div className="mt-3 flex flex-wrap gap-2">
+                                {p.industries.slice(0, 3).map((item) => (
+                                  <span key={item} className="ml-pill rounded-xl px-3 py-1 text-xs">{formatToken(item)}</span>
+                                ))}
+                              </div>
+                            </div>
+                          ) : null}
+                          {p.specialties?.length ? (
+                            <div>
+                              <div className={`text-[11px] font-medium uppercase tracking-[0.18em] ${t.mutedText}`}>Specialties</div>
+                              <div className="mt-3 flex flex-wrap gap-2">
+                                {p.specialties.slice(0, 3).map((item) => (
+                                  <span key={item} className="ml-pill rounded-xl px-3 py-1 text-xs">{formatToken(item)}</span>
+                                ))}
+                              </div>
+                            </div>
+                          ) : null}
+                        </div>
+                        {(p.remoteFriendly || p.servesNationwide || p.responseTimeHours || p.languages?.length || p.clientSizes?.length) ? (
+                          <div className="mt-4 border-t border-slate-200/80 pt-4 text-sm text-slate-700">
+                            <div className="flex flex-wrap gap-x-5 gap-y-2">
+                              {p.remoteFriendly ? <span>Remote-friendly</span> : null}
+                              {p.servesNationwide ? <span>Serves nationwide</span> : null}
+                              {p.responseTimeHours ? <span>Replies in about {p.responseTimeHours}h</span> : null}
+                              {p.languages?.length ? <span>Languages: {p.languages.slice(0, 2).map((item) => formatToken(item)).join(', ')}</span> : null}
+                              {p.clientSizes?.length ? <span>Client sizes: {p.clientSizes.slice(0, 2).map((item) => formatToken(item)).join(', ')}</span> : null}
+                            </div>
+                          </div>
+                        ) : null}
                       </div>
                     ) : null}
 
@@ -746,31 +863,96 @@ function ProviderPageContent({ provider: p }: { provider: Provider }) {
                         </div>
                       ) : null}
 
-                      {visibleClients.length ? (
-                        <div className="mt-5">
-                          <div className={`text-[11px] font-medium uppercase tracking-[0.18em] ${t.mutedText}`}>Trusted by</div>
-                          <div className="mt-3 flex flex-wrap gap-2">
-                            {visibleClients.slice(0, 4).map((client) => (
-                              <span key={client.id} className="ml-pill rounded-xl px-3 py-1 text-xs font-medium">
-                                {client.name}
-                              </span>
-                            ))}
+                      {activeProject ? (
+                        <section className={`mt-5 rounded-[1.35rem] ${pageSurfaceMuted} ${pageBorder} border px-4 py-4 shadow-sm`}>
+                          <div className="flex items-start justify-between gap-3">
+                            <div>
+                              <div className={`text-[11px] font-medium uppercase tracking-[0.18em] ${t.mutedText}`}>Proof of work</div>
+                              <h3 className="mt-2 text-lg font-semibold text-slate-900">What this expert has already done</h3>
+                            </div>
+                            <span className="ml-pill rounded-full px-3 py-1 text-[11px] font-medium uppercase tracking-[0.16em]">
+                              {projectSlide + 1} / {visibleProjects.length}
+                            </span>
                           </div>
-                        </div>
-                      ) : null}
+
+                          <div className="mt-4 rounded-[1.15rem] border border-slate-200/80 bg-white/88 px-4 py-4 shadow-sm">
+                            <div className="flex items-start justify-between gap-3">
+                              <div className="min-w-0">
+                                <div className={`text-[11px] font-medium uppercase tracking-[0.18em] ${t.mutedText}`}>Featured project</div>
+                                <div className="mt-1 text-base font-semibold text-slate-900">{activeProject.title}</div>
+                                {activeProject.summary ? (
+                                  <p className="mt-2 text-sm leading-6 text-slate-700">{truncateCopy(activeProject.summary, 84)}</p>
+                                ) : null}
+                              </div>
+                              {activeProject.isFeatured ? <span className="ml-pill shrink-0 rounded-full px-3 py-1 text-[11px] font-medium">Featured</span> : null}
+                            </div>
+
+                            <div className="mt-3 flex flex-wrap gap-2">
+                              {activeProject.projectBudget ? (
+                                <span className="rounded-full border border-slate-200/90 bg-slate-50 px-3 py-1.5 text-xs font-semibold text-slate-800">
+                                  {formatMoney(activeProject.projectBudget, p.currencyCode)}
+                                </span>
+                              ) : null}
+                              {activeProject.completedAt ? (
+                                <span className="rounded-full border border-slate-200/90 bg-slate-50 px-3 py-1.5 text-xs font-semibold text-slate-800">
+                                  {new Date(activeProject.completedAt).toLocaleDateString()}
+                                </span>
+                              ) : null}
+                              {activeProject.services?.slice(0, 2).map((service) => (
+                                <span key={service} className="ml-pill rounded-full px-3 py-1.5 text-xs">
+                                  {formatToken(service)}
+                                </span>
+                              ))}
+                            </div>
+
+                            {(activeProject.challenge || activeProject.solution || activeProject.results) ? (
+                              <dl className="mt-4 grid gap-2.5 border-t border-slate-200/80 pt-4">
+                                {activeProject.challenge ? (
+                                  <div>
+                                    <dt className={`text-[11px] font-medium uppercase tracking-[0.18em] ${t.mutedText}`}>Challenge</dt>
+                                    <dd className="mt-1 text-sm leading-6 text-slate-700">{truncateCopy(activeProject.challenge, 68)}</dd>
+                                  </div>
+                                ) : null}
+                                {activeProject.solution ? (
+                                  <div>
+                                    <dt className={`text-[11px] font-medium uppercase tracking-[0.18em] ${t.mutedText}`}>Approach</dt>
+                                    <dd className="mt-1 text-sm leading-6 text-slate-700">{truncateCopy(activeProject.solution, 68)}</dd>
+                                  </div>
+                                ) : null}
+                                {activeProject.results ? (
+                                  <div className="rounded-[0.95rem] bg-[#1f314d] px-3 py-2.5 text-white">
+                                    <dt className="text-[11px] font-medium uppercase tracking-[0.18em] text-white/68">Results</dt>
+                                    <dd className="mt-1 text-sm leading-6 text-white">{truncateCopy(activeProject.results, 74)}</dd>
+                                  </div>
+                                ) : null}
+                              </dl>
+                            ) : null}
+                          </div>
+
+                          {visibleProjects.length > 1 ? (
+                            <div className="mt-3 flex items-center justify-between gap-3">
+                              <button
+                                type="button"
+                                onClick={() => setProjectSlide((current) => (current - 1 + visibleProjects.length) % visibleProjects.length)}
+                                className="rounded-xl border border-slate-200 bg-white px-3 py-2 text-xs font-semibold uppercase tracking-[0.14em] text-slate-900 shadow-sm"
+                              >
+                                Prev
+                              </button>
+                              <button
+                                type="button"
+                                onClick={() => setProjectSlide((current) => (current + 1) % visibleProjects.length)}
+                                className="rounded-xl border border-slate-200 bg-white px-3 py-2 text-xs font-semibold uppercase tracking-[0.14em] text-slate-900 shadow-sm"
+                              >
+                                Next
+                              </button>
+                            </div>
+                          ) : null}
+                        </section>
+                      ) : (!activeProject && workGallery ? <div className="mt-5">{workGallery}</div> : null)}
+
                     </div>
                   </div>
 
-                  {proofHighlights.length ? (
-                    <div className="grid grid-cols-2 gap-3 pt-1 xl:col-span-2 xl:grid-cols-4">
-                      {proofHighlights.slice(0, 4).map((fact) => (
-                        <div key={fact.label} className={`rounded-[1.15rem] ${pageSurfaceMuted} ${pageBorder} border px-3 py-3 shadow-sm sm:px-4 sm:py-3.5`}>
-                          <div className={`text-[11px] font-medium uppercase tracking-[0.18em] ${t.mutedText}`}>{fact.label}</div>
-                          <div className="mt-2 text-sm font-semibold text-slate-900 sm:text-base">{fact.value}</div>
-                        </div>
-                      ))}
-                    </div>
-                  ) : null}
                 </div>
               </div>
             </div>
@@ -778,101 +960,122 @@ function ProviderPageContent({ provider: p }: { provider: Provider }) {
 
           <div className="grid gap-6 xl:grid-cols-[minmax(0,1fr)_380px] xl:items-start">
             <div className="min-w-0 space-y-8">
-              {(visibleProjects.length || prioritizedVisibleMedia.length) ? (
+              {(!activeProject && (visibleProjects.length || prioritizedVisibleMedia.length)) ? (
                 <section className={`rounded-[2rem] ${pageSurface} ${pageBorder} border px-6 py-6 shadow-[0_20px_70px_rgba(15,23,42,0.08)]`}>
                   <div className="flex flex-wrap items-end justify-between gap-4">
                     <div>
-                      <div className="text-[11px] font-medium uppercase tracking-[0.22em] text-slate-500">Proof of work</div>
-                      <h2 className={`${displayFont.className} mt-3 text-3xl font-semibold tracking-[-0.03em] text-slate-900 md:text-[2.35rem]`}>Work and proof</h2>
-                      <p className="mt-2 max-w-2xl text-sm leading-7 text-slate-700">This appears early on purpose so a buyer can judge quality and fit before reading too much copy.</p>
+                      <div className="text-[11px] font-medium uppercase tracking-[0.22em] text-slate-500">Featured projects</div>
+                      <h2 className={`${displayFont.className} mt-3 text-[2.1rem] font-semibold tracking-[-0.03em] text-slate-900 md:text-[2.2rem]`}>Proof that this work is real.</h2>
+                      <p className="mt-2 max-w-2xl text-sm leading-6 text-slate-700">Quick metadata from the clearest projects, without turning the profile into a long case study.</p>
                     </div>
                     <span className={`text-xs font-medium uppercase tracking-[0.18em] ${t.mutedText}`}>
-                      {prioritizedVisibleMedia.length ? `${prioritizedVisibleMedia.length} media item${prioritizedVisibleMedia.length === 1 ? '' : 's'}` : `${visibleProjects.length} project${visibleProjects.length === 1 ? '' : 's'}`}
+                      {prioritizedVisibleMedia.length ? `${prioritizedVisibleMedia.length} visual${prioritizedVisibleMedia.length === 1 ? '' : 's'}` : `${visibleProjects.length} project${visibleProjects.length === 1 ? '' : 's'}`}
                     </span>
                   </div>
 
-                  {workGallery ? <div className="mt-6">{workGallery}</div> : null}
+                  {!activeProject && workGallery ? <div className="mt-6">{workGallery}</div> : null}
 
-                  {visibleProjects.length ? <div className="mt-6 grid gap-5">
-                    {visibleProjects.map((project) => (
-                      <article key={project.id} className={`overflow-hidden rounded-[1.75rem] ${pageSurfaceMuted} ${pageBorder} border shadow-sm`}>
-                        <div className="grid gap-0 lg:grid-cols-[320px_minmax(0,1fr)]">
-                          {project.coverImageUrl ? (
-                            // eslint-disable-next-line @next/next/no-img-element
-                            <img src={project.coverImageUrl} alt={project.title} className="h-64 w-full object-cover lg:h-full" />
-                          ) : (
-                            <div className="hidden bg-slate-100 lg:block" />
-                          )}
-
-                          <div className="px-5 py-5 md:px-6 md:py-6">
-                            <div className="flex items-start justify-between gap-4">
-                              <div>
-                                <div className={`text-[11px] font-medium uppercase tracking-[0.18em] ${t.mutedText}`}>Project snapshot</div>
-                                <h3 className={`${displayFont.className} mt-2 text-2xl font-semibold tracking-[-0.02em] text-slate-900`}>{project.title}</h3>
-                                {project.summary ? <p className="mt-3 text-sm leading-7 text-slate-700">{project.summary}</p> : null}
-                              </div>
-                              {project.isFeatured ? <span className="ml-pill rounded-xl px-3 py-1 text-xs font-medium">Featured</span> : null}
-                            </div>
-
-                            {(project.projectBudget || project.startedAt || project.completedAt) ? (
-                              <div className="mt-5 flex flex-wrap gap-x-6 gap-y-3 border-y border-slate-200/80 py-4 text-sm">
-                                {project.projectBudget ? (
-                                  <div className="min-w-[120px]">
-                                    <div className={`text-[11px] font-medium uppercase tracking-[0.18em] ${t.mutedText}`}>Budget</div>
-                                    <div className="mt-2 text-sm font-semibold text-slate-900">{formatMoney(project.projectBudget, p.currencyCode)}</div>
-                                  </div>
-                                ) : null}
-                                {project.startedAt ? (
-                                  <div className="min-w-[120px]">
-                                    <div className={`text-[11px] font-medium uppercase tracking-[0.18em] ${t.mutedText}`}>Started</div>
-                                    <div className="mt-2 text-sm font-semibold text-slate-900">{new Date(project.startedAt).toLocaleDateString()}</div>
-                                  </div>
-                                ) : null}
-                                {project.completedAt ? (
-                                  <div className="min-w-[120px]">
-                                    <div className={`text-[11px] font-medium uppercase tracking-[0.18em] ${t.mutedText}`}>Completed</div>
-                                    <div className="mt-2 text-sm font-semibold text-slate-900">{new Date(project.completedAt).toLocaleDateString()}</div>
-                                  </div>
-                                ) : null}
-                              </div>
-                            ) : null}
-
-                            <div className="mt-5 grid gap-5 md:grid-cols-2">
-                              {project.challenge ? (
-                                <div>
-                                  <div className={`text-xs font-medium uppercase tracking-[0.18em] ${t.mutedText}`}>Challenge</div>
-                                  <p className="mt-2 text-sm leading-7 text-slate-700 whitespace-pre-line">{project.challenge}</p>
-                                </div>
-                              ) : null}
-                              {project.solution ? (
-                                <div>
-                                  <div className={`text-xs font-medium uppercase tracking-[0.18em] ${t.mutedText}`}>Solution</div>
-                                  <p className="mt-2 text-sm leading-7 text-slate-700 whitespace-pre-line">{project.solution}</p>
-                                </div>
-                              ) : null}
-                            </div>
-
-                            {project.results ? (
-                              <div className="ml-dark-panel mt-5 rounded-2xl px-4 py-4">
-                                <div className="text-[11px] font-medium uppercase tracking-[0.18em] text-white/65">Results</div>
-                                <p className="mt-3 whitespace-pre-line text-sm leading-7 text-white/82">{project.results}</p>
-                              </div>
-                            ) : null}
-
-                            {project.services?.length ? (
-                              <div className="mt-5 flex flex-wrap gap-2">
-                                {project.services.map((service) => (
-                                  <span key={service} className="ml-pill rounded-xl px-3 py-1 text-xs">
-                                    {formatToken(service)}
-                                  </span>
-                                ))}
-                              </div>
-                            ) : null}
+                  {activeProject ? (
+                    <div className="mt-6">
+                      <div className="mb-4 flex flex-wrap items-center justify-between gap-3 rounded-[1.25rem] border border-slate-200/80 bg-white px-4 py-3 shadow-sm">
+                        <div className="min-w-0">
+                          <div className={`text-[11px] font-medium uppercase tracking-[0.18em] ${t.mutedText}`}>
+                            Project {projectSlide + 1} of {visibleProjects.length}
+                          </div>
+                          <div className="mt-1 truncate text-sm font-semibold text-slate-900">
+                            {activeProject.title}
                           </div>
                         </div>
+                        <div className="flex items-center gap-2">
+                          <button
+                            type="button"
+                            onClick={() => setProjectSlide((current) => (current - 1 + visibleProjects.length) % visibleProjects.length)}
+                            disabled={visibleProjects.length <= 1}
+                            className={`rounded-xl border px-3 py-2 text-xs font-semibold uppercase tracking-[0.14em] shadow-sm ${
+                              visibleProjects.length <= 1
+                                ? 'cursor-not-allowed border-slate-200 bg-slate-100 text-slate-400'
+                                : 'border-slate-200 bg-white text-slate-900'
+                            }`}
+                          >
+                            Prev
+                          </button>
+                          <button
+                            type="button"
+                            onClick={() => setProjectSlide((current) => (current + 1) % visibleProjects.length)}
+                            disabled={visibleProjects.length <= 1}
+                            className={`rounded-xl border px-3 py-2 text-xs font-semibold uppercase tracking-[0.14em] shadow-sm ${
+                              visibleProjects.length <= 1
+                                ? 'cursor-not-allowed border-slate-200 bg-slate-100 text-slate-400'
+                                : 'border-slate-200 bg-white text-slate-900'
+                            }`}
+                          >
+                            Next
+                          </button>
+                        </div>
+                      </div>
+
+                      <article className={`rounded-[1.5rem] ${pageSurfaceMuted} ${pageBorder} border px-4 py-4 shadow-sm md:px-5 md:py-4`}>
+                        <div className="flex items-start justify-between gap-4">
+                          <div className="min-w-0">
+                            <div className={`text-[11px] font-medium uppercase tracking-[0.18em] ${t.mutedText}`}>Featured project</div>
+                            <h3 className="mt-2 text-xl font-semibold tracking-tight text-slate-900">{activeProject.title}</h3>
+                            {activeProject.summary ? (
+                              <p className="mt-2 max-w-3xl text-sm leading-6 text-slate-700">
+                                {truncateCopy(activeProject.summary, 96)}
+                              </p>
+                            ) : null}
+                          </div>
+                          {activeProject.isFeatured ? <span className="ml-pill shrink-0 rounded-xl px-3 py-1 text-xs font-medium">Featured</span> : null}
+                        </div>
+
+                        <div className="mt-4 flex flex-wrap gap-2">
+                          {activeProject.projectBudget ? (
+                            <span className="rounded-full border border-slate-200/90 bg-white px-3 py-1.5 text-xs font-semibold text-slate-800">
+                              Budget: {formatMoney(activeProject.projectBudget, p.currencyCode)}
+                            </span>
+                          ) : null}
+                          {activeProject.startedAt ? (
+                            <span className="rounded-full border border-slate-200/90 bg-white px-3 py-1.5 text-xs font-semibold text-slate-800">
+                              Started: {new Date(activeProject.startedAt).toLocaleDateString()}
+                            </span>
+                          ) : null}
+                          {activeProject.completedAt ? (
+                            <span className="rounded-full border border-slate-200/90 bg-white px-3 py-1.5 text-xs font-semibold text-slate-800">
+                              Completed: {new Date(activeProject.completedAt).toLocaleDateString()}
+                            </span>
+                          ) : null}
+                          {activeProject.services?.slice(0, 4).map((service) => (
+                            <span key={service} className="ml-pill rounded-full px-3 py-1.5 text-xs">
+                              {formatToken(service)}
+                            </span>
+                          ))}
+                        </div>
+
+                        {(activeProject.challenge || activeProject.solution || activeProject.results) ? (
+                          <dl className="mt-4 grid gap-2.5 border-t border-slate-200/80 pt-4">
+                            {activeProject.challenge ? (
+                              <div className="rounded-[1rem] bg-white/82 px-3 py-2.5 ring-1 ring-slate-200/70">
+                                <dt className={`text-[11px] font-medium uppercase tracking-[0.18em] ${t.mutedText}`}>Challenge</dt>
+                                <dd className="mt-1 text-sm leading-6 text-slate-700">{truncateCopy(activeProject.challenge, 78)}</dd>
+                              </div>
+                            ) : null}
+                            {activeProject.solution ? (
+                              <div className="rounded-[1rem] bg-white/82 px-3 py-2.5 ring-1 ring-slate-200/70">
+                                <dt className={`text-[11px] font-medium uppercase tracking-[0.18em] ${t.mutedText}`}>Approach</dt>
+                                <dd className="mt-1 text-sm leading-6 text-slate-700">{truncateCopy(activeProject.solution, 78)}</dd>
+                              </div>
+                            ) : null}
+                            {activeProject.results ? (
+                              <div className="rounded-[1rem] bg-[#1f314d] px-3 py-2.5 text-white ring-1 ring-[#1f314d]/20">
+                                <dt className="text-[11px] font-medium uppercase tracking-[0.18em] text-white/68">Results</dt>
+                                <dd className="mt-1 text-sm leading-6 text-white">{truncateCopy(activeProject.results, 84)}</dd>
+                              </div>
+                            ) : null}
+                          </dl>
+                        ) : null}
                       </article>
-                    ))}
-                  </div> : null}
+                    </div>
+                  ) : null}
                 </section>
               ) : null}
 
@@ -892,180 +1095,23 @@ function ProviderPageContent({ provider: p }: { provider: Provider }) {
                 </section>
               ) : null}
 
-            </div>
-
-            <aside className="flex min-w-0 flex-col gap-6 xl:sticky xl:top-6">
-              <section className="overflow-hidden rounded-[1.75rem] border border-slate-900/85 bg-[#101a2a] shadow-[0_24px_70px_rgba(15,23,42,0.18)]">
-                <div className="border-b border-white/10 bg-[radial-gradient(120%_120%_at_0%_0%,rgba(148,163,184,0.18),transparent_42%),linear-gradient(135deg,rgba(15,23,42,0.98),rgba(30,41,59,0.94))] px-6 py-6">
-                  <div className="text-[11px] font-medium uppercase tracking-[0.22em] text-slate-400">Contact this expert</div>
-                  <h2 className={`${displayFont.className} mt-3 text-2xl font-semibold tracking-[-0.02em] text-white`}>Send your inquiry</h2>
-                  {p.status === 'active' ? (
-                    <p className="mt-3 text-sm leading-7 text-slate-200/78">Use the form below to ask about availability, fit, pricing, or project scope.</p>
-                  ) : (
-                    <p className="mt-3 text-sm leading-7 text-slate-200/72">Inquiry tools unlock when this expert profile is active.</p>
-                  )}
-
-                  <div className="mt-5 flex flex-wrap gap-2">
-                    <a className="rounded-xl bg-white px-4 py-2 text-xs font-semibold text-slate-950 shadow-sm" href={`mailto:${p.email}`}>
-                      Email expert
-                    </a>
-                    {p.phone ? (
-                      <a className="rounded-xl border border-white/12 bg-white/6 px-4 py-2 text-xs font-semibold text-white" href={`tel:${p.phone}`}>
-                        Call now
-                      </a>
-                    ) : null}
-                    {p.websiteUrl ? (
-                      <a className="rounded-xl border border-white/12 bg-white/6 px-4 py-2 text-xs font-semibold text-white" href={p.websiteUrl} target="_blank" rel="noreferrer">
-                        Visit website
-                      </a>
-                    ) : null}
-                  </div>
-                </div>
-
-                <div className="px-6 py-6">
-                  {p.status === 'active' ? <InquiryForm expertSlug={p.slug} /> : <div className="text-sm text-slate-600">Contact form will be available once this expert profile is active.</div>}
-
-                  <div className="mt-6 grid gap-4">
-                    <div className="rounded-[1.25rem] border border-white/10 bg-white/5 px-4 py-4 text-sm text-slate-200">
-                      <div className="text-[11px] font-medium uppercase tracking-[0.18em] text-slate-400">Direct details</div>
-                      <div className="mt-3 space-y-3">
-                        <div>
-                          <div className="text-[11px] font-medium uppercase tracking-[0.18em] text-slate-400">Location</div>
-                          <div className="mt-1 text-white">{locationLabel}</div>
-                        </div>
-                        <div>
-                          <div className="text-[11px] font-medium uppercase tracking-[0.18em] text-slate-400">Email</div>
-                          <div className="mt-1 break-all text-white">{p.email}</div>
-                        </div>
-                        {p.phone ? (
-                          <div>
-                            <div className="text-[11px] font-medium uppercase tracking-[0.18em] text-slate-400">Phone</div>
-                            <div className="mt-1 text-white">{p.phone}</div>
-                          </div>
-                        ) : null}
-                      </div>
-                    </div>
-
-                    {(p.linkedinUrl || p.instagramUrl || p.facebookUrl) ? (
-                      <div className="flex flex-wrap gap-2">
-                        {p.linkedinUrl ? <a className="rounded-xl border border-white/12 bg-white/6 px-3 py-1.5 text-xs font-semibold text-white" href={p.linkedinUrl} target="_blank" rel="noreferrer">LinkedIn</a> : null}
-                        {p.instagramUrl ? <a className="rounded-xl border border-white/12 bg-white/6 px-3 py-1.5 text-xs font-semibold text-white" href={p.instagramUrl} target="_blank" rel="noreferrer">Instagram</a> : null}
-                        {p.facebookUrl ? <a className="rounded-xl border border-white/12 bg-white/6 px-3 py-1.5 text-xs font-semibold text-white" href={p.facebookUrl} target="_blank" rel="noreferrer">Facebook</a> : null}
-                      </div>
-                    ) : null}
-
-                    <ExpertProfileMap
-                      businessName={p.businessName}
-                      locationLabel={locationLabel}
-                      latitude={p.latitude}
-                      longitude={p.longitude}
-                    />
-                  </div>
-                </div>
-              </section>
-
-              {(p.industries?.length || p.languages?.length || p.clientSizes?.length || p.specialties?.length || p.remoteFriendly || p.servesNationwide || p.responseTimeHours) ? (
-                <section className={`rounded-[1.75rem] ${pageSurface} ${pageBorder} border px-6 py-6 shadow-[0_18px_50px_rgba(15,23,42,0.06)]`}>
-                  <button
-                    type="button"
-                    className="flex w-full items-center justify-between gap-4 text-left md:hidden"
-                    onClick={() => setFitOpen((value) => !value)}
-                    aria-expanded={fitOpen}
-                  >
-                    <div>
-                      <div className="text-[11px] font-medium uppercase tracking-[0.22em] text-slate-500">Team fit</div>
-                      <h2 className={`${displayFont.className} mt-3 text-2xl font-semibold tracking-[-0.02em] text-slate-900`}>At a glance</h2>
-                    </div>
-                    <span className="ml-pill rounded-xl px-4 py-2 text-sm font-medium">
-                      {fitOpen ? 'Hide' : 'Show'}
-                    </span>
-                  </button>
-                  <div className="hidden md:block">
-                    <div className="text-[11px] font-medium uppercase tracking-[0.22em] text-slate-500">Team fit</div>
-                    <h2 className={`${displayFont.className} mt-3 text-2xl font-semibold tracking-[-0.02em] text-slate-900`}>At a glance</h2>
-                  </div>
-                  <div className={`${fitOpen ? 'mt-5 block' : 'hidden'} space-y-5 md:mt-5 md:block`}>
-                    {p.industries?.length ? (
-                      <div>
-                        <div className={`text-[11px] font-medium uppercase tracking-[0.18em] ${t.mutedText}`}>Industries</div>
-                        <div className="mt-3 flex flex-wrap gap-2">
-                          {p.industries.map((s) => (
-                            <span key={s} className="ml-pill rounded-xl px-3 py-1 text-xs">{formatToken(s)}</span>
-                          ))}
-                        </div>
-                      </div>
-                    ) : null}
-                    {p.languages?.length ? (
-                      <div>
-                        <div className={`text-[11px] font-medium uppercase tracking-[0.18em] ${t.mutedText}`}>Languages</div>
-                        <div className="mt-3 flex flex-wrap gap-2">
-                          {p.languages.map((s) => (
-                            <span key={s} className="ml-pill rounded-xl px-3 py-1 text-xs">{formatToken(s)}</span>
-                          ))}
-                        </div>
-                      </div>
-                    ) : null}
-                    {p.clientSizes?.length ? (
-                      <div>
-                        <div className={`text-[11px] font-medium uppercase tracking-[0.18em] ${t.mutedText}`}>Client sizes</div>
-                        <div className="mt-3 flex flex-wrap gap-2">
-                          {p.clientSizes.map((s) => (
-                            <span key={s} className="ml-pill rounded-xl px-3 py-1 text-xs">{formatToken(s)}</span>
-                          ))}
-                        </div>
-                      </div>
-                    ) : null}
-                    {p.specialties?.length ? (
-                      <div>
-                        <div className={`text-[11px] font-medium uppercase tracking-[0.18em] ${t.mutedText}`}>Specialties</div>
-                        <div className="mt-3 flex flex-wrap gap-2">
-                          {p.specialties.map((s) => (
-                            <span key={s} className="ml-pill rounded-xl px-3 py-1 text-xs">{formatToken(s)}</span>
-                          ))}
-                        </div>
-                      </div>
-                    ) : null}
-                    {(p.remoteFriendly || p.servesNationwide || p.responseTimeHours) ? (
-                      <div className={`rounded-2xl ${pageSurfaceMuted} ${pageBorder} border px-4 py-4`}>
-                        <div className={`text-[11px] font-medium uppercase tracking-[0.18em] ${t.mutedText}`}>Working model</div>
-                        <div className="mt-3 space-y-2 text-sm text-slate-700">
-                          {p.remoteFriendly ? <div>Remote-friendly engagement model</div> : null}
-                          {p.servesNationwide ? <div>Available for nationwide work</div> : null}
-                          {p.responseTimeHours ? <div>Usually replies within {p.responseTimeHours} hours</div> : null}
-                        </div>
-                      </div>
-                    ) : null}
-                  </div>
-                </section>
-              ) : null}
-
               {(visibleCertifications.length || visibleAwards.length) ? (
-                <section className={`rounded-[1.75rem] ${pageSurface} ${pageBorder} border px-6 py-6 shadow-[0_18px_50px_rgba(15,23,42,0.06)]`}>
-                  <button
-                    type="button"
-                    className="flex w-full items-center justify-between gap-4 text-left md:hidden"
-                    onClick={() => setCredentialsOpen((value) => !value)}
-                    aria-expanded={credentialsOpen}
-                  >
+                <section className={`rounded-[2rem] ${pageSurface} ${pageBorder} border px-6 py-6 shadow-[0_20px_70px_rgba(15,23,42,0.08)]`}>
+                  <div className="flex flex-wrap items-end justify-between gap-4">
                     <div>
                       <div className="text-[11px] font-medium uppercase tracking-[0.22em] text-slate-500">Signals</div>
-                      <h2 className={`${displayFont.className} mt-3 text-2xl font-semibold tracking-[-0.02em] text-slate-900`}>Credentials</h2>
+                      <h2 className={`${displayFont.className} mt-3 text-3xl font-semibold tracking-[-0.03em] text-slate-900 md:text-[2.35rem]`}>Credentials and recognition.</h2>
+                      <p className="mt-2 max-w-2xl text-sm leading-7 text-slate-700">A quick look at certifications, awards, and trust signals that support the expert profile.</p>
                     </div>
-                    <span className="ml-pill rounded-xl px-4 py-2 text-sm font-medium">
-                      {credentialsOpen ? 'Hide' : 'Show'}
-                    </span>
-                  </button>
-                  <div className="hidden md:block">
-                    <div className="text-[11px] font-medium uppercase tracking-[0.22em] text-slate-500">Signals</div>
-                    <h2 className={`${displayFont.className} mt-3 text-2xl font-semibold tracking-[-0.02em] text-slate-900`}>Credentials</h2>
                   </div>
-                  <div className={`${credentialsOpen ? 'mt-4 block' : 'hidden'} space-y-4 md:mt-4 md:block`}>
+
+                  <div className="mt-6 grid gap-6 lg:grid-cols-2">
                     {visibleCertifications.length ? (
                       <div>
                         <div className={`text-[11px] font-medium uppercase tracking-[0.18em] ${t.mutedText}`}>Certifications</div>
-                        <div className="mt-3 divide-y divide-slate-200/80">
+                        <div className="mt-3 divide-y divide-slate-200/80 rounded-[1.5rem] border border-slate-200/80 bg-white px-5 py-2 shadow-sm">
                           {visibleCertifications.map((item) => (
-                            <div key={item.id} className="py-4 first:pt-0 last:pb-0">
+                            <div key={item.id} className="py-4 first:pt-2 last:pb-2">
                               <div className="flex items-start gap-3">
                                 {item.badgeImageUrl ? (
                                   // eslint-disable-next-line @next/next/no-img-element
@@ -1090,12 +1136,13 @@ function ProviderPageContent({ provider: p }: { provider: Provider }) {
                         </div>
                       </div>
                     ) : null}
+
                     {visibleAwards.length ? (
                       <div>
                         <div className={`text-[11px] font-medium uppercase tracking-[0.18em] ${t.mutedText}`}>Awards</div>
-                        <div className="mt-3 divide-y divide-slate-200/80">
+                        <div className="mt-3 divide-y divide-slate-200/80 rounded-[1.5rem] border border-slate-200/80 bg-white px-5 py-2 shadow-sm">
                           {visibleAwards.map((item) => (
-                            <div key={item.id} className="py-4 first:pt-0 last:pb-0">
+                            <div key={item.id} className="py-4 first:pt-2 last:pb-2">
                               <div className="flex items-start gap-3">
                                 {item.badgeImageUrl ? (
                                   // eslint-disable-next-line @next/next/no-img-element
@@ -1123,6 +1170,34 @@ function ProviderPageContent({ provider: p }: { provider: Provider }) {
                   </div>
                 </section>
               ) : null}
+
+            </div>
+
+            <aside className="flex min-w-0 flex-col gap-6 xl:sticky xl:top-6">
+              <section className="overflow-hidden rounded-[1.75rem] border border-slate-900/85 bg-[#101a2a] shadow-[0_24px_70px_rgba(15,23,42,0.18)]">
+                <div className="border-b border-white/10 bg-[radial-gradient(120%_120%_at_0%_0%,rgba(148,163,184,0.18),transparent_42%),linear-gradient(135deg,rgba(15,23,42,0.98),rgba(30,41,59,0.94))] px-6 py-6">
+                  <div className="text-[11px] font-medium uppercase tracking-[0.22em] text-slate-400">Contact this expert</div>
+                  <h2 className={`${displayFont.className} mt-3 text-2xl font-semibold tracking-[-0.02em] text-white`}>Send your inquiry</h2>
+                  {p.status === 'active' ? (
+                    <p className="mt-3 text-sm leading-7 text-slate-200/78">Use the form below to ask about availability, fit, pricing, or project scope.</p>
+                  ) : (
+                    <p className="mt-3 text-sm leading-7 text-slate-200/72">Inquiry tools unlock when this expert profile is active.</p>
+                  )}
+                </div>
+
+                <div id="expert-inquiry-form" className="px-6 py-6">
+                  {p.status === 'active' ? <InquiryForm expertSlug={p.slug} /> : <div className="text-sm text-slate-600">Contact form will be available once this expert profile is active.</div>}
+
+                  <div className="mt-6 grid gap-4">
+                    <ExpertProfileMap
+                      businessName={p.businessName}
+                      locationLabel={locationLabel}
+                      latitude={p.latitude}
+                      longitude={p.longitude}
+                    />
+                  </div>
+                </div>
+              </section>
 
             </aside>
           </div>

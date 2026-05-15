@@ -9,14 +9,14 @@ export function HomepageDiscoveryAnimation({ compact = false }: HomepageDiscover
     <div
       data-testid={compact ? 'mobile-homepage-discovery-animation' : 'desktop-homepage-discovery-animation'}
       className={[
-        'overflow-hidden rounded-[1.75rem] bg-white/82 shadow-[0_18px_55px_rgba(15,23,42,0.08)] ring-1 ring-slate-200/80',
+        'overflow-hidden rounded-[1.9rem] bg-[linear-gradient(180deg,rgba(255,255,255,0.95),rgba(248,243,236,0.94))] shadow-[0_18px_55px_rgba(15,23,42,0.08)] ring-1 ring-slate-200/80',
         compact ? 'mt-6 p-4' : 'mt-1 max-w-2xl p-5',
       ].join(' ')}
       aria-label="Find local experts, compare best fits, and get real results"
     >
       <div
         className={[
-          'motion-stage relative overflow-hidden rounded-[1.35rem] bg-slate-50 ring-1 ring-slate-200/75',
+          'motion-stage relative overflow-hidden rounded-[1.5rem] bg-[linear-gradient(180deg,rgba(255,255,255,0.92),rgba(244,238,230,0.88))] ring-1 ring-slate-200/75',
           compact ? 'min-h-[190px]' : 'min-h-[250px]',
         ].join(' ')}
       >
@@ -24,14 +24,16 @@ export function HomepageDiscoveryAnimation({ compact = false }: HomepageDiscover
           MarketLink flow
         </div>
 
-        <div className="absolute inset-0 bg-[radial-gradient(circle_at_50%_52%,rgba(219,242,255,0.92),rgba(248,250,252,0.68)_48%,rgba(248,250,252,0)_70%)]" />
+        <div className="absolute inset-0 bg-[radial-gradient(circle_at_50%_52%,rgba(221,238,255,0.95),rgba(248,250,252,0.72)_44%,rgba(248,250,252,0)_70%)]" />
+        <div className="absolute -left-6 bottom-0 h-24 w-24 rounded-full bg-[radial-gradient(circle,rgba(255,214,183,0.75),rgba(255,214,183,0))]" />
+        <div className="absolute right-0 top-0 h-28 w-28 rounded-full bg-[radial-gradient(circle,rgba(194,229,255,0.75),rgba(194,229,255,0))]" />
         <div className={compact ? 'hidden' : 'absolute left-[23%] top-[42%] h-[34%] w-[54%] rounded-full border-b-2 border-r-2 border-sky-200/90'} />
 
         {compact ? (
           <div className="relative z-10 flex min-h-[190px] flex-col justify-end gap-2 px-4 pb-4 pt-12">
             <div
               data-testid="mobile-homepage-discovery-visual-label"
-              className="stage-card rounded-2xl bg-white px-4 py-3 shadow-sm ring-1 ring-slate-200/80"
+              className="stage-card rounded-[1.3rem] bg-white px-4 py-3 shadow-sm ring-1 ring-slate-200/80"
             >
               <div className="text-[11px] font-semibold text-slate-500">Business need</div>
               <div className="mt-1 text-sm font-semibold leading-tight text-slate-950">Find local experts</div>
@@ -39,7 +41,7 @@ export function HomepageDiscoveryAnimation({ compact = false }: HomepageDiscover
 
             <div
               data-testid="mobile-homepage-discovery-visual-label"
-              className="stage-card stage-compare ml-5 rounded-2xl bg-white px-4 py-3 shadow-sm ring-1 ring-slate-200/80"
+              className="stage-card stage-compare ml-5 rounded-[1.3rem] bg-white px-4 py-3 shadow-sm ring-1 ring-slate-200/80"
             >
               <div className="text-[11px] font-semibold text-slate-500">Shortlist</div>
               <div className="mt-1 text-sm font-semibold leading-tight text-slate-950">Compare best fits</div>
@@ -57,7 +59,7 @@ export function HomepageDiscoveryAnimation({ compact = false }: HomepageDiscover
           <>
             <div
               data-testid="desktop-homepage-discovery-visual-label"
-              className="stage-card stage-find absolute left-[7%] top-[24%] z-10 w-[45%] rounded-2xl bg-white px-4 py-3 shadow-sm ring-1 ring-slate-200/80"
+              className="stage-card stage-find absolute left-[7%] top-[24%] z-10 w-[45%] rounded-[1.35rem] bg-white px-4 py-3 shadow-sm ring-1 ring-slate-200/80"
             >
               <div className="text-[11px] font-semibold text-slate-500">Business need</div>
               <div className="mt-2 text-sm font-semibold leading-tight text-slate-950">Find local experts</div>
@@ -66,7 +68,7 @@ export function HomepageDiscoveryAnimation({ compact = false }: HomepageDiscover
 
             <div
               data-testid="desktop-homepage-discovery-visual-label"
-              className="stage-card stage-compare absolute left-[34%] top-[46%] z-10 w-[48%] rounded-2xl bg-white px-4 py-3 shadow-sm ring-1 ring-slate-200/80"
+              className="stage-card stage-compare absolute left-[34%] top-[46%] z-10 w-[48%] rounded-[1.35rem] bg-white px-4 py-3 shadow-sm ring-1 ring-slate-200/80"
             >
               <div className="text-[11px] font-semibold text-slate-500">Shortlist</div>
               <div className="mt-2 text-sm font-semibold leading-tight text-slate-950">Compare best fits</div>
