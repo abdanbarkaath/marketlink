@@ -147,6 +147,7 @@ Treat:
 
 - Winnie as the reference for warmth, clarity, and trust presentation.
 - Thumbtack as the reference for marketplace structure, local discovery, results scanning, and conversion-oriented service flows.
+- Landingfolio and Dribbble as secondary references for visual polish, spacing, composition, and component-level styling once the product behavior is already decided.
 
 Do not copy branding or visuals directly.
 
@@ -156,6 +157,11 @@ Borrow:
 - Information hierarchy
 - Density
 - Trust mechanics
+- Layout rhythm
+- Search module composition
+- Illustration usage patterns
+
+When the design needs illustrations or decorative web graphics, prefer free or attribution-safe sources first and verify the license before using assets. Good starting points include Storyset, unDraw, Ouch, Freepik, Pixabay, Vecteezy, and similar free illustration libraries.
 
 See `docs/product/inspiration.md` for the concrete reference guidance.
 

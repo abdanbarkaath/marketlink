@@ -29,6 +29,16 @@ Use Thumbtack as the reference for:
 - Conversion-oriented inquiry and matching flows
 - Practical, high-signal profile organization
 
+### Landingfolio And Dribbble
+
+Use Landingfolio and Dribbble as secondary references for:
+
+- Layout polish
+- Search module styling
+- Better spacing and composition
+- Stronger CTA, input, and card balance
+- Component-level visual refinement after the product flow is already clear
+
 ## What To Borrow
 
 Borrow patterns, not identity.
@@ -43,6 +53,9 @@ Good things to borrow:
 - Helpful nearby and location relevance cues
 - Inquiry flows that reduce buyer hesitation
 - Profile layouts that surface proof early
+- Better use of negative space
+- Tighter composition between inputs, chips, buttons, and helper text
+- Illustration placement that adds energy without clutter
 
 ## What Not To Borrow
 
@@ -65,12 +78,14 @@ MarketLink should feel informed by strong marketplace patterns, not visually der
 - Prioritize Thumbtack-style discovery structure
 - Keep the first screen easy to scan and action-oriented
 - Use Winnie-style warmth only where it improves clarity and trust
+- Use Landingfolio or Dribbble to refine the visual composition once the structure is set
 
 ### Search Results
 
 - Prioritize Thumbtack-style scanability
 - Keep cards dense, practical, and easy to compare
 - Surface location, proof, and fit quickly
+- Use Landingfolio or Dribbble to improve filter-bar styling, spacing, and map/list balance without changing the core mechanics
 
 ### Profile And Detail Pages
 
@@ -95,7 +110,29 @@ When the references point in different directions:
 
 1. Thumbtack wins for marketplace mechanics, search, results, profile structure, and conversion flow.
 2. Winnie wins for trust presentation, warmth, and clarity of supporting content.
-3. Direct user instructions override both.
+3. Landingfolio and Dribbble help refine the visual layer after 1 and 2 are decided.
+4. Direct user instructions override all of the above.
+
+## Illustration Sources
+
+When MarketLink needs cartoon work scenes, web illustrations, or decorative graphics, prefer free or attribution-safe sources before paid custom assets.
+
+Good starting points:
+
+- Storyset
+- unDraw
+- Ouch by Icons8
+- Freepik
+- Pixabay
+- Vecteezy
+- other similar free illustration libraries with clear commercial-use terms
+
+Rules:
+
+- Check license and attribution terms before using anything
+- Prefer assets that can be recolored or matched to the existing brand palette
+- Use illustration systems that can scale across multiple pages instead of random one-off graphics
+- Use illustrations to support clarity and energy, not to fill empty space
 
 ## Examples Of Good Decisions
 
