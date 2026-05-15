@@ -5,6 +5,7 @@ import { Figtree, Playfair_Display } from 'next/font/google';
 import InquiryForm from '../../providers/[slug]/InquiryForm';
 import ProviderNotFound from '../../providers/[slug]/not-found';
 import { useMarketLinkTheme } from '../../../components/ThemeToggle';
+import ExpertProfileMap from '../../../components/ExpertProfileMap';
 
 const displayFont = Playfair_Display({
   subsets: ['latin'],
@@ -48,6 +49,8 @@ type Provider = {
   city: string;
   state: string;
   zip: string | null;
+  latitude?: number | null;
+  longitude?: number | null;
   services: string[];
   projects?: Array<{
     id: string;
@@ -350,7 +353,6 @@ function ProviderPageContent({ provider: p }: { provider: Provider }) {
     [creatorPlatformsLabel, creatorAudienceLabel ? `${creatorAudienceLabel} audience` : null].filter(Boolean).join(' • ') ||
     null;
   const locationLabel = formatLocation(p.city, p.state, p.zip);
-  const mapEmbedSrc = `https://maps.google.com/maps?hl=en&q=${encodeURIComponent(locationLabel)}&t=&z=11&ie=UTF8&iwloc=B&output=embed`;
   const instagramProfileLink = p.instagramUrl ? getInstagramProfile(parseUrl(p.instagramUrl) ?? new URL('https://instagram.com')) : null;
   const decisionCards = [
     { label: 'Expert type', value: expertTypeLabel },
@@ -952,15 +954,12 @@ function ProviderPageContent({ provider: p }: { provider: Provider }) {
                       </div>
                     ) : null}
 
-                    <div className="overflow-hidden rounded-[1.25rem] border border-white/10 bg-white">
-                      <iframe
-                        src={mapEmbedSrc}
-                        title={`${p.businessName} location map`}
-                        className="h-48 w-full"
-                        loading="lazy"
-                        referrerPolicy="no-referrer-when-downgrade"
-                      />
-                    </div>
+                    <ExpertProfileMap
+                      businessName={p.businessName}
+                      locationLabel={locationLabel}
+                      latitude={p.latitude}
+                      longitude={p.longitude}
+                    />
                   </div>
                 </div>
               </section>

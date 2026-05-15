@@ -5,9 +5,11 @@ import {
   getDiscoveryProblemById,
   getDiscoveryServicePathHrefForProblem,
   getDiscoveryServicePathsForProblem,
+  discoveryServicePaths,
 } from '@/lib/discovery';
 import type { DiscoveryProblemCard } from '@/lib/discovery';
 import NearbyRadiusField from '@/components/NearbyRadiusField';
+import ExpertsDiscoveryMap from '@/components/ExpertsDiscoveryMap';
 
 export const metadata: Metadata = {
   title: 'Experts | MarketLink',
@@ -22,6 +24,8 @@ type Provider = {
   shortDescription?: string | null;
   city: string;
   state: string;
+  latitude?: number | null;
+  longitude?: number | null;
   verified: boolean;
   logo: string | null;
   services: string[];
@@ -43,13 +47,7 @@ type FiltersFormProps = {
   radius?: string;
   service?: string;
   problemId?: string;
-  match: 'any' | 'all';
-  minRating?: string;
-  sort: 'newest' | 'name' | 'rating' | 'verified';
-  order?: 'asc' | 'desc';
-  limit: number;
   verified?: string;
-  compact?: boolean;
 };
 
 const FIELD_CLASS = 'ml-input w-full rounded-2xl px-4 py-3 text-sm';
@@ -57,6 +55,11 @@ const CHECKBOX_CLASS = 'ml-checkbox h-4 w-4 rounded';
 const PRIMARY_BUTTON_CLASS = 'ml-btn-primary inline-flex min-h-12 items-center justify-center rounded-xl px-6 text-sm font-semibold shadow-sm';
 const PILL_CLASS = 'ml-pill rounded-xl px-3 py-1 text-[11px] font-medium uppercase tracking-[0.18em]';
 const SECTION_CLASS = 'ml-card rounded-[1.8rem] px-5 py-5 shadow-[0_16px_40px_rgba(23,26,31,0.06)] sm:px-6 sm:py-6';
+const SERVICE_FILTER_OPTIONS = discoveryServicePaths.map((path) => ({
+  value: path.serviceTokens.join(','),
+  label: path.plainLabel,
+  description: path.technicalLabel,
+}));
 
 function formatExpertTypeLabel(expertType: Provider['expertType']) {
   switch (expertType) {
@@ -82,13 +85,24 @@ function formatAudienceSize(value: number | null | undefined) {
   }).format(value);
 }
 
-function FiltersForm({ name, zip, radius, service, problemId, match, minRating, sort, order, limit, verified, compact = false }: FiltersFormProps) {
+function getServiceFilterLabel(service: string | undefined) {
+  if (!service) return null;
+  const normalized = service
+    .split(',')
+    .map((token) => token.trim().toLowerCase())
+    .filter(Boolean)
+    .join(',');
+
+  return SERVICE_FILTER_OPTIONS.find((option) => option.value === normalized)?.label ?? service;
+}
+
+function FiltersForm({ name, zip, radius, service, problemId, verified }: FiltersFormProps) {
   return (
-    <form method="GET" className={`grid gap-4 ${compact ? '' : 'lg:grid-cols-12'}`}>
+    <form method="GET" className="grid gap-4 xl:grid-cols-[minmax(0,1.05fr)_minmax(520px,1.45fr)_minmax(0,0.95fr)_220px_auto] xl:items-start">
       <input type="hidden" name="page" value="1" />
       {problemId ? <input type="hidden" name="problem" value={problemId} /> : null}
 
-      <label className={compact ? '' : 'lg:col-span-3'}>
+      <label>
         <span className="mb-2 block text-sm font-medium text-slate-700">Expert or business name</span>
         <input
           type="text"
@@ -99,95 +113,35 @@ function FiltersForm({ name, zip, radius, service, problemId, match, minRating, 
         />
       </label>
 
-      <div className={compact ? '' : 'lg:col-span-4'}>
+      <div>
         <NearbyRadiusField
           initialZip={zip}
           initialRadius={radius}
+          compact
           fieldClassName={FIELD_CLASS}
           zipLabel="ZIP code"
           zipPlaceholder="60559"
-          helperText="Search nearby experts by ZIP. The slider appears once the ZIP is ready."
+          helperText="Use a 5-digit ZIP code to search nearby experts."
         />
       </div>
 
-      <label className={compact ? '' : 'lg:col-span-3'}>
+      <label>
         <span className="mb-2 block text-sm font-medium text-slate-700">Service</span>
-        <input
-          type="text"
+        <select
           name="service"
           defaultValue={service ?? ''}
-          placeholder="ads, social, website"
-          className={FIELD_CLASS}
-        />
-      </label>
-
-      <label className={compact ? '' : 'lg:col-span-2'}>
-        <span className="mb-2 block text-sm font-medium text-slate-700">Service match</span>
-        <select
-          name="match"
-          defaultValue={match}
           className={FIELD_CLASS}
         >
-          <option value="any">Any selected service</option>
-          <option value="all">Must match all</option>
+          <option value="">All services</option>
+          {SERVICE_FILTER_OPTIONS.map((option) => (
+            <option key={option.value} value={option.value}>
+              {option.label} - {option.description}
+            </option>
+          ))}
         </select>
       </label>
 
-      <label className={compact ? '' : 'lg:col-span-2'}>
-        <span className="mb-2 block text-sm font-medium text-slate-700">Minimum rating</span>
-        <select
-          name="minRating"
-          defaultValue={minRating ?? ''}
-          className={FIELD_CLASS}
-        >
-          <option value="">Any rating</option>
-          <option value="3.0">3.0+</option>
-          <option value="4.0">4.0+</option>
-          <option value="4.5">4.5+</option>
-        </select>
-      </label>
-
-      <label className={compact ? '' : 'lg:col-span-2'}>
-        <span className="mb-2 block text-sm font-medium text-slate-700">Sort by</span>
-        <select
-          name="sort"
-          defaultValue={sort}
-          className={FIELD_CLASS}
-        >
-          <option value="newest">Newest</option>
-          <option value="name">Name</option>
-          <option value="rating">Rating</option>
-          <option value="verified">Verified</option>
-        </select>
-      </label>
-
-      <label className={compact ? '' : 'lg:col-span-2'}>
-        <span className="mb-2 block text-sm font-medium text-slate-700">Order</span>
-        <select
-          name="order"
-          defaultValue={order ?? (sort === 'name' ? 'asc' : 'desc')}
-          className={FIELD_CLASS}
-        >
-          <option value="asc">Ascending</option>
-          <option value="desc">Descending</option>
-        </select>
-      </label>
-
-      <label className={compact ? '' : 'lg:col-span-2'}>
-        <span className="mb-2 block text-sm font-medium text-slate-700">Page size</span>
-        <select
-          name="limit"
-          defaultValue={String(limit)}
-          className={FIELD_CLASS}
-        >
-          <option value="12">12</option>
-          <option value="20">20</option>
-          <option value="30">30</option>
-          <option value="50">50</option>
-        </select>
-      </label>
-
-      <div className={compact ? '' : 'lg:col-span-2'}>
+      <div>
         <span className="mb-2 block text-sm font-medium text-slate-700">Verification</span>
         <label className="ml-input flex w-full items-center gap-3 rounded-2xl px-4 py-3 text-sm font-medium text-slate-700">
           <input
@@ -201,10 +155,13 @@ function FiltersForm({ name, zip, radius, service, problemId, match, minRating, 
         </label>
       </div>
 
-      <div className={compact ? '' : 'lg:col-span-12'}>
+      <div className="flex flex-col justify-end gap-3 xl:pb-[2px]">
         <button type="submit" className={PRIMARY_BUTTON_CLASS}>
-          Update results
+          Filter
         </button>
+        <Link href="/experts" className="text-center text-sm font-medium text-slate-600 underline underline-offset-4 hover:text-slate-900">
+          Clear filters
+        </Link>
       </div>
     </form>
   );
@@ -229,7 +186,7 @@ function ProviderCard({ provider }: { provider: Provider }) {
   const trustLabel = p.verified ? 'Verified expert' : p.expertType === 'creator' && creatorProofBody ? 'Creator proof available' : 'Profile available';
 
   return (
-    <li data-testid="expert-result-card" className="list-none">
+    <li data-testid="expert-result-card" data-provider-id={p.id} className="list-none">
       <details name="expert-card" className="group relative ml-card overflow-visible rounded-[1.55rem] transition open:shadow-[0_18px_42px_rgba(23,26,31,0.08)]">
         <summary data-testid="expert-card-toggle" className="relative block cursor-pointer list-none pb-8 sm:pb-10">
           <div className="flex flex-col sm:grid sm:grid-cols-[176px_minmax(0,1fr)]">
@@ -443,27 +400,17 @@ export default async function ProvidersPage({ searchParams }: ProvidersPageProps
   const service = typeof resolvedSearchParams.service === 'string' ? resolvedSearchParams.service : undefined;
   const problemId = typeof resolvedSearchParams.problem === 'string' ? resolvedSearchParams.problem : undefined;
   const problemContext = getDiscoveryProblemById(problemId);
-  const match = (typeof resolvedSearchParams.match === 'string' ? resolvedSearchParams.match : 'any') as 'any' | 'all';
-  const minRating = typeof resolvedSearchParams.minRating === 'string' ? resolvedSearchParams.minRating : undefined;
   const verified = typeof resolvedSearchParams.verified === 'string' ? resolvedSearchParams.verified : undefined;
 
-  const sort = (typeof resolvedSearchParams.sort === 'string' ? resolvedSearchParams.sort : 'newest') as 'newest' | 'name' | 'rating' | 'verified';
-  const order = (typeof resolvedSearchParams.order === 'string' ? resolvedSearchParams.order : undefined) as 'asc' | 'desc' | undefined;
   const page = Math.max(1, parseInt(String(resolvedSearchParams.page ?? '1'), 10) || 1);
-  const limit = Math.min(50, Math.max(1, parseInt(String(resolvedSearchParams.limit ?? '20'), 10) || 20));
 
   const qs = toQS({
     name,
     zip,
     radius,
     service,
-    match,
-    minRating,
     verified,
-    sort,
-    order,
     page: String(page),
-    limit: String(limit),
   });
 
   const apiBase = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:4000';
@@ -496,12 +443,7 @@ export default async function ProvidersPage({ searchParams }: ProvidersPageProps
     radius,
     service,
     problem: problemContext?.id,
-    match,
-    minRating,
     verified,
-    sort,
-    order,
-    limit: String(limit),
   };
 
   const prevParams = toQS({ ...baseParams, page: String(Math.max(1, page - 1)) });
@@ -512,8 +454,7 @@ export default async function ProvidersPage({ searchParams }: ProvidersPageProps
     name ? { label: `Name: ${name}` } : null,
     zip ? { label: `ZIP: ${zip}` } : null,
     radius ? { label: `Radius: ${radius} miles` } : null,
-    service ? { label: `Service: ${service}` } : null,
-    minRating ? { label: `Rating ${minRating}+` } : null,
+    service ? { label: `Service: ${getServiceFilterLabel(service)}` } : null,
     verified === '1' || (verified ?? '').toLowerCase() === 'true' ? { label: 'Verified only' } : null,
   ].filter(Boolean) as { label: string }[];
 
@@ -541,52 +482,19 @@ export default async function ProvidersPage({ searchParams }: ProvidersPageProps
 
         {problemContext ? <ProblemContextPanel problem={problemContext} /> : null}
 
-        <div className="mt-6 grid gap-6 lg:grid-cols-[minmax(0,1fr)_360px] lg:items-start">
-          <section className={`${SECTION_CLASS} lg:hidden`}>
-            <details className="group">
-              <summary className="ml-surface flex cursor-pointer list-none items-center justify-between gap-4 rounded-[1.4rem] px-4 py-4 shadow-sm">
-                <div className="min-w-0">
-                  <div className="text-[11px] font-medium uppercase tracking-[0.22em] text-slate-500">Filters</div>
-                  <h2 className="mt-1 text-xl font-semibold tracking-tight text-slate-900">Refine results</h2>
-                  <p className="mt-1 text-sm text-slate-600">
-                    {activeFilters.length > 0 ? `${activeFilters.length} active filter${activeFilters.length > 1 ? 's' : ''}` : 'Open filters to narrow the list'}
-                  </p>
-                </div>
-                <div className="flex flex-col items-end gap-2">
-                  <span className="ml-btn-secondary rounded-xl px-4 py-2 text-sm font-medium normal-case tracking-normal group-open:hidden">Open</span>
-                  <span className="ml-btn-secondary hidden rounded-xl px-4 py-2 text-sm font-medium normal-case tracking-normal group-open:inline-flex">Close</span>
-                </div>
-              </summary>
-              <div className="ml-surface mt-4 rounded-[1.4rem] p-4 shadow-sm">
-                <div className="mb-4 flex items-center justify-between gap-3">
-                  <div className="text-sm font-medium text-slate-700">Set filters and update the results when ready.</div>
-                  <Link href="/experts" className="text-sm font-medium text-slate-600 underline underline-offset-4 hover:text-slate-900">
-                    Clear filters
-                  </Link>
-                </div>
-                <FiltersForm name={name} zip={zip} radius={radius} service={service} problemId={problemContext?.id} match={match} minRating={minRating} sort={sort} order={order} limit={limit} verified={verified} compact />
-              </div>
-            </details>
-          </section>
-
-          <aside data-testid="desktop-filter-rail" className={`${SECTION_CLASS} hidden lg:sticky lg:top-24 lg:block`}>
-            <div className="flex items-start justify-between gap-4">
-              <div>
-                <div className="text-[11px] font-medium uppercase tracking-[0.22em] text-slate-500">Filters</div>
-                <h2 className="mt-2 text-xl font-semibold tracking-tight text-slate-900">Refine results</h2>
-                <p className="mt-2 text-sm leading-6 text-slate-600">Adjust the list while keeping experts in view.</p>
-              </div>
-              <Link href="/experts" className="text-sm font-medium text-slate-600 underline underline-offset-4 hover:text-slate-900">
-                Clear
-              </Link>
+        <section className={`${SECTION_CLASS} mt-6`}>
+          <div className="flex flex-col gap-3 border-b border-slate-200/80 pb-5">
+            <div>
+              <div className="text-[11px] font-medium uppercase tracking-[0.22em] text-slate-500">Filters</div>
+              <h2 className="mt-2 text-xl font-semibold tracking-tight text-slate-900">Search nearby experts</h2>
+              <p className="mt-2 text-sm leading-6 text-slate-600">Use the core filters only: name, ZIP, radius, service, and verified status.</p>
             </div>
+            <FiltersForm name={name} zip={zip} radius={radius} service={service} problemId={problemContext?.id} verified={verified} />
+          </div>
+        </section>
 
-            <div className="mt-5">
-              <FiltersForm name={name} zip={zip} radius={radius} service={service} problemId={problemContext?.id} match={match} minRating={minRating} sort={sort} order={order} limit={limit} verified={verified} compact />
-            </div>
-          </aside>
-
-          <section className={`${SECTION_CLASS} lg:order-first`}>
+        <div className="mt-6 grid gap-6 lg:grid-cols-[minmax(0,1fr)_420px] lg:items-start">
+          <section className={SECTION_CLASS}>
             <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
               <div>
                 <h2 className="text-2xl font-semibold tracking-tight text-slate-900">Expert results</h2>
@@ -663,6 +571,7 @@ export default async function ProvidersPage({ searchParams }: ProvidersPageProps
             </div>
           </div>
           </section>
+          <ExpertsDiscoveryMap providers={data} />
         </div>
       </div>
     </main>
