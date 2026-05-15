@@ -64,10 +64,10 @@ export default function Home() {
             </Link>
           </div>
 
-          <form action="/experts" method="GET" className="mt-5 grid gap-3 rounded-[1.4rem] bg-white/85 p-4 shadow-sm ring-1 ring-slate-200/80">
+          <form action="/experts" method="GET" className="mt-5 grid gap-4 rounded-[1.4rem] bg-white/88 p-4 shadow-sm ring-1 ring-slate-200/80">
             <div>
               <div className={`text-[11px] font-medium uppercase tracking-[0.22em] ${t.mutedText}`}>Search nearby</div>
-              <p className="mt-1 text-sm text-slate-700">Enter your ZIP and choose how far you want to search.</p>
+              <p className="mt-1 text-sm text-slate-700">Enter your ZIP, pick a distance, and jump into nearby experts.</p>
             </div>
             <NearbyRadiusField
               initialRadius="10"
@@ -75,11 +75,11 @@ export default function Home() {
               fieldClassName="rounded-2xl border border-slate-200/80 bg-white px-4 py-3 text-sm text-slate-800 outline-none transition placeholder:text-slate-400 focus:border-slate-400 focus:ring-2 focus:ring-slate-200/70"
               zipLabel="ZIP code"
               zipPlaceholder="ZIP code"
-              helperText="Start with a 5-digit ZIP code. Then choose how far out to look."
+              helperText="Start with a 5-digit ZIP code, then choose how far out to look."
             />
             <button
               type="submit"
-              className={`inline-flex min-h-12 items-center justify-center rounded-2xl px-5 text-sm font-semibold shadow-sm ${t.primaryBtn}`}
+              className={`inline-flex min-h-11 items-center justify-center rounded-2xl px-5 text-sm font-semibold shadow-sm ${t.primaryBtn}`}
             >
               Search nearby experts
             </button>
@@ -153,23 +153,24 @@ export default function Home() {
                 </Link>
               </div>
 
-              <form action="/experts" method="GET" className="grid max-w-xl gap-3 rounded-[1.55rem] bg-white/90 p-4 shadow-sm ring-1 ring-slate-200/80 sm:grid-cols-[minmax(0,1fr)_180px_auto]">
-                <label className="sm:col-span-3">
+              <form action="/experts" method="GET" className="grid max-w-[880px] gap-4 rounded-[1.55rem] bg-white/92 p-4 shadow-sm ring-1 ring-slate-200/80 sm:grid-cols-[minmax(0,1fr)_190px] sm:items-end">
+                <label className="sm:col-span-2">
                   <span className={`mb-2 block text-[11px] font-medium uppercase tracking-[0.22em] ${t.mutedText}`}>Search nearby</span>
                 </label>
-                <div className="sm:col-span-2">
+                <div>
                   <NearbyRadiusField
                     initialRadius="10"
                     zipRequired
+                    compact
                     fieldClassName="rounded-xl border border-slate-200/80 bg-white px-4 py-3 text-sm text-slate-800 outline-none transition placeholder:text-slate-400 focus:border-slate-400 focus:ring-2 focus:ring-slate-200/70"
                     zipLabel="ZIP code"
                     zipPlaceholder="Enter ZIP code"
-                    helperText="Use your ZIP to unlock the distance slider and start nearby discovery."
+                    helperText="Use your ZIP to choose a nearby distance and start local discovery."
                   />
                 </div>
                 <button
                   type="submit"
-                  className={`inline-flex min-h-12 items-center justify-center rounded-xl px-5 text-sm font-semibold shadow-sm sm:self-start ${t.primaryBtn}`}
+                  className={`inline-flex min-h-11 items-center justify-center rounded-xl px-5 text-sm font-semibold shadow-sm sm:self-start ${t.primaryBtn}`}
                 >
                   Search nearby
                 </button>
