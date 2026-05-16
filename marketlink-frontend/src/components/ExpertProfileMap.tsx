@@ -7,6 +7,7 @@ import maplibregl from 'maplibre-gl';
 type Props = {
   businessName: string;
   locationLabel: string;
+  locationPrecision?: 'exact' | 'approximate' | null;
   latitude?: number | null;
   longitude?: number | null;
 };
@@ -30,13 +31,17 @@ const MAP_STYLE = {
   ],
 } as const;
 
-export default function ExpertProfileMap({ businessName, locationLabel, latitude, longitude }: Props) {
+export default function ExpertProfileMap({ businessName, locationLabel, locationPrecision, latitude, longitude }: Props) {
+  const isApproximate = locationPrecision === 'approximate';
+
   if (typeof latitude !== 'number' || typeof longitude !== 'number') {
     return (
       <div className="rounded-[1.25rem] border border-white/10 bg-white/5 px-4 py-4 text-sm text-slate-200">
         <div className="text-[11px] font-medium uppercase tracking-[0.18em] text-slate-400">Map view</div>
         <div className="mt-2 text-white">{locationLabel}</div>
-        <div className="mt-2 text-slate-300">Map coordinates are not available for this expert yet.</div>
+        <div className="mt-2 text-slate-300">
+          {isApproximate ? 'This expert shares an approximate service area instead of an exact pin.' : 'Map coordinates are not available for this expert yet.'}
+        </div>
       </div>
     );
   }
@@ -49,7 +54,7 @@ export default function ExpertProfileMap({ businessName, locationLabel, latitude
           initialViewState={{
             longitude,
             latitude,
-            zoom: 12,
+            zoom: isApproximate ? 10 : 12,
           }}
           mapStyle={MAP_STYLE}
         >
@@ -66,9 +71,12 @@ export default function ExpertProfileMap({ businessName, locationLabel, latitude
         </Map>
 
         <div className="pointer-events-none absolute inset-x-4 bottom-4 rounded-[1.2rem] bg-white/96 px-4 py-4 shadow-[0_18px_40px_rgba(15,23,42,0.16)] ring-1 ring-slate-200/90">
-          <div className="text-[11px] font-medium uppercase tracking-[0.18em] text-slate-500">Location</div>
+          <div className="text-[11px] font-medium uppercase tracking-[0.18em] text-slate-500">
+            {isApproximate ? 'Approximate area' : 'Location'}
+          </div>
           <div className="mt-1 text-base font-semibold text-slate-900">{businessName}</div>
           <div className="mt-1 text-sm text-slate-600">{locationLabel}</div>
+          {isApproximate ? <div className="mt-1 text-xs font-medium text-slate-500">Shown as a broader city-level area for privacy.</div> : null}
         </div>
       </div>
     </div>

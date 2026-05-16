@@ -129,6 +129,48 @@ const haversineMiles = (fromLat: number, fromLng: number, toLat: number, toLng: 
   return earthRadiusMiles * (2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a)));
 };
 
+const roundCoordinate = (value: number, decimals = 1) => {
+  const factor = 10 ** decimals;
+  return Math.round(value * factor) / factor;
+};
+
+const sanitizePublicExpertLocation = <
+  T extends {
+    expertType?: ExpertType | null;
+    locationPrecision?: LocationPrecision | null;
+    streetAddress?: string | null;
+    zip?: string | null;
+    latitude?: number | null;
+    longitude?: number | null;
+  },
+>(
+  expert: T,
+): T => {
+  if (expert.expertType !== ExpertType.creator || expert.locationPrecision !== LocationPrecision.approximate) {
+    return expert;
+  }
+
+  const next = { ...expert };
+
+  if ('streetAddress' in next) {
+    next.streetAddress = null;
+  }
+
+  if ('zip' in next) {
+    next.zip = null;
+  }
+
+  if (typeof next.latitude === 'number') {
+    next.latitude = roundCoordinate(next.latitude);
+  }
+
+  if (typeof next.longitude === 'number') {
+    next.longitude = roundCoordinate(next.longitude);
+  }
+
+  return next;
+};
+
 const expertProjectSelect = {
   id: true,
   title: true,
@@ -569,6 +611,7 @@ const expertsRoutes: FastifyPluginAsync = async (fastify) => {
         zip: true,
         latitude: true,
         longitude: true,
+        locationPrecision: true,
         verified: true,
         logo: true,
         services: true,
@@ -642,7 +685,7 @@ const expertsRoutes: FastifyPluginAsync = async (fastify) => {
           sort: sortKey,
           order: primaryOrder,
         },
-        data: rows,
+        data: rows.map((row) => sanitizePublicExpertLocation(row)),
       });
       },
     );
@@ -657,7 +700,7 @@ const expertsRoutes: FastifyPluginAsync = async (fastify) => {
         where: { slug, status: ExpertStatus.active },
         select: expertDetailSelect,
       });
-      if (active) return reply.send(active);
+      if (active) return reply.send(sanitizePublicExpertLocation(active));
 
       const nonActive = await prisma.expert.findUnique({
         where: { slug },
