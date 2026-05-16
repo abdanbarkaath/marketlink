@@ -13,6 +13,7 @@ type Props = {
   zipPlaceholder?: string;
   helperText?: string;
   compact?: boolean;
+  hideCompactStatus?: boolean;
 };
 
 function getInitialRadiusIndex(initialRadius?: string) {
@@ -51,6 +52,7 @@ export default function NearbyRadiusField({
   zipPlaceholder = '60559',
   helperText,
   compact = false,
+  hideCompactStatus = false,
 }: Props) {
   const [zip, setZip] = useState(initialZip.replace(/\D/g, '').slice(0, 5));
   const [selectedRadius, setSelectedRadius] = useState(RADIUS_VALUES[getInitialRadiusIndex(initialRadius)]);
@@ -141,10 +143,12 @@ export default function NearbyRadiusField({
           </select>
         </label>
 
-        {helperMessage ? (
-          <p className={`text-xs leading-5 md:col-span-2 ${zip.length > 0 && zip.length < 5 ? 'text-red-600' : 'text-slate-500'}`}>{helperMessage}</p>
-        ) : zip.length === 5 ? (
-          <p className="text-xs leading-5 text-slate-500 md:col-span-2">Searching within {selectedRadius} miles of {zip}.</p>
+        {!hideCompactStatus ? (
+          helperMessage ? (
+            <p className={`text-xs leading-5 md:col-span-2 ${zip.length > 0 && zip.length < 5 ? 'text-red-600' : 'text-slate-500'}`}>{helperMessage}</p>
+          ) : zip.length === 5 ? (
+            <p className="text-xs leading-5 text-slate-500 md:col-span-2">Searching within {selectedRadius} miles of {zip}.</p>
+          ) : null
         ) : null}
       </div>
     );

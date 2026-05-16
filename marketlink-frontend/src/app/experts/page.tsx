@@ -211,10 +211,10 @@ function FiltersForm({ name, zip, radius, service, problemId, verified }: Filter
           initialZip={zip}
           initialRadius={radius}
           compact
+          hideCompactStatus
           fieldClassName={`${FIELD_CLASS} bg-white`}
           zipLabel="Location ZIP"
           zipPlaceholder="60559"
-          helperText="Search nearby by ZIP and distance."
         />
 
         <label className="grid gap-2">
@@ -243,9 +243,12 @@ function FiltersForm({ name, zip, radius, service, problemId, verified }: Filter
       </div>
 
       <details className="rounded-[1.15rem] border border-slate-200/90 bg-white px-4 py-3">
-        <summary className="inline-flex cursor-pointer items-center gap-2 text-sm font-semibold text-slate-700">
-          <ControlIcon kind="filters" />
-          <span>More filters</span>
+        <summary className="flex cursor-pointer list-none items-center justify-between gap-3 text-sm font-semibold text-slate-700 [&::-webkit-details-marker]:hidden">
+          <span className="inline-flex items-center gap-2">
+            <ControlIcon kind="filters" />
+            <span>More filters</span>
+          </span>
+          <span className="text-xs font-medium uppercase tracking-[0.16em] text-slate-500">Name and verified</span>
         </summary>
         <div className="mt-4 grid gap-4 md:grid-cols-[minmax(0,1fr)_260px_auto] md:items-end">
           <label className="grid gap-2">

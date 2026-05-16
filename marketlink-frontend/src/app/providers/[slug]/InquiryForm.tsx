@@ -96,7 +96,7 @@ export default function InquiryForm({ expertSlug }: { expertSlug: string }) {
         </div>
       ) : null}
 
-      <form onSubmit={onSubmit} className="space-y-4">
+      <form onSubmit={onSubmit} className="grid gap-4 lg:grid-cols-2">
         <div className="grid gap-2">
           <label htmlFor="name" className={`text-sm font-medium ${t.mutedText}`}>
             Name *
@@ -120,7 +120,7 @@ export default function InquiryForm({ expertSlug }: { expertSlug: string }) {
           </div>
         </div>
 
-        <div className="grid gap-2">
+        <div className="grid gap-2 lg:col-span-2">
           <div className="flex items-center justify-between gap-3">
             <label htmlFor="message" className={`text-sm font-medium ${t.mutedText}`}>
               Project details *
@@ -141,7 +141,7 @@ export default function InquiryForm({ expertSlug }: { expertSlug: string }) {
           <p className={`text-xs ${t.mutedText}`}>Include the goal, timeline, and any budget guidance.</p>
         </div>
 
-        <div className="flex flex-col gap-3 border-t border-[#d4c6b4]/70 pt-4 sm:flex-row sm:items-center sm:justify-between">
+        <div className="flex flex-col gap-3 border-t border-[#d4c6b4]/70 pt-4 sm:flex-row sm:items-center sm:justify-between lg:col-span-2">
           <p className={`text-sm ${t.mutedText}`}>* required. Phone is optional.</p>
           <button
             type="submit"

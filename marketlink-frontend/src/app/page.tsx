@@ -1,6 +1,7 @@
 'use client';
 
 import Link from 'next/link';
+import type { FormEvent } from 'react';
 import MarketLinkHeroIllustration from '@/components/MarketLinkHeroIllustration';
 import NearbyRadiusField from '@/components/NearbyRadiusField';
 import { useMarketLinkTheme } from '@/components/ThemeToggle';
@@ -30,11 +31,28 @@ export default function Home() {
   const featuredProblems = homepageProblemCards.filter((problem) => FEATURED_PROBLEM_IDS.has(problem.id));
   const featuredServices = homepageServicePaths.filter((path) => FEATURED_SERVICE_IDS.has(path.id));
 
+  function onNearbySubmit(event: FormEvent<HTMLFormElement>) {
+    const form = event.currentTarget;
+    const zipField = form.elements.namedItem('zip');
+    const radiusField = form.elements.namedItem('radius');
+    const zip = zipField instanceof HTMLInputElement ? zipField.value.trim() : '';
+    const radius = radiusField instanceof HTMLSelectElement ? radiusField.value : '10';
+
+    if (zip) return;
+
+    event.preventDefault();
+    const params = new URLSearchParams({
+      zip: '60601',
+      radius: radius || '10',
+    });
+    window.location.assign(`/experts?${params.toString()}`);
+  }
+
   return (
     <main className={`${t.pageBg} min-h-[calc(100vh-80px)]`}>
-      <div className="mx-auto max-w-7xl px-4 py-6 sm:px-6 sm:py-10">
+      <div className="mx-auto max-w-7xl px-4 pb-6 pt-2 sm:px-6 sm:pb-10 sm:pt-4">
         <section className="ml-card ml-hero-grid ml-ambient-shell overflow-hidden rounded-[2rem] px-5 py-5 shadow-[0_26px_90px_rgba(18,26,42,0.11)] sm:px-7 sm:py-7 lg:px-8 lg:py-8">
-          <div className="grid gap-8 lg:grid-cols-[minmax(0,1fr)_420px] lg:items-center">
+          <div className="grid gap-8 lg:grid-cols-[minmax(0,1fr)_420px] lg:items-start">
             <div className="min-w-0">
               <div className="ml-brand-badge inline-flex items-center rounded-full px-4 py-2 text-[11px] font-semibold uppercase tracking-[0.24em] shadow-sm">
                 Local marketing, clearer decisions
@@ -49,29 +67,25 @@ export default function Home() {
               </p>
 
               <div className="mt-6 rounded-[1.65rem] bg-white/90 p-4 shadow-[0_18px_40px_rgba(18,26,42,0.08)] ring-1 ring-slate-200/80 sm:p-5">
-                <div>
+                <div className="flex flex-wrap items-end justify-between gap-3">
                   <div>
                     <div className={`text-[11px] font-medium uppercase tracking-[0.24em] ${t.mutedText}`}>Start nearby</div>
-                    <h2 className="mt-2 text-xl font-semibold tracking-tight text-slate-950">Search nearby first, then open the shortlist that looks worth contacting.</h2>
+                    <h2 className="mt-2 text-xl font-semibold tracking-tight text-slate-950">Search nearby first.</h2>
+                    <p className="mt-2 text-sm leading-6 text-slate-600">Use a ZIP and distance, or press search empty and we will start from Chicago.</p>
                   </div>
-                  <p className="mt-2 text-sm leading-6 text-slate-600">
-                    Use location and distance here, or{' '}
-                    <Link href="/experts" className="font-semibold text-slate-700 underline decoration-slate-300 underline-offset-4 hover:text-slate-950">
-                      open the full directory
-                    </Link>
-                    .
-                  </p>
+                  <Link href="/experts" className="text-sm font-semibold text-slate-700 underline decoration-slate-300 underline-offset-4 hover:text-slate-950">
+                    Browse all experts
+                  </Link>
                 </div>
 
-                <form action="/experts" method="GET" className="mt-5 grid gap-4 lg:grid-cols-[minmax(0,1fr)_auto] lg:items-end">
+                <form action="/experts" method="GET" onSubmit={onNearbySubmit} className="mt-5 grid gap-4 lg:grid-cols-[minmax(0,1fr)_auto] lg:items-end">
                   <NearbyRadiusField
                     initialRadius="10"
-                    zipRequired
                     compact
+                    hideCompactStatus
                     fieldClassName="ml-input w-full rounded-[1.15rem] px-4 py-3.5 text-sm"
                     zipLabel="Location ZIP"
                     zipPlaceholder="Enter ZIP code"
-                    helperText="Start with a 5-digit ZIP code and choose the distance."
                   />
                   <button
                     type="submit"
@@ -85,22 +99,6 @@ export default function Home() {
 
             <div className="grid gap-4">
               <MarketLinkHeroIllustration />
-              <div className="rounded-[1.35rem] border border-slate-200/80 bg-white/74 px-4 py-4 shadow-sm">
-                <div className="grid gap-3 sm:grid-cols-3">
-                  <div className="rounded-[1.1rem] bg-white/80 px-3 py-3 ring-1 ring-slate-200/80">
-                    <div className={`text-[11px] font-medium uppercase tracking-[0.2em] ${t.mutedText}`}>Map first</div>
-                    <p className="mt-2 text-sm leading-6 text-slate-700">Real pins stay beside the shortlist.</p>
-                  </div>
-                  <div className="rounded-[1.1rem] bg-white/80 px-3 py-3 ring-1 ring-slate-200/80">
-                    <div className={`text-[11px] font-medium uppercase tracking-[0.2em] ${t.mutedText}`}>Clear filters</div>
-                    <p className="mt-2 text-sm leading-6 text-slate-700">Location and service do most of the work.</p>
-                  </div>
-                  <div className="rounded-[1.1rem] bg-white/80 px-3 py-3 ring-1 ring-slate-200/80">
-                    <div className={`text-[11px] font-medium uppercase tracking-[0.2em] ${t.mutedText}`}>Fast scan</div>
-                    <p className="mt-2 text-sm leading-6 text-slate-700">Profiles open without extra card layers.</p>
-                  </div>
-                </div>
-              </div>
             </div>
           </div>
         </section>

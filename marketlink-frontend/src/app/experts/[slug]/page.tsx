@@ -958,7 +958,7 @@ function ProviderPageContent({ provider: p }: { provider: Provider }) {
             </div>
           </header>
 
-          <div className="grid gap-6 xl:grid-cols-[minmax(0,1fr)_380px] xl:items-start">
+          <div className="space-y-8">
             <div className="min-w-0 space-y-8">
               {(!activeProject && (visibleProjects.length || prioritizedVisibleMedia.length)) ? (
                 <section className={`rounded-[2rem] ${pageSurface} ${pageBorder} border px-6 py-6 shadow-[0_20px_70px_rgba(15,23,42,0.08)]`}>
@@ -1079,24 +1079,8 @@ function ProviderPageContent({ provider: p }: { provider: Provider }) {
                 </section>
               ) : null}
 
-              {(p.shortDescription || p.overview) ? (
-                <section className={`rounded-[2rem] ${pageSurface} ${pageBorder} border px-6 py-6 shadow-[0_20px_70px_rgba(15,23,42,0.08)]`}>
-                  <div className="text-[11px] font-medium uppercase tracking-[0.22em] text-slate-500">About</div>
-                  <div className="mt-4 max-w-4xl">
-                    <h2 className={`${displayFont.className} text-3xl font-semibold tracking-[-0.03em] text-slate-900 md:text-[2.35rem]`}>About this expert.</h2>
-                    {p.overview ? (
-                      <p className="mt-4 text-sm leading-8 text-slate-700 whitespace-pre-line md:text-base">
-                        {p.overview}
-                      </p>
-                    ) : p.shortDescription ? (
-                      <p className="mt-4 text-sm leading-8 text-slate-700 md:text-base">{p.shortDescription}</p>
-                    ) : null}
-                  </div>
-                </section>
-              ) : null}
-
               {(visibleCertifications.length || visibleAwards.length) ? (
-                <section className={`rounded-[2rem] ${pageSurface} ${pageBorder} border px-6 py-6 shadow-[0_20px_70px_rgba(15,23,42,0.08)]`}>
+                <section className={`ml-ambient-shell overflow-hidden rounded-[2rem] ${pageSurface} ${pageBorder} border px-6 py-6 shadow-[0_20px_70px_rgba(15,23,42,0.08)]`}>
                   <div className="flex flex-wrap items-end justify-between gap-4">
                     <div>
                       <div className="text-[11px] font-medium uppercase tracking-[0.22em] text-slate-500">Signals</div>
@@ -1173,33 +1157,39 @@ function ProviderPageContent({ provider: p }: { provider: Provider }) {
 
             </div>
 
-            <aside className="flex min-w-0 flex-col gap-6 xl:sticky xl:top-6">
-              <section className="overflow-hidden rounded-[1.75rem] border border-slate-900/85 bg-[#101a2a] shadow-[0_24px_70px_rgba(15,23,42,0.18)]">
-                <div className="border-b border-white/10 bg-[radial-gradient(120%_120%_at_0%_0%,rgba(148,163,184,0.18),transparent_42%),linear-gradient(135deg,rgba(15,23,42,0.98),rgba(30,41,59,0.94))] px-6 py-6">
-                  <div className="text-[11px] font-medium uppercase tracking-[0.22em] text-slate-400">Contact this expert</div>
-                  <h2 className={`${displayFont.className} mt-3 text-2xl font-semibold tracking-[-0.02em] text-white`}>Send your inquiry</h2>
-                  {p.status === 'active' ? (
-                    <p className="mt-3 text-sm leading-7 text-slate-200/78">Use the form below to ask about availability, fit, pricing, or project scope.</p>
-                  ) : (
-                    <p className="mt-3 text-sm leading-7 text-slate-200/72">Inquiry tools unlock when this expert profile is active.</p>
-                  )}
-                </div>
-
-                <div id="expert-inquiry-form" className="px-6 py-6">
-                  {p.status === 'active' ? <InquiryForm expertSlug={p.slug} /> : <div className="text-sm text-slate-600">Contact form will be available once this expert profile is active.</div>}
-
-                  <div className="mt-6 grid gap-4">
-                    <ExpertProfileMap
-                      businessName={p.businessName}
-                      locationLabel={locationLabel}
-                      latitude={p.latitude}
-                      longitude={p.longitude}
-                    />
+            <section className="ml-ambient-shell overflow-hidden rounded-[1.9rem] border border-slate-900/85 bg-[#101a2a] shadow-[0_24px_70px_rgba(15,23,42,0.18)]">
+              <div className="border-b border-white/10 bg-[radial-gradient(120%_120%_at_0%_0%,rgba(148,163,184,0.18),transparent_42%),linear-gradient(135deg,rgba(15,23,42,0.98),rgba(30,41,59,0.94))] px-6 py-6">
+                <div className="text-[11px] font-medium uppercase tracking-[0.22em] text-slate-400">Contact this expert</div>
+                <div className="mt-3 flex flex-col gap-3 xl:flex-row xl:items-end xl:justify-between">
+                  <div>
+                    <h2 className={`${displayFont.className} text-2xl font-semibold tracking-[-0.02em] text-white md:text-[2.1rem]`}>Send your inquiry</h2>
+                    {p.status === 'active' ? (
+                      <p className="mt-3 max-w-2xl text-sm leading-7 text-slate-200/78">Use the form below to ask about availability, fit, pricing, or project scope.</p>
+                    ) : (
+                      <p className="mt-3 max-w-2xl text-sm leading-7 text-slate-200/72">Inquiry tools unlock when this expert profile is active.</p>
+                    )}
+                  </div>
+                  <div className="rounded-full border border-white/10 bg-white/8 px-4 py-2 text-xs font-semibold uppercase tracking-[0.16em] text-slate-200/78">
+                    Direct inquiry + map
                   </div>
                 </div>
-              </section>
+              </div>
 
-            </aside>
+              <div id="expert-inquiry-form" className="grid gap-6 px-6 py-6 xl:grid-cols-[minmax(0,1fr)_340px] xl:items-start">
+                <div className="min-w-0">
+                  {p.status === 'active' ? <InquiryForm expertSlug={p.slug} /> : <div className="text-sm text-slate-600">Contact form will be available once this expert profile is active.</div>}
+                </div>
+
+                <div className="grid gap-4">
+                  <ExpertProfileMap
+                    businessName={p.businessName}
+                    locationLabel={locationLabel}
+                    latitude={p.latitude}
+                    longitude={p.longitude}
+                  />
+                </div>
+              </div>
+            </section>
           </div>
         </div>
       </div>
