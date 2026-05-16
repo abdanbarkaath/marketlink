@@ -23,6 +23,7 @@ type Provider = {
   businessName: string;
   email: string;
   expertType?: 'agency' | 'freelancer' | 'creator' | 'specialist' | null;
+  locationPrecision?: 'exact' | 'approximate' | null;
   tagline: string | null;
   shortDescription?: string | null;
   overview?: string | null;
@@ -596,6 +597,11 @@ function ProviderPageContent({ provider: p }: { provider: Provider }) {
                         <span className={`rounded-xl px-3 py-1 text-[11px] font-medium uppercase tracking-[0.18em] ${t.brandBadge}`}>
                           {locationLabel}
                         </span>
+                        {p.expertType === 'creator' && p.locationPrecision === 'approximate' ? (
+                          <span className="ml-pill-muted rounded-xl px-3 py-1 text-[11px] font-medium uppercase tracking-[0.18em]">
+                            Approximate area
+                          </span>
+                        ) : null}
                       </div>
 
                       <div className="mt-5 grid grid-cols-[auto_minmax(0,1fr)] items-start gap-4 md:gap-5">
@@ -1184,6 +1190,7 @@ function ProviderPageContent({ provider: p }: { provider: Provider }) {
                   <ExpertProfileMap
                     businessName={p.businessName}
                     locationLabel={locationLabel}
+                    locationPrecision={p.locationPrecision}
                     latitude={p.latitude}
                     longitude={p.longitude}
                   />

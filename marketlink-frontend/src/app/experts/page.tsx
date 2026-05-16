@@ -18,6 +18,7 @@ type Provider = {
   slug: string;
   businessName: string;
   expertType?: 'agency' | 'freelancer' | 'creator' | 'specialist' | null;
+  locationPrecision?: 'exact' | 'approximate' | null;
   tagline: string | null;
   shortDescription?: string | null;
   city: string;
@@ -378,7 +379,13 @@ function ProviderCard({ provider }: { provider: Provider }) {
               <div className="text-[11px] font-medium uppercase tracking-[0.18em] text-slate-500">Starting price</div>
               <div className="mt-2 text-lg font-semibold text-slate-900">{pricingLabel}</div>
               <div className="mt-2 text-sm text-slate-600">
-                {provider.zip ? `ZIP ${provider.zip}` : provider.verified ? 'Verified expert' : 'Profile available'}
+                {provider.expertType === 'creator' && provider.locationPrecision === 'approximate'
+                  ? 'Approximate area shown'
+                  : provider.zip
+                  ? `ZIP ${provider.zip}`
+                  : provider.verified
+                  ? 'Verified expert'
+                  : 'Profile available'}
               </div>
               <div className="mt-5 inline-flex items-center gap-2 text-sm font-semibold text-slate-900">
                 Open profile
