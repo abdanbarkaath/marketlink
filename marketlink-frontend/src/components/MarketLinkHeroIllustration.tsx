@@ -64,7 +64,7 @@ export default function MarketLinkHeroIllustration({ compact = false }: Props) {
             <div className="absolute left-6 top-6 rounded-full bg-white/14 px-3 py-1 text-[10px] font-semibold uppercase tracking-[0.22em] text-white/78">
               Map preview
             </div>
-            <div className="absolute right-5 top-5 grid w-[126px] grid-cols-2 gap-1 rounded-full border border-white/14 bg-white/8 p-1">
+            <div className="absolute right-5 top-14 grid w-[126px] grid-cols-2 gap-1 rounded-full border border-white/14 bg-white/8 p-1">
               <span className="hero-view-pill rounded-full px-3 py-1 text-center text-[10px] font-semibold uppercase tracking-[0.18em] text-white/70">
                 List
               </span>
@@ -72,7 +72,7 @@ export default function MarketLinkHeroIllustration({ compact = false }: Props) {
                 Map
               </span>
             </div>
-            <div className="hero-map-search absolute left-6 top-16 z-20 rounded-full border border-white/16 bg-[#15233a]/88 px-3 py-2 text-[10px] font-semibold uppercase tracking-[0.18em] text-white/78 shadow-[0_10px_24px_rgba(15,23,42,0.2)]">
+            <div className="hero-map-search absolute left-6 top-24 z-20 rounded-full border border-white/16 bg-[#15233a]/88 px-3 py-2 text-[10px] font-semibold uppercase tracking-[0.18em] text-white/78 shadow-[0_10px_24px_rgba(15,23,42,0.2)]">
               Search 60601
             </div>
 
@@ -125,8 +125,8 @@ export default function MarketLinkHeroIllustration({ compact = false }: Props) {
               <circle cx="88" cy="244" r="38" fill="url(#warm)" opacity="0.55" />
               <circle cx="154" cy="252" r="28" fill="url(#cool)" opacity="0.55" />
             </svg>
-            <span className="hero-search-pulse absolute right-[5.4rem] top-[6.1rem] h-12 w-12 rounded-full border border-white/55" />
-            <span className="hero-search-pulse hero-search-pulse-delay absolute right-[5.1rem] top-[5.8rem] h-16 w-16 rounded-full border border-white/30" />
+          <span className="hero-search-pulse absolute left-[1.4rem] top-[7.9rem] h-12 w-12 rounded-full border border-white/55" />
+          <span className="hero-search-pulse hero-search-pulse-delay absolute left-[1.1rem] top-[7.6rem] h-16 w-16 rounded-full border border-white/30" />
           </div>
         </div>
 
