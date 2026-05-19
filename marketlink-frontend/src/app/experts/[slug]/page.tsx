@@ -239,6 +239,13 @@ function formatLocation(city: string, state: string, zip: string | null) {
   return [city, state, zip].filter(Boolean).join(', ');
 }
 
+function formatPublishedDate(value: string | null | undefined) {
+  if (!value) return null;
+  const date = new Date(value);
+  if (Number.isNaN(date.getTime())) return null;
+  return date.toLocaleDateString();
+}
+
 function truncateCopy(value: string | null | undefined, maxLength = 220) {
   if (!value) return null;
   const normalized = value.replace(/\s+/g, ' ').trim();
@@ -369,13 +376,16 @@ function ProviderPageContent({ provider: p }: { provider: Provider }) {
   const pageSurface = t.surface;
   const pageSurfaceMuted = t.surfaceMuted;
   const [instagramSlide, setInstagramSlide] = useState(0);
+  const [reviewSlide, setReviewSlide] = useState(0);
   const [projectSlide, setProjectSlide] = useState(0);
   useEffect(() => {
     setInstagramSlide(0);
+    setReviewSlide(0);
     setProjectSlide(0);
   }, [p.slug]);
   const featuredProjects = (p.projects || []).filter((project) => project.isFeatured);
   const visibleProjects = featuredProjects.length ? featuredProjects : p.projects || [];
+  const visibleReviews = p.reviews || [];
   const featuredClients = (p.clients || []).filter((client) => client.isFeatured);
   const visibleClients = featuredClients.length ? featuredClients : p.clients || [];
   const visibleCertifications = p.certifications || [];
@@ -447,6 +457,7 @@ function ProviderPageContent({ provider: p }: { provider: Provider }) {
   const instagramProofItems = visibleMedia.filter((item) => getMediaPresentation(item).kind === 'embed').slice(0, 10);
   const activeInstagramItem = instagramProofItems.length ? instagramProofItems[instagramSlide % instagramProofItems.length] : null;
   const activeInstagramMedia = activeInstagramItem ? getMediaPresentation(activeInstagramItem) : null;
+  const activeReview = visibleReviews.length ? visibleReviews[reviewSlide % visibleReviews.length] : null;
   const activeProject = visibleProjects.length ? visibleProjects[projectSlide % visibleProjects.length] : null;
   const instagramProfilePreview = instagramProfileLink;
   const instagramProfileEmbedUrl = instagramProfilePreview ? `${instagramProfilePreview.href}?utm_source=ig_embed&utm_campaign=loading` : null;
@@ -869,12 +880,92 @@ function ProviderPageContent({ provider: p }: { provider: Provider }) {
                         </div>
                       ) : null}
 
+                      {activeReview ? (
+                        <section className={`mt-5 rounded-[1.35rem] ${pageSurfaceMuted} ${pageBorder} border px-4 py-4 shadow-sm`}>
+                          <div className="flex items-start justify-between gap-3">
+                            <div>
+                              <div className={`text-[11px] font-medium uppercase tracking-[0.18em] ${t.mutedText}`}>Testimonials</div>
+                              <h3 className="mt-2 text-lg font-semibold text-slate-900">What clients said after the work shipped</h3>
+                            </div>
+                            <span className="ml-pill rounded-full px-3 py-1 text-[11px] font-medium uppercase tracking-[0.16em]">
+                              {reviewSlide + 1} / {visibleReviews.length}
+                            </span>
+                          </div>
+
+                          <div className="mt-4 rounded-[1.15rem] border border-slate-200/80 bg-white/88 px-4 py-4 shadow-sm">
+                            <div className="flex items-start justify-between gap-3">
+                              <div className="min-w-0">
+                                <div className={`text-[11px] font-medium uppercase tracking-[0.18em] ${t.mutedText}`}>Verified client feedback</div>
+                                <div className="mt-1 text-base font-semibold text-slate-900">
+                                  {activeReview.title || `${activeReview.reviewerName}${activeReview.company ? ` · ${activeReview.company}` : ''}`}
+                                </div>
+                              </div>
+                              <div className="shrink-0 rounded-full border border-slate-200/90 bg-slate-50 px-3 py-1.5 text-xs font-semibold text-slate-800">
+                                {activeReview.rating.toFixed(1)} / 5
+                              </div>
+                            </div>
+
+                            <p className="mt-3 text-sm leading-6 text-slate-700">{truncateCopy(activeReview.body, 170)}</p>
+
+                            <div className="mt-4 flex flex-wrap gap-2">
+                              <span className="rounded-full border border-slate-200/90 bg-slate-50 px-3 py-1.5 text-xs font-semibold text-slate-800">
+                                {activeReview.reviewerName}
+                              </span>
+                              {activeReview.company ? (
+                                <span className="rounded-full border border-slate-200/90 bg-slate-50 px-3 py-1.5 text-xs font-semibold text-slate-800">
+                                  {activeReview.company}
+                                </span>
+                              ) : null}
+                              {activeReview.projectSummary ? (
+                                <span className="ml-pill rounded-full px-3 py-1.5 text-xs">
+                                  {truncateCopy(activeReview.projectSummary, 38)}
+                                </span>
+                              ) : null}
+                              {activeReview.source ? (
+                                <span className="rounded-full border border-slate-200/90 bg-slate-50 px-3 py-1.5 text-xs font-semibold text-slate-800">
+                                  {activeReview.source}
+                                </span>
+                              ) : null}
+                              {formatPublishedDate(activeReview.publishedAt) ? (
+                                <span className="rounded-full border border-slate-200/90 bg-slate-50 px-3 py-1.5 text-xs font-semibold text-slate-800">
+                                  {formatPublishedDate(activeReview.publishedAt)}
+                                </span>
+                              ) : null}
+                              {activeReview.verified ? (
+                                <span className="rounded-full border border-emerald-200/90 bg-emerald-50 px-3 py-1.5 text-xs font-semibold text-emerald-700">
+                                  Verified
+                                </span>
+                              ) : null}
+                            </div>
+                          </div>
+
+                          {visibleReviews.length > 1 ? (
+                            <div className="mt-3 flex items-center justify-between gap-3">
+                              <button
+                                type="button"
+                                onClick={() => setReviewSlide((current) => (current - 1 + visibleReviews.length) % visibleReviews.length)}
+                                className="rounded-xl border border-slate-200 bg-white px-3 py-2 text-xs font-semibold uppercase tracking-[0.14em] text-slate-900 shadow-sm"
+                              >
+                                Prev
+                              </button>
+                              <button
+                                type="button"
+                                onClick={() => setReviewSlide((current) => (current + 1) % visibleReviews.length)}
+                                className="rounded-xl border border-slate-200 bg-white px-3 py-2 text-xs font-semibold uppercase tracking-[0.14em] text-slate-900 shadow-sm"
+                              >
+                                Next
+                              </button>
+                            </div>
+                          ) : null}
+                        </section>
+                      ) : null}
+
                       {activeProject ? (
                         <section className={`mt-5 rounded-[1.35rem] ${pageSurfaceMuted} ${pageBorder} border px-4 py-4 shadow-sm`}>
                           <div className="flex items-start justify-between gap-3">
                             <div>
-                              <div className={`text-[11px] font-medium uppercase tracking-[0.18em] ${t.mutedText}`}>Proof of work</div>
-                              <h3 className="mt-2 text-lg font-semibold text-slate-900">What this expert has already done</h3>
+                              <div className={`text-[11px] font-medium uppercase tracking-[0.18em] ${t.mutedText}`}>{activeReview ? 'Supporting proof' : 'Proof of work'}</div>
+                              <h3 className="mt-2 text-base font-semibold text-slate-900">{activeReview ? 'Selected project behind the testimonial' : 'What this expert has already done'}</h3>
                             </div>
                             <span className="ml-pill rounded-full px-3 py-1 text-[11px] font-medium uppercase tracking-[0.16em]">
                               {projectSlide + 1} / {visibleProjects.length}
@@ -887,7 +978,7 @@ function ProviderPageContent({ provider: p }: { provider: Provider }) {
                                 <div className={`text-[11px] font-medium uppercase tracking-[0.18em] ${t.mutedText}`}>Featured project</div>
                                 <div className="mt-1 text-base font-semibold text-slate-900">{activeProject.title}</div>
                                 {activeProject.summary ? (
-                                  <p className="mt-2 text-sm leading-6 text-slate-700">{truncateCopy(activeProject.summary, 84)}</p>
+                                  <p className="mt-2 text-sm leading-6 text-slate-700">{truncateCopy(activeProject.summary, 78)}</p>
                                 ) : null}
                               </div>
                               {activeProject.isFeatured ? <span className="ml-pill shrink-0 rounded-full px-3 py-1 text-[11px] font-medium">Featured</span> : null}
@@ -912,23 +1003,23 @@ function ProviderPageContent({ provider: p }: { provider: Provider }) {
                             </div>
 
                             {(activeProject.challenge || activeProject.solution || activeProject.results) ? (
-                              <dl className="mt-4 grid gap-2.5 border-t border-slate-200/80 pt-4">
+                              <dl className="mt-4 grid gap-2 border-t border-slate-200/80 pt-4">
                                 {activeProject.challenge ? (
-                                  <div>
+                                  <div className="grid gap-1 sm:grid-cols-[96px_minmax(0,1fr)] sm:items-start">
                                     <dt className={`text-[11px] font-medium uppercase tracking-[0.18em] ${t.mutedText}`}>Challenge</dt>
-                                    <dd className="mt-1 text-sm leading-6 text-slate-700">{truncateCopy(activeProject.challenge, 68)}</dd>
+                                    <dd className="text-sm leading-6 text-slate-700">{truncateCopy(activeProject.challenge, 64)}</dd>
                                   </div>
                                 ) : null}
                                 {activeProject.solution ? (
-                                  <div>
+                                  <div className="grid gap-1 sm:grid-cols-[96px_minmax(0,1fr)] sm:items-start">
                                     <dt className={`text-[11px] font-medium uppercase tracking-[0.18em] ${t.mutedText}`}>Approach</dt>
-                                    <dd className="mt-1 text-sm leading-6 text-slate-700">{truncateCopy(activeProject.solution, 68)}</dd>
+                                    <dd className="text-sm leading-6 text-slate-700">{truncateCopy(activeProject.solution, 64)}</dd>
                                   </div>
                                 ) : null}
                                 {activeProject.results ? (
-                                  <div className="rounded-[0.95rem] bg-[#1f314d] px-3 py-2.5 text-white">
+                                  <div className="grid gap-1 rounded-[0.95rem] bg-[#1f314d] px-3 py-2.5 text-white sm:grid-cols-[96px_minmax(0,1fr)] sm:items-start">
                                     <dt className="text-[11px] font-medium uppercase tracking-[0.18em] text-white/68">Results</dt>
-                                    <dd className="mt-1 text-sm leading-6 text-white">{truncateCopy(activeProject.results, 74)}</dd>
+                                    <dd className="text-sm leading-6 text-white">{truncateCopy(activeProject.results, 64)}</dd>
                                   </div>
                                 ) : null}
                               </dl>

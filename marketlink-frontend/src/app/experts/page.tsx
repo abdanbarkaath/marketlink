@@ -243,6 +243,13 @@ function FiltersForm({ name, zip, radius, service, problemId, verified }: Filter
         </button>
       </div>
 
+      <div className="flex flex-wrap items-center justify-between gap-3">
+        <div className="text-xs text-slate-500">Use ZIP, distance, and service first. Everything else is optional.</div>
+        <Link href="/experts" className="text-sm font-medium text-slate-600 underline underline-offset-4 hover:text-slate-900">
+          Clear filters
+        </Link>
+      </div>
+
       <details className="rounded-[1.15rem] border border-slate-200/90 bg-white px-4 py-3">
         <summary className="flex cursor-pointer list-none items-center justify-between gap-3 text-sm font-semibold text-slate-700 [&::-webkit-details-marker]:hidden">
           <span className="inline-flex items-center gap-2">
@@ -251,7 +258,7 @@ function FiltersForm({ name, zip, radius, service, problemId, verified }: Filter
           </span>
           <span className="text-xs font-medium uppercase tracking-[0.16em] text-slate-500">Name and verified</span>
         </summary>
-        <div className="mt-4 grid gap-4 md:grid-cols-[minmax(0,1fr)_260px_auto] md:items-end">
+        <div className="mt-4 grid gap-4 md:grid-cols-[minmax(0,1fr)_260px] md:items-end">
           <label className="grid gap-2">
             <span className="inline-flex items-center gap-2 text-sm font-medium text-slate-700">
               <ControlIcon kind="name" />
@@ -282,10 +289,6 @@ function FiltersForm({ name, zip, radius, service, problemId, verified }: Filter
               Verified only
             </label>
           </div>
-
-          <Link href="/experts" className="text-sm font-medium text-slate-600 underline underline-offset-4 hover:text-slate-900">
-            Clear filters
-          </Link>
         </div>
       </details>
     </form>

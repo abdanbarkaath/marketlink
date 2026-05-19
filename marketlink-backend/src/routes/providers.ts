@@ -331,6 +331,10 @@ const expertDetailSelect = {
     select: expertMediaSelect,
     orderBy: [{ sortOrder: 'asc' }, { createdAt: 'asc' }],
   },
+  reviews: {
+    select: expertReviewSelect,
+    orderBy: [{ sortOrder: 'asc' }, { publishedAt: 'desc' }, { createdAt: 'asc' }],
+  },
   certifications: {
     select: expertCertificationSelect,
     orderBy: [{ sortOrder: 'asc' }, { year: 'desc' }, { createdAt: 'asc' }],
