@@ -24,15 +24,15 @@ export default function MarketLinkHeroIllustration({ compact = false }: Props) {
           </span>
         </div>
 
-        <div className={compact ? '' : 'lg:grid lg:grid-cols-[1.05fr_0.95fr] lg:gap-4'}>
+        <div className={compact ? '' : 'lg:grid lg:grid-cols-[1.02fr_0.98fr] lg:gap-4'}>
         <div className="ml-glass-note hero-preview-panel rounded-[1.5rem] px-4 py-4">
           <div className="flex items-center justify-between gap-3">
             <div>
               <div className="text-[10px] font-semibold uppercase tracking-[0.24em] text-slate-500">Local shortlist</div>
               <div className="mt-2 text-sm font-semibold text-slate-950">Compare experts around your business</div>
             </div>
-            <span className="rounded-full bg-[#1f314d] px-3 py-1 text-[10px] font-semibold uppercase tracking-[0.18em] text-white">
-              Nearby
+            <span className="rounded-full border border-slate-200/80 bg-white/82 px-3 py-1 text-[10px] font-semibold uppercase tracking-[0.18em] text-slate-600">
+              Preview
             </span>
           </div>
 
@@ -73,7 +73,7 @@ export default function MarketLinkHeroIllustration({ compact = false }: Props) {
             </span>
           </div>
           <div className="hero-map-search absolute left-6 top-16 z-20 rounded-full border border-white/16 bg-[#15233a]/88 px-3 py-2 text-[10px] font-semibold uppercase tracking-[0.18em] text-white/78 shadow-[0_10px_24px_rgba(15,23,42,0.2)]">
-            Searching 60601
+            Search 60601
           </div>
 
           <svg viewBox="0 0 420 280" className="mt-10 h-full w-full" role="presentation">
@@ -130,29 +130,15 @@ export default function MarketLinkHeroIllustration({ compact = false }: Props) {
         </div>
         </div>
 
-        <div className="ml-glass-note hero-flow-panel rounded-[1.5rem] px-4 py-4">
-          <div className="flex items-center justify-between gap-3">
-            <div className="text-[10px] font-semibold uppercase tracking-[0.24em] text-slate-500">MarketLink flow</div>
-            <span className="rounded-full border border-slate-200/80 bg-white/82 px-3 py-1 text-[10px] font-semibold uppercase tracking-[0.18em] text-slate-600">
-              Select, then choose view
-            </span>
-          </div>
-
-          <div className="mt-4 grid gap-3 sm:grid-cols-3">
-            {[
-              ['Step 1', 'Select nearby experts'],
-              ['Step 2', 'Open list or map view'],
-              ['Step 3', 'Contact the best fit'],
-            ].map(([step, copy], index) => (
-              <div
-                key={step}
-                className="hero-flow-card rounded-[1.15rem] bg-white/90 px-4 py-3 ring-1 ring-slate-200/80"
-                style={{ animationDelay: `${index * 1.1}s` }}
-              >
-                <div className="text-[11px] font-semibold uppercase tracking-[0.18em] text-slate-500">{step}</div>
-                <div className="mt-2 text-sm font-semibold leading-6 text-slate-950">{copy}</div>
-              </div>
-            ))}
+        <div className="ml-glass-note hero-flow-panel rounded-[1.5rem] px-4 py-3">
+          <div className="flex flex-wrap items-center gap-3 text-[11px] font-semibold uppercase tracking-[0.18em] text-slate-500">
+            <span className="rounded-full border border-slate-200/80 bg-white/82 px-3 py-1">Search nearby</span>
+            <span className="hero-flow-arrow text-slate-400">→</span>
+            <span className="rounded-full border border-slate-200/80 bg-white/82 px-3 py-1">Find on map</span>
+            <span className="hero-flow-arrow text-slate-400">→</span>
+            <span className="rounded-full border border-slate-200/80 bg-white/82 px-3 py-1">Open shortlist</span>
+            <span className="hero-flow-arrow text-slate-400">→</span>
+            <span className="rounded-full border border-slate-200/80 bg-white/82 px-3 py-1">Contact the best fit</span>
           </div>
         </div>
       </div>
@@ -194,9 +180,12 @@ export default function MarketLinkHeroIllustration({ compact = false }: Props) {
           animation-delay: 1.1s;
         }
 
-        .hero-shortlist-card,
-        .hero-flow-card {
+        .hero-shortlist-card {
           animation: shortlistPulse 6.6s ease-in-out infinite;
+        }
+
+        .hero-flow-arrow {
+          animation: flowArrowPulse 4.8s ease-in-out infinite;
         }
 
         .hero-view-pill {
@@ -404,6 +393,19 @@ export default function MarketLinkHeroIllustration({ compact = false }: Props) {
           }
         }
 
+        @keyframes flowArrowPulse {
+          0%,
+          100% {
+            opacity: 0.3;
+            transform: translateX(0);
+          }
+
+          50% {
+            opacity: 1;
+            transform: translateX(3px);
+          }
+        }
+
         @media (prefers-reduced-motion: reduce) {
           .hero-command-bar,
           .hero-command-track::after,
@@ -418,7 +420,7 @@ export default function MarketLinkHeroIllustration({ compact = false }: Props) {
           .hero-pin,
           .hero-search-pulse,
           .hero-shortlist-card,
-          .hero-flow-card {
+          .hero-flow-arrow {
             animation: none;
           }
         }

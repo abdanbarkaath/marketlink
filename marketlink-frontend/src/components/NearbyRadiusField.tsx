@@ -147,7 +147,7 @@ export default function NearbyRadiusField({
           helperMessage ? (
             <p className={`text-xs leading-5 md:col-span-2 ${zip.length > 0 && zip.length < 5 ? 'text-red-600' : 'text-slate-500'}`}>{helperMessage}</p>
           ) : zip.length === 5 ? (
-            <p className="text-xs leading-5 text-slate-500 md:col-span-2">Searching within {selectedRadius} miles of {zip}.</p>
+            <p className="text-xs leading-5 text-slate-500 md:col-span-2">Within {selectedRadius} miles of {zip}.</p>
           ) : null
         ) : null}
       </div>

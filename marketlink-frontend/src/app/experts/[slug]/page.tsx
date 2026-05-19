@@ -905,7 +905,7 @@ function ProviderPageContent({ provider: p }: { provider: Provider }) {
                               </div>
                             </div>
 
-                            <p className="mt-3 text-sm leading-7 text-slate-700">{truncateCopy(activeReview.body, 220)}</p>
+                            <p className="mt-3 text-sm leading-6 text-slate-700">{truncateCopy(activeReview.body, 170)}</p>
 
                             <div className="mt-4 flex flex-wrap gap-2">
                               <span className="rounded-full border border-slate-200/90 bg-slate-50 px-3 py-1.5 text-xs font-semibold text-slate-800">
@@ -918,7 +918,7 @@ function ProviderPageContent({ provider: p }: { provider: Provider }) {
                               ) : null}
                               {activeReview.projectSummary ? (
                                 <span className="ml-pill rounded-full px-3 py-1.5 text-xs">
-                                  {truncateCopy(activeReview.projectSummary, 48)}
+                                  {truncateCopy(activeReview.projectSummary, 38)}
                                 </span>
                               ) : null}
                               {activeReview.source ? (
@@ -965,7 +965,7 @@ function ProviderPageContent({ provider: p }: { provider: Provider }) {
                           <div className="flex items-start justify-between gap-3">
                             <div>
                               <div className={`text-[11px] font-medium uppercase tracking-[0.18em] ${t.mutedText}`}>{activeReview ? 'Supporting proof' : 'Proof of work'}</div>
-                              <h3 className="mt-2 text-lg font-semibold text-slate-900">{activeReview ? 'Selected project behind the testimonial' : 'What this expert has already done'}</h3>
+                              <h3 className="mt-2 text-base font-semibold text-slate-900">{activeReview ? 'Selected project behind the testimonial' : 'What this expert has already done'}</h3>
                             </div>
                             <span className="ml-pill rounded-full px-3 py-1 text-[11px] font-medium uppercase tracking-[0.16em]">
                               {projectSlide + 1} / {visibleProjects.length}
@@ -978,7 +978,7 @@ function ProviderPageContent({ provider: p }: { provider: Provider }) {
                                 <div className={`text-[11px] font-medium uppercase tracking-[0.18em] ${t.mutedText}`}>Featured project</div>
                                 <div className="mt-1 text-base font-semibold text-slate-900">{activeProject.title}</div>
                                 {activeProject.summary ? (
-                                  <p className="mt-2 text-sm leading-6 text-slate-700">{truncateCopy(activeProject.summary, 84)}</p>
+                                  <p className="mt-2 text-sm leading-6 text-slate-700">{truncateCopy(activeProject.summary, 78)}</p>
                                 ) : null}
                               </div>
                               {activeProject.isFeatured ? <span className="ml-pill shrink-0 rounded-full px-3 py-1 text-[11px] font-medium">Featured</span> : null}
@@ -1003,23 +1003,23 @@ function ProviderPageContent({ provider: p }: { provider: Provider }) {
                             </div>
 
                             {(activeProject.challenge || activeProject.solution || activeProject.results) ? (
-                              <dl className="mt-4 grid gap-2.5 border-t border-slate-200/80 pt-4">
+                              <dl className="mt-4 grid gap-2 border-t border-slate-200/80 pt-4">
                                 {activeProject.challenge ? (
-                                  <div>
+                                  <div className="grid gap-1 sm:grid-cols-[96px_minmax(0,1fr)] sm:items-start">
                                     <dt className={`text-[11px] font-medium uppercase tracking-[0.18em] ${t.mutedText}`}>Challenge</dt>
-                                    <dd className="mt-1 text-sm leading-6 text-slate-700">{truncateCopy(activeProject.challenge, 68)}</dd>
+                                    <dd className="text-sm leading-6 text-slate-700">{truncateCopy(activeProject.challenge, 64)}</dd>
                                   </div>
                                 ) : null}
                                 {activeProject.solution ? (
-                                  <div>
+                                  <div className="grid gap-1 sm:grid-cols-[96px_minmax(0,1fr)] sm:items-start">
                                     <dt className={`text-[11px] font-medium uppercase tracking-[0.18em] ${t.mutedText}`}>Approach</dt>
-                                    <dd className="mt-1 text-sm leading-6 text-slate-700">{truncateCopy(activeProject.solution, 68)}</dd>
+                                    <dd className="text-sm leading-6 text-slate-700">{truncateCopy(activeProject.solution, 64)}</dd>
                                   </div>
                                 ) : null}
                                 {activeProject.results ? (
-                                  <div className="rounded-[0.95rem] bg-[#1f314d] px-3 py-2.5 text-white">
+                                  <div className="grid gap-1 rounded-[0.95rem] bg-[#1f314d] px-3 py-2.5 text-white sm:grid-cols-[96px_minmax(0,1fr)] sm:items-start">
                                     <dt className="text-[11px] font-medium uppercase tracking-[0.18em] text-white/68">Results</dt>
-                                    <dd className="mt-1 text-sm leading-6 text-white">{truncateCopy(activeProject.results, 74)}</dd>
+                                    <dd className="text-sm leading-6 text-white">{truncateCopy(activeProject.results, 64)}</dd>
                                   </div>
                                 ) : null}
                               </dl>

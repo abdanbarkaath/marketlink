@@ -71,14 +71,11 @@ export default function Home() {
                   <div>
                     <div className={`text-[11px] font-medium uppercase tracking-[0.24em] ${t.mutedText}`}>Start nearby</div>
                     <h2 className="mt-2 text-xl font-semibold tracking-tight text-slate-950">Search nearby first.</h2>
-                    <p className="mt-2 text-sm leading-6 text-slate-600">Use a ZIP and distance, or press search empty and we will start from Chicago.</p>
+                    <p className="mt-2 text-sm leading-6 text-slate-600">Use a ZIP and distance. If you leave it empty, we start from Chicago.</p>
                   </div>
-                  <Link href="/experts" className="text-sm font-semibold text-slate-700 underline decoration-slate-300 underline-offset-4 hover:text-slate-950">
-                    Browse all experts
-                  </Link>
                 </div>
 
-                <form action="/experts" method="GET" onSubmit={onNearbySubmit} className="mt-5 grid gap-4 lg:grid-cols-[minmax(0,1fr)_auto] lg:items-end">
+                <form action="/experts" method="GET" onSubmit={onNearbySubmit} className="mt-5 grid gap-3 lg:grid-cols-[minmax(0,1fr)_auto] lg:items-end">
                   <NearbyRadiusField
                     initialRadius="10"
                     compact
@@ -94,6 +91,13 @@ export default function Home() {
                     Search nearby experts
                   </button>
                 </form>
+
+                <div className="mt-3 flex flex-wrap items-center justify-between gap-3 text-sm text-slate-500">
+                  <span>One nearby search leads into the shortlist and the map.</span>
+                  <Link href="/experts" className="font-semibold text-slate-700 underline decoration-slate-300 underline-offset-4 hover:text-slate-950">
+                    Skip ZIP and browse all experts
+                  </Link>
+                </div>
               </div>
             </div>
 
