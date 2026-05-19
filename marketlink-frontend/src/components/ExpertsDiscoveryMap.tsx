@@ -45,6 +45,13 @@ const MAP_STYLE = {
   ],
 } as const;
 
+function getProximityLabel(distanceMiles: number | undefined) {
+  if (typeof distanceMiles !== 'number' || !Number.isFinite(distanceMiles)) return null;
+  if (distanceMiles <= 10) return 'Nearby';
+  if (distanceMiles <= 25) return 'In your area';
+  return 'Farther away';
+}
+
 export default function ExpertsDiscoveryMap({ providers, showDesktop = true, showMobile = true }: Props) {
   const desktopMapRef = useRef<MapRef | null>(null);
   const mobileMapRef = useRef<MapRef | null>(null);
@@ -239,6 +246,8 @@ export default function ExpertsDiscoveryMap({ providers, showDesktop = true, sho
   function renderFocusedCard(position: 'desktop' | 'mobile') {
     if (!focusedProvider) return null;
 
+    const proximityLabel = getProximityLabel(focusedProvider.distanceMiles);
+
     return (
       <div
         className={`pointer-events-auto absolute z-20 rounded-[1.2rem] bg-white/96 px-4 py-4 shadow-[0_18px_40px_rgba(15,23,42,0.16)] ring-1 ring-slate-200/90 ${
@@ -256,6 +265,7 @@ export default function ExpertsDiscoveryMap({ providers, showDesktop = true, sho
             </Link>
             <div className="mt-1 text-sm text-slate-600">
               {focusedProvider.city}, {focusedProvider.state}
+              {proximityLabel ? ` | ${proximityLabel}` : ''}
               {typeof focusedProvider.distanceMiles === 'number' ? ` | ${focusedProvider.distanceMiles} miles away` : ''}
             </div>
             {focusedProvider.expertType === 'creator' && focusedProvider.locationPrecision === 'approximate' ? (

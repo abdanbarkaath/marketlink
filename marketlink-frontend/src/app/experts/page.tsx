@@ -199,6 +199,13 @@ function buildPricingLabel(provider: Provider) {
   return hourlyRange || 'Ask for pricing';
 }
 
+function getProximityLabel(distanceMiles: number | undefined) {
+  if (typeof distanceMiles !== 'number' || !Number.isFinite(distanceMiles)) return null;
+  if (distanceMiles <= 10) return 'Nearby';
+  if (distanceMiles <= 25) return 'In your area';
+  return 'Farther away';
+}
+
 function FiltersForm({ name, zip, radius, service, problemId, verified }: FiltersFormProps) {
   const verifiedChecked = verified === '1' || (verified ?? '').toLowerCase() === 'true';
 
@@ -308,6 +315,7 @@ function ProviderCard({ provider }: { provider: Provider }) {
     null;
   const locationLabel = formatLocation(provider);
   const pricingLabel = buildPricingLabel(provider);
+  const proximityLabel = getProximityLabel(provider.distanceMiles);
   const shortSummary =
     provider.shortDescription ||
     provider.tagline ||
@@ -384,6 +392,10 @@ function ProviderCard({ provider }: { provider: Provider }) {
               <div className="mt-2 text-sm text-slate-600">
                 {provider.expertType === 'creator' && provider.locationPrecision === 'approximate'
                   ? 'Approximate area shown'
+                  : proximityLabel && provider.zip
+                  ? `${proximityLabel} · ZIP ${provider.zip}`
+                  : proximityLabel
+                  ? proximityLabel
                   : provider.zip
                   ? `ZIP ${provider.zip}`
                   : provider.verified
