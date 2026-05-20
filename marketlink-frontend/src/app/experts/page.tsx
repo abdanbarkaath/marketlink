@@ -3,10 +3,17 @@ import Link from 'next/link';
 import {
   getDiscoveryProblemById,
   getDiscoveryServicePathsForProblem,
-  discoveryServicePaths,
 } from '@/lib/discovery';
 import type { DiscoveryProblemCard } from '@/lib/discovery';
-import NearbyRadiusField from '@/components/NearbyRadiusField';
+import {
+  getBuyerProblemById,
+  getMarketingSubjectById,
+  getServiceTokensForSubject,
+  getServiceTokensForSubcategory,
+  getSubcategoriesForSubject,
+  marketingSubjects,
+} from '@/lib/marketingTaxonomy';
+import ExpertsDirectoryFilters from '@/components/ExpertsDirectoryFilters';
 import ExpertsDiscoveryMap from '@/components/ExpertsDiscoveryMap';
 
 export const metadata: Metadata = {
@@ -42,24 +49,11 @@ type Provider = {
   distanceMiles?: number;
 };
 
-type FiltersFormProps = {
-  name?: string;
-  zip?: string;
-  radius?: string;
-  service?: string;
-  problemId?: string;
-  verified?: string;
-};
-
 const FIELD_CLASS = 'ml-input w-full rounded-[1.05rem] px-4 py-3 text-sm';
 const CHECKBOX_CLASS = 'ml-checkbox h-4 w-4 rounded';
 const PRIMARY_BUTTON_CLASS = 'ml-btn-primary inline-flex min-h-11 items-center justify-center rounded-[1.05rem] px-5 text-sm font-semibold shadow-sm';
 const PILL_CLASS = 'ml-pill rounded-xl px-3 py-1 text-[11px] font-medium uppercase tracking-[0.18em]';
 const SECTION_CLASS = 'ml-card rounded-[1.8rem] px-5 py-5 shadow-[0_16px_40px_rgba(23,26,31,0.06)] sm:px-6 sm:py-6';
-const SERVICE_FILTER_OPTIONS = discoveryServicePaths.map((path) => ({
-  value: path.serviceTokens.join(','),
-  label: path.plainLabel,
-}));
 
 function ControlIcon({ kind }: { kind: 'map' | 'name' | 'service' | 'filters' | 'location' }) {
   const className = 'h-3.5 w-3.5';
@@ -150,15 +144,22 @@ function formatMoneyRange(min: number | null | undefined, max: number | null | u
   return null;
 }
 
-function getServiceFilterLabel(service: string | undefined) {
+function formatServiceFallback(service: string | undefined) {
   if (!service) return null;
-  const normalized = service
-    .split(',')
-    .map((token) => token.trim().toLowerCase())
-    .filter(Boolean)
-    .join(',');
 
-  return SERVICE_FILTER_OPTIONS.find((option) => option.value === normalized)?.label ?? service;
+  return service
+    .split(',')
+    .map((token) =>
+      token
+        .trim()
+        .split('-')
+        .filter(Boolean)
+        .map((part) => part.charAt(0).toUpperCase() + part.slice(1))
+        .join(' '),
+    )
+    .filter(Boolean)
+    .slice(0, 2)
+    .join(', ');
 }
 
 function getExpertTypeChrome(expertType: Provider['expertType']) {
@@ -204,102 +205,6 @@ function getProximityLabel(distanceMiles: number | undefined) {
   if (distanceMiles <= 10) return 'Nearby';
   if (distanceMiles <= 25) return 'In your area';
   return 'Farther away';
-}
-
-function FiltersForm({ name, zip, radius, service, problemId, verified }: FiltersFormProps) {
-  const verifiedChecked = verified === '1' || (verified ?? '').toLowerCase() === 'true';
-
-  return (
-    <form method="GET" className="grid gap-3">
-      <input type="hidden" name="page" value="1" />
-      {problemId ? <input type="hidden" name="problem" value={problemId} /> : null}
-
-      <div className="grid gap-3 xl:grid-cols-[minmax(0,1fr)_240px_auto] xl:items-end">
-        <NearbyRadiusField
-          initialZip={zip}
-          initialRadius={radius}
-          compact
-          hideCompactStatus
-          fieldClassName={`${FIELD_CLASS} bg-white`}
-          zipLabel="Location ZIP"
-          zipPlaceholder="60559"
-        />
-
-        <label className="grid gap-2">
-          <span className="inline-flex items-center gap-2 text-sm font-medium text-slate-700">
-            <ControlIcon kind="service" />
-            <span>Service</span>
-          </span>
-          <select
-            name="service"
-            defaultValue={service ?? ''}
-            className={`${FIELD_CLASS} bg-white`}
-          >
-            <option value="">All services</option>
-            {SERVICE_FILTER_OPTIONS.map((option) => (
-              <option key={option.value} value={option.value}>
-                {option.label}
-              </option>
-            ))}
-          </select>
-        </label>
-
-        <button type="submit" className={`${PRIMARY_BUTTON_CLASS} gap-2`}>
-          <ControlIcon kind="filters" />
-          <span>Filter</span>
-        </button>
-      </div>
-
-      <div className="flex flex-wrap items-center justify-between gap-3">
-        <div className="text-xs text-slate-500">Use ZIP, distance, and service first. Everything else is optional.</div>
-        <Link href="/experts" className="text-sm font-medium text-slate-600 underline underline-offset-4 hover:text-slate-900">
-          Clear filters
-        </Link>
-      </div>
-
-      <details className="rounded-[1.15rem] border border-slate-200/90 bg-white px-4 py-3">
-        <summary className="flex cursor-pointer list-none items-center justify-between gap-3 text-sm font-semibold text-slate-700 [&::-webkit-details-marker]:hidden">
-          <span className="inline-flex items-center gap-2">
-            <ControlIcon kind="filters" />
-            <span>More filters</span>
-          </span>
-          <span className="text-xs font-medium uppercase tracking-[0.16em] text-slate-500">Name and verified</span>
-        </summary>
-        <div className="mt-4 grid gap-4 md:grid-cols-[minmax(0,1fr)_260px] md:items-end">
-          <label className="grid gap-2">
-            <span className="inline-flex items-center gap-2 text-sm font-medium text-slate-700">
-              <ControlIcon kind="name" />
-              <span>Business name</span>
-            </span>
-            <input
-              type="text"
-              name="name"
-              defaultValue={name ?? ''}
-              placeholder="Search by business name"
-              className={`${FIELD_CLASS} bg-white`}
-            />
-          </label>
-
-          <div className="grid gap-2">
-            <span className="inline-flex items-center gap-2 text-sm font-medium text-slate-700">
-              <ControlIcon kind="filters" />
-              <span>Verification</span>
-            </span>
-            <label className="ml-input flex w-full items-center gap-3 rounded-[1.05rem] bg-white px-4 py-3 text-sm font-medium text-slate-700">
-              <input
-                type="checkbox"
-                name="verified"
-                value="1"
-                defaultChecked={verifiedChecked}
-                className={CHECKBOX_CLASS}
-              />
-              Verified only
-            </label>
-          </div>
-        </div>
-      </details>
-    </form>
-  );
 }
 
 function ProviderCard({ provider }: { provider: Provider }) {
@@ -419,6 +324,7 @@ function ProviderCard({ provider }: { provider: Provider }) {
 function ProblemContextPanel({ problem }: { problem: DiscoveryProblemCard }) {
   const suggestedPaths = getDiscoveryServicePathsForProblem(problem)
     .slice(0, 3)
+    .filter((path): path is NonNullable<typeof path> => Boolean(path))
     .map((path) => path.plainLabel);
 
   return (
@@ -430,7 +336,7 @@ function ProblemContextPanel({ problem }: { problem: DiscoveryProblemCard }) {
             Looking for help with: {problem.problemTitle}
           </h2>
           <p className="mt-2 text-sm leading-7 text-slate-600">
-            Start with service fit, then open the profile that has the strongest proof and location match.
+            Start with the marketing area, then open the profile that has the strongest proof and location match.
           </p>
           {suggestedPaths.length ? (
             <div className="mt-3 flex flex-wrap gap-2">
@@ -500,17 +406,43 @@ export default async function ProvidersPage({ searchParams }: ProvidersPageProps
   const name = typeof resolvedSearchParams.name === 'string' ? resolvedSearchParams.name : undefined;
   const zip = typeof resolvedSearchParams.zip === 'string' ? resolvedSearchParams.zip : undefined;
   const radius = typeof resolvedSearchParams.radius === 'string' ? resolvedSearchParams.radius : undefined;
+  const subject = typeof resolvedSearchParams.subject === 'string' ? resolvedSearchParams.subject : undefined;
+  const subcategory = typeof resolvedSearchParams.subcategory === 'string' ? resolvedSearchParams.subcategory : undefined;
   const service = typeof resolvedSearchParams.service === 'string' ? resolvedSearchParams.service : undefined;
   const problemId = typeof resolvedSearchParams.problem === 'string' ? resolvedSearchParams.problem : undefined;
   const problemContext = getDiscoveryProblemById(problemId);
+  const taxonomyProblem = getBuyerProblemById(problemId);
+  const selectedSubject = getMarketingSubjectById(subject);
+  const suggestedSubjects = taxonomyProblem
+    ? taxonomyProblem.suggestedSubjectIds
+        .map((id) => getMarketingSubjectById(id))
+        .filter((value): value is NonNullable<typeof value> => Boolean(value))
+    : marketingSubjects;
+  const directorySubjectOptions =
+    selectedSubject && !suggestedSubjects.some((candidate) => candidate.id === selectedSubject.id)
+      ? [selectedSubject, ...suggestedSubjects]
+      : suggestedSubjects;
+  const selectedSubcategory =
+    selectedSubject && subcategory
+      ? getSubcategoriesForSubject(selectedSubject.id).find((candidate) => candidate.id === subcategory) ?? null
+      : null;
   const verified = typeof resolvedSearchParams.verified === 'string' ? resolvedSearchParams.verified : undefined;
   const page = Math.max(1, parseInt(String(resolvedSearchParams.page ?? '1'), 10) || 1);
+  const derivedServiceTokens = selectedSubcategory
+    ? getServiceTokensForSubcategory(selectedSubject?.id, selectedSubcategory.id)
+    : selectedSubject
+    ? getServiceTokensForSubject(selectedSubject.id)
+    : taxonomyProblem
+    ? Array.from(new Set(taxonomyProblem.suggestedServiceTokens))
+    : [];
+  const effectiveService = derivedServiceTokens.length > 0 ? derivedServiceTokens.join(',') : service;
 
   const qs = toQS({
     name,
     zip,
     radius,
-    service,
+    service: effectiveService,
+    match: derivedServiceTokens.length > 0 ? 'any' : undefined,
     verified,
     page: String(page),
   });
@@ -543,7 +475,9 @@ export default async function ProvidersPage({ searchParams }: ProvidersPageProps
     name,
     zip,
     radius,
-    service,
+    subject,
+    subcategory,
+    service: !subject && !subcategory && !problemContext ? service : undefined,
     problem: problemContext?.id,
     verified,
   };
@@ -555,7 +489,9 @@ export default async function ProvidersPage({ searchParams }: ProvidersPageProps
   const activeFilters = [
     zip ? { label: `ZIP: ${zip}` } : null,
     radius ? { label: `Radius: ${radius} miles` } : null,
-    service ? { label: `Service: ${getServiceFilterLabel(service)}` } : null,
+    selectedSubject ? { label: `Area: ${selectedSubject.label}` } : null,
+    selectedSubcategory ? { label: `Help: ${selectedSubcategory.label}` } : null,
+    !selectedSubject && !selectedSubcategory && service ? { label: `Service: ${formatServiceFallback(service)}` } : null,
     name ? { label: `Name: ${name}` } : null,
     verified === '1' || (verified ?? '').toLowerCase() === 'true' ? { label: 'Verified only' } : null,
   ].filter(Boolean) as { label: string }[];
@@ -617,7 +553,42 @@ export default async function ProvidersPage({ searchParams }: ProvidersPageProps
               </div>
 
               <div className="ml-filter-shell rounded-[1.45rem] p-4">
-                <FiltersForm name={name} zip={zip} radius={radius} service={service} problemId={problemContext?.id} verified={verified} />
+                <ExpertsDirectoryFilters
+                  name={name}
+                  zip={zip}
+                  radius={radius}
+                  subject={subject}
+                  subcategory={subcategory}
+                  problemId={problemContext?.id}
+                  verified={verified}
+                  fieldClassName={FIELD_CLASS}
+                  checkboxClassName={CHECKBOX_CLASS}
+                  primaryButtonClassName={PRIMARY_BUTTON_CLASS}
+                  subjectOptions={directorySubjectOptions.map((option) => ({
+                    id: option.id,
+                    label: option.label,
+                    description: option.buyerLabel,
+                    keywords: [
+                      option.buyerLabel,
+                      ...option.serviceTokens,
+                      ...option.subcategories.map((subcategoryOption) => subcategoryOption.label),
+                      ...option.subcategories.map((subcategoryOption) => subcategoryOption.buyerLabel),
+                      ...option.subcategories.flatMap((subcategoryOption) =>
+                        subcategoryOption.deliverables.map((deliverable) => deliverable.label),
+                      ),
+                    ],
+                    subcategories: option.subcategories.map((subcategoryOption) => ({
+                      id: subcategoryOption.id,
+                      label: subcategoryOption.label,
+                      description: subcategoryOption.buyerLabel,
+                      keywords: [
+                        subcategoryOption.buyerLabel,
+                        ...subcategoryOption.serviceTokens,
+                        ...subcategoryOption.deliverables.map((deliverable) => deliverable.label),
+                      ],
+                    })),
+                  }))}
+                />
               </div>
 
               {activeFilters.length > 0 ? (
@@ -639,7 +610,7 @@ export default async function ProvidersPage({ searchParams }: ProvidersPageProps
 
             {data.length === 0 ? (
               <div className="ml-card mt-5 rounded-[1.5rem] p-8 text-center text-slate-600 shadow-[0_16px_40px_rgba(23,26,31,0.06)]">
-                No experts found. Try adjusting your location or service.
+                No experts found. Try adjusting your location or marketing area.
               </div>
             ) : (
               <ul data-testid="expert-results-list" className="mt-5 grid grid-cols-1 gap-4">
