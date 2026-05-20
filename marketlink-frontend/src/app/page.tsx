@@ -121,7 +121,6 @@ function SearchableSelect({
                   >
                     <div className="text-sm font-semibold text-slate-900">{option.label}</div>
                     <div className="mt-1 text-xs leading-5 text-slate-600">{option.description}</div>
-                    {option.detail ? <div className="mt-1 text-[11px] uppercase tracking-[0.14em] text-slate-400">{option.detail}</div> : null}
                   </button>
                 </li>
               ))}
@@ -170,7 +169,7 @@ export default function Home() {
           (problem): SearchableOption => ({
             id: problem.id,
             label: problem.label,
-            description: problem.customerLanguage,
+            description: problem.outcomePromise,
             detail: problem.outcomePromise,
             keywords: [...problem.suggestedSubjectIds, ...problem.suggestedServiceTokens],
           }),
@@ -184,11 +183,8 @@ export default function Home() {
         (subject): SearchableOption => ({
           id: subject.id,
           label: subject.label,
-          description: subject.shortDescription,
-          detail: `Includes ${subject.subcategories
-            .slice(0, 3)
-            .map((subcategory) => subcategory.label)
-            .join(', ')}`,
+          description: subject.buyerLabel,
+          detail: subject.shortDescription,
           keywords: [
             subject.buyerLabel,
             ...subject.serviceTokens,
@@ -245,15 +241,14 @@ export default function Home() {
               </h1>
 
               <p className={`mt-5 max-w-2xl text-[1rem] leading-8 ${t.mutedText}`}>
-                Start with one nearby search, then move straight into the shortlist and map. The goal is to make the first click feel obvious.
+                Search nearby, compare quickly, and open the expert worth contacting.
               </p>
 
               <div className="mt-6 rounded-[1.65rem] bg-white/90 p-4 shadow-[0_18px_40px_rgba(18,26,42,0.08)] ring-1 ring-slate-200/80 sm:p-5">
                 <div className="flex flex-wrap items-end justify-between gap-3">
                   <div>
                     <div className={`text-[11px] font-medium uppercase tracking-[0.24em] ${t.mutedText}`}>Start nearby</div>
-                    <h2 className="mt-2 text-xl font-semibold tracking-tight text-slate-950">Type to find the right path, then search nearby.</h2>
-                    <p className="mt-2 text-sm leading-6 text-slate-600">Search by goal and marketing area, then choose from the dropdown. If ZIP is empty, we start from Chicago.</p>
+                    <h2 className="mt-2 text-xl font-semibold tracking-tight text-slate-950">Find the right path, then search nearby.</h2>
                   </div>
                 </div>
 
@@ -276,7 +271,7 @@ export default function Home() {
                         setSubjectQuery('');
                         setSubjectId('');
                       }}
-                      helperText="Start typing, then choose one goal from the dropdown."
+                      helperText="Type, then choose a goal."
                       invalid={problemNeedsSelection}
                       invalidMessage="Choose one goal from the dropdown."
                       emptyMessage="No matching business goals."
@@ -297,8 +292,8 @@ export default function Home() {
                       }}
                       helperText={
                         selectedProblem
-                          ? 'This list is filtered to match the selected business goal.'
-                          : 'Type a service family, then choose one marketing area from the dropdown.'
+                          ? 'Filtered to match the selected goal.'
+                          : 'Type, then choose one marketing area.'
                       }
                       invalid={subjectNeedsSelection}
                       invalidMessage="Choose one marketing area from the dropdown."
@@ -326,7 +321,7 @@ export default function Home() {
                 </form>
 
                 <div className="mt-3 flex flex-wrap items-center justify-between gap-3 text-sm text-slate-500">
-                  <span>Search the goal first, then the next dropdown narrows the matching marketing areas.</span>
+                  <span>The second field narrows after you choose the goal.</span>
                   <Link href="/experts" className="font-semibold text-slate-700 underline decoration-slate-300 underline-offset-4 hover:text-slate-950">
                     Skip ZIP and browse all experts
                   </Link>
@@ -344,7 +339,7 @@ export default function Home() {
           <div className="flex flex-col gap-3 sm:flex-row sm:items-end sm:justify-between">
             <div>
               <div className={`text-[11px] font-medium uppercase tracking-[0.24em] ${t.mutedText}`}>What do you need help with?</div>
-              <h2 className="font-display mt-2 text-[2.2rem] text-slate-950">Start with the business problem.</h2>
+              <h2 className="font-display mt-2 text-[2.2rem] text-slate-950">Start with the problem.</h2>
             </div>
             <Link href="/experts" className="text-sm font-semibold text-slate-700 underline decoration-slate-300 underline-offset-4 hover:text-slate-950">
               Open the full directory
@@ -373,10 +368,10 @@ export default function Home() {
                   </div>
 
                   <h3 className="mt-4 text-xl font-semibold tracking-tight text-slate-950">{problem.label}</h3>
-                  <p className={`mt-2 text-sm leading-7 ${t.mutedText}`}>{problem.customerLanguage}</p>
+                  <p className={`mt-2 text-sm leading-7 ${t.mutedText}`}>{problem.outcomePromise}</p>
 
                   <div className="mt-4 flex flex-wrap gap-2">
-                    {suggestedSubjects.slice(0, 2).map((subject) => (
+                    {suggestedSubjects.slice(0, 1).map((subject) => (
                       <span key={subject.id} className="ml-pill rounded-full px-3 py-1 text-[11px] font-semibold">
                         {subject.label}
                       </span>
@@ -392,7 +387,7 @@ export default function Home() {
           <div className="flex flex-col gap-3 sm:flex-row sm:items-end sm:justify-between">
             <div>
               <div className={`text-[11px] font-medium uppercase tracking-[0.24em] ${t.mutedText}`}>Popular marketing areas</div>
-              <h2 className="font-display mt-2 text-[2.15rem] text-slate-950">Or choose the marketing area directly.</h2>
+              <h2 className="font-display mt-2 text-[2.15rem] text-slate-950">Or choose the area directly.</h2>
             </div>
             <Link href="/experts" className="text-sm font-semibold text-slate-700 underline decoration-slate-300 underline-offset-4 hover:text-slate-950">
               See every service in the directory
@@ -421,10 +416,9 @@ export default function Home() {
                   <h3 className={`mt-5 text-[1.35rem] font-semibold tracking-tight ${index % 2 === 0 ? 'text-white' : 'text-slate-900'}`}>
                     {subject.label}
                   </h3>
-                  <div className={`mt-2 text-[11px] font-medium uppercase tracking-[0.18em] ${index % 2 === 0 ? 'text-white/60' : t.mutedText}`}>
+                  <p className={`mt-3 text-sm leading-7 ${index % 2 === 0 ? 'text-white/78' : t.mutedText}`}>
                     {subject.buyerLabel}
-                  </div>
-                  <p className={`mt-3 text-sm leading-7 ${index % 2 === 0 ? 'text-white/78' : t.mutedText}`}>{subject.shortDescription}</p>
+                  </p>
                 </div>
 
                 <div className="mt-6 flex items-center justify-between gap-4">
