@@ -3,20 +3,10 @@
 import { useState } from 'react';
 import { useRouter } from 'next/navigation';
 import LocationAutocompleteField, { type LocationSuggestion } from '@/components/LocationAutocompleteField';
+import TaxonomyServicePicker from '@/components/TaxonomyServicePicker';
 import { getStateDisplayName, normalizeStateCode } from '@/lib/usStates';
 
 const API_BASE = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:4000';
-
-const SERVICE_OPTIONS = [
-  { value: 'seo', label: 'SEO' },
-  { value: 'social', label: 'Social' },
-  { value: 'ads', label: 'Ads' },
-  { value: 'web', label: 'Websites' },
-  { value: 'branding', label: 'Branding' },
-  { value: 'email', label: 'Email' },
-  { value: 'content', label: 'Content' },
-  { value: 'video', label: 'Video' },
-];
 
 const EXPERT_TYPE_OPTIONS = [
   { value: 'agency', label: 'Agency' },
@@ -39,10 +29,6 @@ export default function OnboardingForm() {
   const [status, setStatus] = useState<'idle' | 'submitting' | 'error'>('idle');
   const [error, setError] = useState<string | null>(null);
 
-  function toggleService(val: string) {
-    setServices((prev) => (prev.includes(val) ? prev.filter((v) => v !== val) : [...prev, val]));
-  }
-
   function applyResolvedLocation(suggestion: LocationSuggestion) {
     if (suggestion.label) setStreetAddress(suggestion.label);
     if (suggestion.zip) setZip(suggestion.zip);
@@ -62,7 +48,7 @@ export default function OnboardingForm() {
       if (!state.trim()) throw new Error('State is required.');
       if (!zip.trim()) throw new Error('ZIP is required.');
       if (!expertType) throw new Error('Expert type is required.');
-      if (!services.length) throw new Error('Select at least one service.');
+      if (!services.length) throw new Error('Choose at least one help type.');
 
       const normalizedState = normalizeStateCode(state);
       if (!normalizedState) throw new Error('Select a valid US state.');
@@ -109,8 +95,6 @@ export default function OnboardingForm() {
     'rounded-[28px] border border-slate-200/80 bg-[linear-gradient(180deg,rgba(255,255,255,0.94),rgba(236,242,248,0.96))] p-5 shadow-[0_18px_50px_rgba(15,23,42,0.06)] sm:p-6';
   const fieldClass =
     'w-full rounded-2xl border border-slate-200/80 bg-white px-4 py-3 text-sm text-slate-800 outline-none transition placeholder:text-slate-400 focus:border-slate-400 focus:bg-white focus:ring-2 focus:ring-slate-200/70';
-  const checkboxClass = 'h-4 w-4 rounded border-slate-300 text-slate-900 focus:ring-slate-200';
-
   return (
     <main className="mx-auto max-w-5xl px-4 py-6 sm:px-6 sm:py-8">
       <div className="grid gap-5 lg:grid-cols-[minmax(0,1.05fr)_320px] lg:items-start">
@@ -177,16 +161,7 @@ export default function OnboardingForm() {
             </div>
 
             <div>
-              <label className="mb-2 block text-sm font-medium text-slate-700">Services *</label>
-              <div className="flex flex-wrap gap-3">
-                {SERVICE_OPTIONS.map((opt) => (
-                  <label key={opt.value} className="inline-flex cursor-pointer items-center gap-2 rounded-full border border-slate-200/80 bg-white px-4 py-2.5 text-sm text-slate-700 shadow-sm">
-                    <input type="checkbox" className={checkboxClass} checked={services.includes(opt.value)} onChange={() => toggleService(opt.value)} />
-                    {opt.label}
-                  </label>
-                ))}
-              </div>
-              <p className="mt-2 text-xs text-slate-500">These match the live discovery categories buyers already use on the homepage and expert directory.</p>
+              <TaxonomyServicePicker services={services} onChange={setServices} required />
             </div>
 
             {error ? <p className="rounded-2xl border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700">{error}</p> : null}
@@ -209,7 +184,7 @@ export default function OnboardingForm() {
           <div className="mt-4 grid gap-3">
             <div className="rounded-2xl border border-slate-200/80 bg-[linear-gradient(180deg,rgba(248,250,252,0.98),rgba(226,232,240,0.72))] p-4 shadow-[0_10px_30px_rgba(15,23,42,0.04)]">
               <div className="text-sm font-semibold text-slate-900">1. Create the listing</div>
-              <p className="mt-1 text-sm text-slate-600">Start with the fields buyers need first: business name, exact address, expert type, and services.</p>
+              <p className="mt-1 text-sm text-slate-600">Start with the fields buyers need first: business name, exact address, expert type, and the help you actually offer.</p>
             </div>
             <div className="rounded-2xl border border-slate-200/80 bg-[linear-gradient(180deg,rgba(248,250,252,0.98),rgba(226,232,240,0.72))] p-4 shadow-[0_10px_30px_rgba(15,23,42,0.04)]">
               <div className="text-sm font-semibold text-slate-900">2. Add proof of work</div>
@@ -217,7 +192,7 @@ export default function OnboardingForm() {
             </div>
             <div className="rounded-2xl border border-slate-200/80 bg-[linear-gradient(180deg,rgba(248,250,252,0.98),rgba(226,232,240,0.72))] p-4 shadow-[0_10px_30px_rgba(15,23,42,0.04)]">
               <div className="text-sm font-semibold text-slate-900">3. Keep it focused</div>
-              <p className="mt-1 text-sm text-slate-600">A clear category match and strong proof matter more than stuffing every optional field in the first step.</p>
+              <p className="mt-1 text-sm text-slate-600">Pick only the areas and help types you want buyers to find you for first.</p>
             </div>
           </div>
         </aside>

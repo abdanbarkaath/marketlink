@@ -1,8 +1,9 @@
 'use client';
 
-import { useEffect, useMemo, useState } from 'react';
+import { useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import LocationAutocompleteField, { type LocationSuggestion } from '@/components/LocationAutocompleteField';
+import TaxonomyServicePicker from '@/components/TaxonomyServicePicker';
 import { getStateDisplayName, normalizeStateCode } from '@/lib/usStates';
 
 const API_BASE = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:4000';
@@ -100,17 +101,6 @@ type MeSummaryResponse = {
     media?: Array<Partial<ProviderMedia>>;
   };
 };
-
-const SERVICE_OPTIONS = [
-  { value: 'seo', label: 'SEO' },
-  { value: 'social', label: 'Social' },
-  { value: 'ads', label: 'Ads' },
-  { value: 'web', label: 'Websites' },
-  { value: 'branding', label: 'Branding' },
-  { value: 'email', label: 'Email' },
-  { value: 'content', label: 'Content' },
-  { value: 'video', label: 'Video' },
-];
 
 const EXPERT_TYPE_OPTIONS = [
   { value: 'agency', label: 'Agency' },
@@ -280,13 +270,6 @@ export default function ProfileEditorPage() {
     });
   }
 
-  function toggleService(val: string) {
-    if (!data) return;
-    setDirty(true);
-    const next = data.services.includes(val) ? data.services.filter((v) => v !== val) : [...data.services, val];
-    setData({ ...data, services: next });
-  }
-
   function applyResolvedLocation(suggestion: LocationSuggestion) {
     if (!data) return;
     if (suggestion.label) setField('streetAddress', suggestion.label);
@@ -429,7 +412,7 @@ export default function ProfileEditorPage() {
       if (!data.city.trim()) throw new Error('City is required.');
       if (!data.state.trim()) throw new Error('State is required.');
       if (!data.expertType) throw new Error('Expert type is required.');
-      if (!data.services.map((s) => s.trim()).filter(Boolean).length) throw new Error('Select at least one service.');
+      if (!data.services.map((s) => s.trim()).filter(Boolean).length) throw new Error('Choose at least one help type.');
 
       const normalizedState = normalizeStateCode(data.state);
       if (!normalizedState) throw new Error('Select a valid US state.');
@@ -579,11 +562,6 @@ export default function ProfileEditorPage() {
       setPwSaving(false);
     }
   }
-
-  // ----- keep hooks before early returns -----
-  const known = useMemo(() => new Set(SERVICE_OPTIONS.map((s) => s.value)), []);
-  const extraServices = useMemo(() => (data?.services || []).filter((s) => !known.has(s)), [data?.services, known]);
-  // ------------------------------------------
 
   if (loading) {
     return (
@@ -797,28 +775,13 @@ export default function ProfileEditorPage() {
             </div>
 
             <div>
-              <label className="mb-2 block text-sm font-medium text-slate-700">Services</label>
-              <div className="flex flex-wrap gap-3">
-                {SERVICE_OPTIONS.map((opt) => (
-                  <label key={opt.value} className="inline-flex cursor-pointer items-center gap-2 rounded-full border border-slate-200/80 bg-[linear-gradient(180deg,rgba(248,250,252,0.98),rgba(226,232,240,0.72))] px-4 py-2.5 text-sm text-slate-700">
-                    <input type="checkbox" className={checkboxClass} checked={data.services.includes(opt.value)} onChange={() => toggleService(opt.value)} />
-                    {opt.label}
-                  </label>
-                ))}
-              </div>
-
-              {extraServices.length > 0 && (
-                <div className="mt-3">
-                  <div className="text-xs font-medium uppercase tracking-[0.24em] text-slate-400">Other services already on your profile</div>
-                  <div className="mt-2 flex flex-wrap gap-2">
-                    {extraServices.map((s) => (
-                      <span key={s} className="rounded-full border border-slate-200/80 bg-white px-3 py-1.5 text-xs text-slate-600 shadow-sm">
-                        {s}
-                      </span>
-                    ))}
-                  </div>
-                </div>
-              )}
+              <TaxonomyServicePicker
+                services={data.services}
+                onChange={(next) => {
+                  setDirty(true);
+                  setData({ ...data, services: next });
+                }}
+              />
             </div>
           </div>
         </section>
