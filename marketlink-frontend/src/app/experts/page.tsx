@@ -7,6 +7,7 @@ import {
 import type { DiscoveryProblemCard } from '@/lib/discovery';
 import {
   getBuyerProblemById,
+  getDisplayPillsForExpert,
   getMarketingSubjectById,
   getServiceTokensForSubject,
   getServiceTokensForSubcategory,
@@ -210,7 +211,12 @@ function getProximityLabel(distanceMiles: number | undefined) {
 function ProviderCard({ provider }: { provider: Provider }) {
   const chrome = getExpertTypeChrome(provider.expertType);
   const expertTypeLabel = formatExpertTypeLabel(provider.expertType);
-  const topServices = provider.services.slice(0, 3);
+  const displayPills = getDisplayPillsForExpert({
+    services: provider.services,
+    expertType: provider.expertType,
+    verified: provider.verified,
+    distanceMiles: provider.distanceMiles,
+  }).filter((pill) => pill !== expertTypeLabel && pill !== 'Verified' && pill !== `${provider.distanceMiles} mi away`);
   const creatorAudienceLabel = formatAudienceSize(provider.creatorAudienceSize);
   const creatorProofBody =
     provider.creatorProofSummary ||
@@ -278,11 +284,11 @@ function ProviderCard({ provider }: { provider: Provider }) {
                 {provider.businessName}
               </h3>
 
-              {topServices.length > 0 ? (
+              {displayPills.length > 0 ? (
                 <div className="mt-3 flex flex-wrap gap-2" title={provider.services.join(', ')}>
-                  {topServices.map((service) => (
-                    <span key={service} className={`${PILL_CLASS} px-3 text-[10px]`}>
-                      {service}
+                  {displayPills.map((pill) => (
+                    <span key={pill} className={`${PILL_CLASS} px-3 text-[10px]`}>
+                      {pill}
                     </span>
                   ))}
                 </div>
