@@ -6,6 +6,7 @@ import InquiryForm from '../../providers/[slug]/InquiryForm';
 import ProviderNotFound from '../../providers/[slug]/not-found';
 import { useMarketLinkTheme } from '../../../components/ThemeToggle';
 import ExpertProfileMap from '../../../components/ExpertProfileMap';
+import { getGroupedServicesForExpert, getUnmatchedServiceTokensForExpert } from '../../../lib/marketingTaxonomy';
 
 const displayFont = Playfair_Display({
   subsets: ['latin'],
@@ -420,10 +421,8 @@ function ProviderPageContent({ provider: p }: { provider: Provider }) {
     ...(p.industries || []).map((value) => ({ group: 'Industry', value: formatToken(value) })),
     ...(p.specialties || []).map((value) => ({ group: 'Specialty', value: formatToken(value) })),
   ].slice(0, 4);
-  const heroServices = p.services.slice(0, 3);
-  const heroServicesOverflow = Math.max(0, p.services.length - heroServices.length);
-  const secondaryServiceText = p.services.slice(3, 7).map((service) => formatToken(service)).join(', ');
-  const primaryServiceText = heroServices.map((service) => formatToken(service)).join(', ');
+  const groupedServices = getGroupedServicesForExpert(p.services);
+  const unmatchedServices = getUnmatchedServiceTokensForExpert(p.services);
   const fitSummaryText = fitChips.map((chip) => chip.value).join(', ');
   const linkItems = [
     p.websiteUrl ? { href: p.websiteUrl, label: 'Website', kind: 'website' as const } : null,
@@ -671,15 +670,35 @@ function ProviderPageContent({ provider: p }: { provider: Provider }) {
                       ) : null}
                     </div>
 
-                    {heroServices.length ? (
+                    {groupedServices.length || unmatchedServices.length ? (
                       <div className={`rounded-[1.35rem] ${pageSurfaceMuted} ${pageBorder} border px-4 py-4 shadow-sm`}>
-                        <div className="text-[11px] font-medium uppercase tracking-[0.22em] text-slate-500">Core services</div>
-                        <p className="mt-2 text-base font-semibold text-slate-900 md:text-lg">{primaryServiceText}</p>
-                        {secondaryServiceText ? (
-                          <p className="mt-2 text-sm leading-6 text-slate-500">{secondaryServiceText}</p>
-                        ) : heroServicesOverflow > 0 ? (
-                          <p className="mt-2 text-sm leading-6 text-slate-500">+{heroServicesOverflow} more service{heroServicesOverflow === 1 ? '' : 's'}</p>
-                        ) : null}
+                        <div className="text-[11px] font-medium uppercase tracking-[0.22em] text-slate-500">Services this expert can help with</div>
+                        <div className="mt-4 grid gap-4 md:grid-cols-2">
+                          {groupedServices.map((subject) => (
+                            <div key={subject.id} className="rounded-[1.1rem] border border-slate-200/80 bg-white/82 px-4 py-3 shadow-sm">
+                              <div className="text-sm font-semibold text-slate-900">{subject.label}</div>
+                              <div className="mt-3 flex flex-wrap gap-2">
+                                {subject.subcategories.map((subcategory) => (
+                                  <span key={subcategory.id} className="ml-pill rounded-xl px-3 py-1 text-xs">
+                                    {subcategory.label}
+                                  </span>
+                                ))}
+                              </div>
+                            </div>
+                          ))}
+                          {unmatchedServices.length ? (
+                            <div className="rounded-[1.1rem] border border-dashed border-slate-200/80 bg-white/60 px-4 py-3 shadow-sm">
+                              <div className="text-sm font-semibold text-slate-900">Other services</div>
+                              <div className="mt-3 flex flex-wrap gap-2">
+                                {unmatchedServices.map((service) => (
+                                  <span key={service} className="ml-pill rounded-xl px-3 py-1 text-xs">
+                                    {formatToken(service)}
+                                  </span>
+                                ))}
+                              </div>
+                            </div>
+                          ) : null}
+                        </div>
                         {fitSummaryText ? (
                           <div className="mt-3 border-t border-slate-200/80 pt-3">
                             <div className="text-[11px] font-medium uppercase tracking-[0.18em] text-slate-500">Best for</div>
