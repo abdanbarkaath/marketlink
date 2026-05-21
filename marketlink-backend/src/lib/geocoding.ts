@@ -105,9 +105,24 @@ function dedupeSuggestions(type: AutocompleteType, suggestions: LocationAutocomp
   return output;
 }
 
-function isAllowedAddressSuggestion(resultType: string | null) {
+function isAllowedAddressSuggestion(suggestion: LocationAutocompleteSuggestion) {
+  const { resultType, city, stateCode, zip } = suggestion;
   const normalized = String(resultType || '').trim().toLowerCase();
-  return normalized !== 'city' && normalized !== 'state' && normalized !== 'postcode' && normalized !== 'country' && normalized !== 'county';
+  if (!city || !stateCode || !zip) {
+    return false;
+  }
+
+  return (
+    normalized !== 'city' &&
+    normalized !== 'state' &&
+    normalized !== 'postcode' &&
+    normalized !== 'country' &&
+    normalized !== 'county' &&
+    normalized !== 'suburb' &&
+    normalized !== 'district' &&
+    normalized !== 'neighbourhood' &&
+    normalized !== 'neighborhood'
+  );
 }
 
 async function geocodeSearchText(text: string): Promise<GeocodeResult> {
@@ -281,7 +296,7 @@ export async function autocompleteLocation(text: string, type: AutocompleteType)
         } satisfies LocationAutocompleteSuggestion;
       })
       .filter((item): item is LocationAutocompleteSuggestion => Boolean(item?.label))
-      .filter((item) => (type === 'address' ? isAllowedAddressSuggestion(item.resultType) : true));
+      .filter((item) => (type === 'address' ? isAllowedAddressSuggestion(item) : true));
 
     return { ok: true, suggestions: dedupeSuggestions(type, suggestions) };
   } catch {
