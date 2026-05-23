@@ -4,6 +4,63 @@ import { prisma } from '../lib/prisma';
 import { createSessionForUser, setSessionCookie, getUserFromRequest, deleteCurrentSession } from '../lib/session';
 
 const authRoutes: FastifyPluginAsync = async (fastify) => {
+  fastify.post('/auth/signup', async (req, reply) => {
+    const { name, email, password } = (req.body || {}) as { name?: string; email?: string; password?: string };
+
+    const cleanName = String(name || '').trim();
+    const cleanEmail = String(email || '')
+      .trim()
+      .toLowerCase();
+    const cleanPassword = String(password || '');
+
+    if (!cleanName || !cleanEmail || !cleanPassword) {
+      return reply.code(400).send({ ok: false, message: 'Name, email, and password are required.' });
+    }
+
+    if (cleanPassword.length < 8) {
+      return reply.code(400).send({ ok: false, message: 'Password must be at least 8 characters.' });
+    }
+
+    const existingUser = await prisma.user.findUnique({
+      where: { email: cleanEmail },
+      select: { id: true },
+    });
+
+    if (existingUser) {
+      return reply.code(409).send({ ok: false, message: 'An account with that email already exists.' });
+    }
+
+    const passwordHash = await bcrypt.hash(cleanPassword, 10);
+    const user = await prisma.user.create({
+      data: {
+        email: cleanEmail,
+        role: 'customer',
+        passwordHash,
+        mustChangePassword: false,
+        customerProfile: {
+          create: {
+            name: cleanName,
+          },
+        },
+      },
+      select: {
+        id: true,
+        email: true,
+        role: true,
+        mustChangePassword: true,
+      },
+    });
+
+    const { sessionToken, expiresAt } = await createSessionForUser(user.id);
+    setSessionCookie(reply, sessionToken);
+
+    return reply.code(201).send({
+      ok: true,
+      user,
+      expiresAt,
+    });
+  });
+
   /**
    * POST /auth/login
    * Body: { email, password }

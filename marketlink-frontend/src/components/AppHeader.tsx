@@ -7,7 +7,7 @@ import LogoutButton from '@/components/LogoutButton';
 
 const API_BASE = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:4000';
 
-type Role = 'provider' | 'admin' | '' | null | string;
+type Role = 'provider' | 'customer' | 'admin' | '' | null | string;
 type NavItem = {
   href: string;
   label: string;
@@ -15,11 +15,13 @@ type NavItem = {
 };
 
 function canAccessDashboard(role: Role) {
-  return role === 'provider' || role === 'admin';
+  return role === 'provider' || role === 'customer' || role === 'admin';
 }
 
 function getDashboardHref(role: Role) {
-  return role === 'admin' ? '/dashboard/admin' : '/dashboard';
+  if (role === 'admin') return '/dashboard/admin';
+  if (role === 'customer') return '/dashboard/customer';
+  return '/dashboard';
 }
 
 export default function AppHeader() {

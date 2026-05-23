@@ -57,3 +57,51 @@ test('GET /me/summary returns customer profile for customer users', async () => 
     await fastify.close();
   }
 });
+
+test('PUT /me/customer-profile upserts the customer profile for customer users', async () => {
+  const fastify = Fastify();
+  await fastify.register(cookie, { secret: 'test-secret' });
+  await fastify.register(accountRoutes);
+
+  const originalGetUserFromRequest = sessionModule.getUserFromRequest;
+  const originalCustomerProfile = prismaModule.prisma.customerProfile;
+
+  sessionModule.getUserFromRequest = async () => ({
+    id: 'user_customer_2',
+    email: 'customer@example.com',
+    role: 'customer',
+  });
+
+  prismaModule.prisma.customerProfile = {
+    upsert: async ({ create, update }) => ({
+      id: 'customer_profile_2',
+      name: update.name || create.name,
+      businessName: update.businessName || create.businessName,
+    }),
+  };
+
+  try {
+    const response = await fastify.inject({
+      method: 'PUT',
+      url: '/me/customer-profile',
+      payload: {
+        name: 'Jamie Rivera',
+        businessName: 'Westmont Dental',
+      },
+    });
+
+    assert.equal(response.statusCode, 200);
+
+    const body = response.json();
+    assert.equal(body.ok, true);
+    assert.deepEqual(body.customer, {
+      id: 'customer_profile_2',
+      name: 'Jamie Rivera',
+      businessName: 'Westmont Dental',
+    });
+  } finally {
+    sessionModule.getUserFromRequest = originalGetUserFromRequest;
+    prismaModule.prisma.customerProfile = originalCustomerProfile;
+    await fastify.close();
+  }
+});
