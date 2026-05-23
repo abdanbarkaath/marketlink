@@ -122,6 +122,13 @@ a {
     box-shadow: 0 34px 88px rgba(23, 26, 31, 0.13);
   }
 
+  .ml-card-hover.ml-dark-panel:hover,
+  .ml-card-hover.ml-dark-panel:active,
+  .ml-card-hover.ml-dark-panel:focus-visible {
+    background: linear-gradient(180deg, rgba(38, 58, 90, 1), rgba(20, 31, 53, 1)) !important;
+    box-shadow: 0 30px 82px rgba(23, 26, 31, 0.24);
+  }
+
   .ml-header {
     border-color: var(--ml-header-border);
     background: var(--ml-header-bg);
