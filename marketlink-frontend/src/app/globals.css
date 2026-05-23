@@ -251,8 +251,12 @@ a {
       background 180ms ease;
   }
 
-  .ml-input::placeholder {
-    color: rgba(var(--ml-muted), 0.72);
+  .ml-input::placeholder,
+  .ml-input::-webkit-input-placeholder {
+    color: rgba(var(--ml-muted), 0.12) !important;
+    font-style: normal;
+    letter-spacing: 0.01em;
+    opacity: 1;
   }
 
   .ml-input:focus {

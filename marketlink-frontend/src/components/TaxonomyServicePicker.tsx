@@ -254,7 +254,7 @@ export default function TaxonomyServicePicker({ services, onChange, required = f
             }}
             placeholder={canAddMoreSubjects ? 'Search areas like creator promotion, reels, or reviews' : 'Remove one area to add another'}
             disabled={!canAddMoreSubjects}
-            className="w-full rounded-2xl border border-slate-200/80 bg-white px-4 py-3 pr-10 text-sm text-slate-800 outline-none transition placeholder:text-slate-400 focus:border-slate-400 focus:bg-white focus:ring-2 focus:ring-slate-200/70 disabled:cursor-not-allowed disabled:bg-slate-50 disabled:text-slate-400"
+            className="w-full rounded-2xl border border-slate-200/80 bg-white px-4 py-3 pr-10 text-sm text-slate-800 outline-none transition placeholder:text-slate-400 placeholder:opacity-55 focus:border-slate-400 focus:bg-white focus:ring-2 focus:ring-slate-200/70 disabled:cursor-not-allowed disabled:bg-slate-50 disabled:text-slate-400"
             role="combobox"
             aria-autocomplete="list"
             aria-controls={areaListId}
@@ -336,7 +336,7 @@ export default function TaxonomyServicePicker({ services, onChange, required = f
                   : 'Remove one help type to add another'
             }
             disabled={!selectedSubjectIds.length || !canAddMoreHelp}
-            className="w-full rounded-2xl border border-slate-200/80 bg-white px-4 py-3 pr-10 text-sm text-slate-800 outline-none transition placeholder:text-slate-400 focus:border-slate-400 focus:bg-white focus:ring-2 focus:ring-slate-200/70 disabled:cursor-not-allowed disabled:bg-slate-50 disabled:text-slate-400"
+            className="w-full rounded-2xl border border-slate-200/80 bg-white px-4 py-3 pr-10 text-sm text-slate-800 outline-none transition placeholder:text-slate-400 placeholder:opacity-55 focus:border-slate-400 focus:bg-white focus:ring-2 focus:ring-slate-200/70 disabled:cursor-not-allowed disabled:bg-slate-50 disabled:text-slate-400"
             role="combobox"
             aria-autocomplete="list"
             aria-controls={helpListId}
