@@ -17,8 +17,19 @@ model User {
   mustChangePassword Boolean       @default(true)
   passwordHash       String?
   adminActions       AdminAction[]
+  customerProfile    CustomerProfile?
   experts            Expert[]
   sessions           Session[]
+}
+
+model CustomerProfile {
+  id           String   @id @default(cuid())
+  userId       String   @unique
+  name         String
+  businessName String?
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+  user         User     @relation(fields: [userId], references: [id], onDelete: Cascade)
 }
 
 model Expert {
@@ -123,6 +134,7 @@ model AdminAction {
 
 enum UserRole {
   provider
+  customer
   admin
 }
 
