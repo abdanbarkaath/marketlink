@@ -7,7 +7,7 @@ import { useMarketLinkTheme } from '../../components/ThemeToggle';
 
 const API_BASE = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:4000';
 
-type User = { id: string; email: string; role: 'provider' | 'admin' };
+type User = { id: string; email: string; role: 'provider' | 'customer' | 'admin' };
 
 type ExpertSummary = {
   id: string;
@@ -84,6 +84,11 @@ const [user, setUser] = useState<User | null>(null);
 
         if (data?.user?.role === 'admin') {
           router.replace('/dashboard/admin');
+          return;
+        }
+
+        if (data?.user?.role === 'customer') {
+          router.replace('/dashboard/customer');
           return;
         }
 

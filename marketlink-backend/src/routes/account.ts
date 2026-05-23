@@ -129,6 +129,44 @@ const accountRoutes: FastifyPluginAsync = async (fastify) => {
       provider: expert,
     };
   });
+
+  fastify.put('/me/customer-profile', async (req, reply) => {
+    const user = await getUserFromRequest(fastify, req);
+    if (!user) return reply.code(401).send({ error: 'Not authenticated' });
+    if (user.role !== 'customer') return reply.code(403).send({ error: 'Only customers can update customer profiles.' });
+
+    const { name, businessName } = (req.body || {}) as { name?: string; businessName?: string | null };
+
+    const cleanName = String(name || '').trim();
+    const cleanBusinessName = typeof businessName === 'string' ? businessName.trim() || null : null;
+
+    if (!cleanName) {
+      return reply.code(400).send({ error: 'Name is required.' });
+    }
+
+    const customer = await prisma.customerProfile.upsert({
+      where: { userId: user.id },
+      update: {
+        name: cleanName,
+        businessName: cleanBusinessName,
+      },
+      create: {
+        userId: user.id,
+        name: cleanName,
+        businessName: cleanBusinessName,
+      },
+      select: {
+        id: true,
+        name: true,
+        businessName: true,
+      },
+    });
+
+    return reply.send({
+      ok: true,
+      customer,
+    });
+  });
 };
 
 export default accountRoutes;
