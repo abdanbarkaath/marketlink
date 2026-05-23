@@ -15,6 +15,25 @@ const accountRoutes: FastifyPluginAsync = async (fastify) => {
     const user = await getUserFromRequest(fastify, req);
     if (!user) return reply.code(401).send({ error: 'Not authenticated' });
 
+    if (user.role === 'customer') {
+      const customer = await prisma.customerProfile.findUnique({
+        where: { userId: user.id },
+        select: {
+          id: true,
+          name: true,
+          businessName: true,
+        },
+      });
+
+      return {
+        ok: true,
+        user: { id: user.id, email: user.email, role: user.role },
+        customer,
+        expert: null,
+        provider: null,
+      };
+    }
+
     const expert = await prisma.expert.findFirst({
       where: { userId: user.id },
       select: {
@@ -105,6 +124,7 @@ const accountRoutes: FastifyPluginAsync = async (fastify) => {
     return {
       ok: true,
       user: { id: user.id, email: user.email, role: user.role },
+      customer: null,
       expert,
       provider: expert,
     };
