@@ -38,7 +38,7 @@ export default async function CustomerOnboardingPage() {
   }
 
   if ((data.customer?.name || '').trim()) {
-    redirect('/dashboard/customer/profile');
+    redirect('/dashboard/customer');
   }
 
   return (

@@ -1,14 +1,44 @@
+import Link from 'next/link';
 import { cookies } from 'next/headers';
 import { redirect } from 'next/navigation';
 
 const API_BASE = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:4000';
 
 type SummaryResponse = {
-  user?: { role?: 'provider' | 'customer' | 'admin' };
-  customer?: { name?: string | null } | null;
+  user?: { email?: string; role?: 'provider' | 'customer' | 'admin' };
+  customer?: { name?: string | null; businessName?: string | null } | null;
 };
 
-export default async function CustomerDashboardGatePage() {
+function DashboardRailCard({
+  eyebrow,
+  title,
+  body,
+}: Readonly<{ eyebrow: string; title: string; body: string }>) {
+  return (
+    <div className="ml-surface-muted rounded-2xl p-4">
+      <div className="text-[11px] font-semibold uppercase tracking-[0.22em] text-slate-400">{eyebrow}</div>
+      <div className="mt-2 text-sm font-semibold text-slate-900">{title}</div>
+      <p className="mt-1 text-sm leading-6 text-slate-600">{body}</p>
+    </div>
+  );
+}
+
+function FutureStateCard({
+  title,
+  body,
+}: Readonly<{ title: string; body: string }>) {
+  return (
+    <div className="ml-card rounded-[24px] p-5 shadow-[0_18px_44px_rgba(23,26,31,0.05)]">
+      <span className="ml-pill inline-flex rounded-xl px-3 py-1 text-[11px] font-medium uppercase tracking-[0.16em] text-slate-500">
+        Reserved
+      </span>
+      <h2 className="mt-4 text-xl font-semibold tracking-tight text-slate-950">{title}</h2>
+      <p className="mt-2 text-sm leading-6 text-slate-600">{body}</p>
+    </div>
+  );
+}
+
+export default async function CustomerDashboardPage() {
   const cookieStore = await cookies();
   const sessionCookie = cookieStore.get('session');
   const cookieHeader = sessionCookie ? `${sessionCookie.name}=${sessionCookie.value}` : '';
@@ -36,9 +66,96 @@ export default async function CustomerDashboardGatePage() {
     redirect('/dashboard');
   }
 
-  if ((data.customer?.name || '').trim()) {
-    redirect('/dashboard/customer/profile');
+  const name = (data.customer?.name || '').trim();
+  const businessName = (data.customer?.businessName || '').trim();
+  const email = (data.user?.email || '').trim();
+
+  if (!name) {
+    redirect('/dashboard/customer/onboarding');
   }
 
-  redirect('/dashboard/customer/onboarding');
+  return (
+    <main className="ml-page-bg min-h-[calc(100vh-72px)]">
+      <div className="mx-auto max-w-6xl px-4 py-6 sm:px-6 sm:py-8">
+        <div className="grid gap-5 lg:grid-cols-[minmax(0,1.08fr)_320px]">
+          <section className="ml-card overflow-hidden rounded-[28px] p-5 shadow-[0_18px_50px_rgba(23,26,31,0.06)] sm:p-6">
+            <div className="h-1.5 bg-[linear-gradient(90deg,#0f172a,#25324a,#b6bdc8)] -mx-5 -mt-5 mb-5 sm:-mx-6 sm:-mt-6 sm:mb-6" />
+            <div className="flex flex-col gap-4">
+              <div>
+                <p className="text-xs font-semibold uppercase tracking-[0.32em] text-slate-500">Customer dashboard</p>
+                <h1 className="mt-2 text-3xl font-semibold tracking-tight text-slate-950 sm:text-4xl">Good to see you, {name}.</h1>
+                <p className="mt-3 max-w-2xl text-sm leading-6 text-slate-600">
+                  This is your lightweight home base. Keep the basics current, browse experts, and use this space later to track requests, replies, and your shortlist as those tools come online.
+                </p>
+              </div>
+
+              <div className="flex flex-wrap gap-2">
+                <span className="ml-pill inline-flex rounded-xl px-4 py-2 text-sm font-medium normal-case tracking-normal text-slate-700">{email}</span>
+                <span className="ml-pill inline-flex rounded-xl px-4 py-2 text-sm font-medium normal-case tracking-normal text-slate-700">
+                  {businessName || 'No business name added yet'}
+                </span>
+              </div>
+
+              <div className="flex flex-col gap-3 border-t border-slate-200/80 pt-4 sm:flex-row sm:flex-wrap">
+                <Link
+                  href="/dashboard/customer/profile"
+                  className="ml-btn-primary inline-flex min-h-11 items-center justify-center rounded-xl px-6 text-sm font-semibold text-white"
+                >
+                  Edit profile
+                </Link>
+                <Link
+                  href="/experts"
+                  className="ml-btn-secondary inline-flex min-h-11 items-center justify-center rounded-xl px-5 text-sm font-semibold text-slate-900"
+                >
+                  Browse experts
+                </Link>
+              </div>
+            </div>
+          </section>
+
+          <aside className="ml-card rounded-[28px] p-5 shadow-[0_18px_50px_rgba(23,26,31,0.06)] sm:p-6 lg:sticky lg:top-6 lg:self-start">
+            <div className="text-xs font-semibold uppercase tracking-[0.26em] text-slate-400">Account snapshot</div>
+            <div className="mt-4 space-y-4">
+              <div>
+                <div className="text-[11px] font-semibold uppercase tracking-[0.2em] text-slate-400">Name</div>
+                <div className="mt-1 text-sm font-medium text-slate-900">{name}</div>
+              </div>
+              <div>
+                <div className="text-[11px] font-semibold uppercase tracking-[0.2em] text-slate-400">Business</div>
+                <div className="mt-1 text-sm font-medium text-slate-900">{businessName || 'Optional for now'}</div>
+              </div>
+            </div>
+
+            <div className="mt-5 grid gap-3">
+              <DashboardRailCard
+                eyebrow="Right now"
+                title="Keep it simple"
+                body="The customer side stays intentionally light until you actually need to request help or start a conversation."
+              />
+              <DashboardRailCard
+                eyebrow="Next"
+                title="Use this as your base"
+                body="Later request, proposal, and messaging flows will plug into this dashboard instead of sending you through scattered screens."
+              />
+            </div>
+          </aside>
+        </div>
+
+        <section className="mt-5 grid gap-4 md:grid-cols-3">
+          <FutureStateCard
+            title="Requests"
+            body="This space is reserved for the requests you send out once the customer request flow is added."
+          />
+          <FutureStateCard
+            title="Messages"
+            body="When expert conversations go live, your replies and updates will show here in one place."
+          />
+          <FutureStateCard
+            title="Shortlist"
+            body="As we add a saved-experts flow, this card will become the easiest place to revisit the providers you liked."
+          />
+        </section>
+      </div>
+    </main>
+  );
 }

@@ -27,6 +27,7 @@ export default function CustomerProfileForm({ email, initialName = '', initialBu
   const fieldClass = 'ml-input w-full rounded-2xl px-4 py-3 text-sm text-slate-900';
   const primaryButtonClass = 'ml-btn-primary inline-flex min-h-11 items-center justify-center rounded-xl px-6 text-sm font-semibold text-white disabled:opacity-60';
   const secondaryLinkClass = 'ml-btn-secondary inline-flex min-h-11 items-center justify-center rounded-xl px-5 text-sm font-semibold text-slate-900';
+  const nextPath = mode === 'onboarding' ? '/dashboard/customer' : '/dashboard/customer/profile';
 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
@@ -57,7 +58,7 @@ export default function CustomerProfileForm({ email, initialName = '', initialBu
         throw new Error(body.error || `Failed (${res.status})`);
       }
 
-      router.replace('/dashboard/customer/profile');
+      router.replace(nextPath);
       router.refresh();
     } catch (err: unknown) {
       setError(err instanceof Error ? err.message : 'Something went wrong.');
@@ -145,7 +146,12 @@ export default function CustomerProfileForm({ email, initialName = '', initialBu
               </div>
             </div>
 
-            <div className="mt-5">
+            <div className="mt-5 flex flex-col gap-3">
+              {mode === 'profile' ? (
+                <Link href="/dashboard/customer" className={secondaryLinkClass}>
+                  Back to dashboard
+                </Link>
+              ) : null}
               <Link href="/experts" className={secondaryLinkClass}>
                 Browse experts
               </Link>
