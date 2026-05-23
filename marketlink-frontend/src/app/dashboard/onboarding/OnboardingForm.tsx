@@ -94,7 +94,7 @@ export default function OnboardingForm() {
   const sectionClass =
     'rounded-[28px] border border-slate-200/80 bg-[linear-gradient(180deg,rgba(255,255,255,0.94),rgba(236,242,248,0.96))] p-5 shadow-[0_18px_50px_rgba(15,23,42,0.06)] sm:p-6';
   const fieldClass =
-    'w-full rounded-2xl border border-slate-200/80 bg-white px-4 py-3 text-sm text-slate-800 outline-none transition placeholder:text-slate-400 focus:border-slate-400 focus:bg-white focus:ring-2 focus:ring-slate-200/70';
+    'w-full rounded-2xl border border-slate-200/80 bg-white px-4 py-3 text-sm text-slate-800 outline-none transition placeholder:text-slate-400 placeholder:opacity-55 focus:border-slate-400 focus:bg-white focus:ring-2 focus:ring-slate-200/70';
   return (
     <main className="mx-auto max-w-5xl px-4 py-6 sm:px-6 sm:py-8">
       <div className="grid gap-5 lg:grid-cols-[minmax(0,1.05fr)_320px] lg:items-start">
