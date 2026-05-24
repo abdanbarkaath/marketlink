@@ -8,7 +8,7 @@ import { getStateDisplayName, normalizeStateCode } from '@/lib/usStates';
 
 const API_BASE = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:4000';
 
-type Role = 'provider' | 'admin';
+type Role = 'provider' | 'customer' | 'admin';
 
 type ProviderStatus = 'active' | 'pending' | 'disabled';
 
@@ -166,6 +166,9 @@ export default function ProfileEditorPage() {
         const me = (await meRes.json()) as MeSummaryResponse;
         const meRole = (me?.user?.role || 'provider') as Role;
         setRole(meRole);
+
+        if (meRole === 'customer') return router.replace('/dashboard/customer');
+        if (meRole === 'admin') return router.replace('/dashboard/admin');
 
         const p = me.expert ?? me.provider;
         if (!p) return router.replace('/dashboard/onboarding');
