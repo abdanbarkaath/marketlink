@@ -1,9 +1,18 @@
 import type { FastifyPluginAsync } from 'fastify';
-import { CustomerRequestStatus } from '@prisma/client';
+import { CustomerRequestStatus, ExpertStatus } from '@prisma/client';
 import { prisma } from '../lib/prisma';
 import { getUserFromRequest } from '../lib/session';
+import { lookupZipLocation } from '../lib/geocoding';
 
 const ZIP_RE = /^\d{5}$/;
+
+type RequestMatchReason = 'same_zip' | 'same_city' | 'serves_nationwide' | 'remote_friendly';
+
+type DeliveryPreviewInput = {
+  id: string;
+  serviceTokens: string[];
+  zip: string;
+};
 
 function asCleanString(input: unknown) {
   return String(input || '').trim();
@@ -19,6 +28,106 @@ function asServiceTokens(input: unknown) {
         .filter(Boolean),
     ),
   );
+}
+
+function normalizeCity(value: string | null | undefined) {
+  return String(value || '').trim().toLowerCase();
+}
+
+function normalizeState(value: string | null | undefined) {
+  return String(value || '').trim().toUpperCase();
+}
+
+function getReasonWeight(reason: RequestMatchReason) {
+  if (reason === 'same_zip') return 400;
+  if (reason === 'same_city') return 300;
+  if (reason === 'serves_nationwide') return 200;
+  return 100;
+}
+
+async function buildDeliveryPreview(input: DeliveryPreviewInput) {
+  const locationLookup = await lookupZipLocation({ zip: input.zip });
+  const requestCity = locationLookup.ok ? locationLookup.city : null;
+  const requestState = locationLookup.ok ? locationLookup.state : null;
+  const requestZip = locationLookup.ok ? locationLookup.zip : input.zip;
+
+  const experts = await prisma.expert.findMany({
+    where: {
+      status: ExpertStatus.active,
+      services: { hasSome: input.serviceTokens },
+    },
+    select: {
+      id: true,
+      slug: true,
+      businessName: true,
+      city: true,
+      state: true,
+      zip: true,
+      remoteFriendly: true,
+      servesNationwide: true,
+      services: true,
+      verified: true,
+      rating: true,
+    },
+    take: 200,
+  });
+
+  const matches = experts
+    .map((expert) => {
+      const matchedServiceTokens = expert.services.filter((token) => input.serviceTokens.includes(token));
+      if (!matchedServiceTokens.length) return null;
+
+      const sameZip = Boolean(expert.zip && expert.zip.trim() === requestZip);
+      const sameCity =
+        Boolean(requestCity && requestState) &&
+        normalizeCity(expert.city) === normalizeCity(requestCity) &&
+        normalizeState(expert.state) === normalizeState(requestState);
+
+      const reasons: RequestMatchReason[] = [];
+      if (sameZip) reasons.push('same_zip');
+      else if (sameCity) reasons.push('same_city');
+      else if (expert.servesNationwide) reasons.push('serves_nationwide');
+      else if (expert.remoteFriendly) reasons.push('remote_friendly');
+
+      if (!reasons.length) return null;
+
+      const primaryReason = reasons[0];
+      return {
+        id: expert.id,
+        slug: expert.slug,
+        businessName: expert.businessName,
+        city: expert.city,
+        state: expert.state,
+        zip: expert.zip,
+        verified: expert.verified,
+        rating: expert.rating,
+        remoteFriendly: expert.remoteFriendly,
+        servesNationwide: expert.servesNationwide,
+        matchedServiceTokens,
+        primaryReason,
+        reasons,
+        score: getReasonWeight(primaryReason) + matchedServiceTokens.length,
+      };
+    })
+    .filter((match): match is NonNullable<typeof match> => Boolean(match))
+    .sort((a, b) => b.score - a.score || b.rating - a.rating || a.businessName.localeCompare(b.businessName));
+
+  return {
+    requestId: input.id,
+    matchingModel: 'city-zip-service-v1',
+    requestLocation: {
+      zip: requestZip,
+      city: requestCity,
+      state: requestState,
+      source: locationLookup.ok ? 'zip_lookup' : 'zip_only',
+    },
+    notes: [
+      'MVP matching uses service tags plus same ZIP, same city, nationwide coverage, or remote-friendly service area.',
+      ...(locationLookup.ok ? [] : ['ZIP lookup was unavailable, so locality matching fell back to ZIP-only checks.']),
+    ],
+    totalMatches: matches.length,
+    matchedExperts: matches.map(({ score, ...match }) => match),
+  };
 }
 
 const requestsRoutes: FastifyPluginAsync = async (fastify) => {
@@ -107,7 +216,13 @@ const requestsRoutes: FastifyPluginAsync = async (fastify) => {
     });
 
     req.log.info({ requestId: created.id, customerUserId: user.id }, 'customer-request.created');
-    return reply.code(201).send({ ok: true, request: created });
+    const deliveryPreview = await buildDeliveryPreview({
+      id: created.id,
+      serviceTokens: created.serviceTokens,
+      zip: created.zip,
+    });
+
+    return reply.code(201).send({ ok: true, request: created, deliveryPreview });
   });
 
   fastify.get('/requests', async (req, reply) => {
@@ -166,7 +281,13 @@ const requestsRoutes: FastifyPluginAsync = async (fastify) => {
 
     if (!request) return reply.code(404).send({ ok: false, error: 'Request not found' });
 
-    return reply.send({ ok: true, request });
+    const deliveryPreview = await buildDeliveryPreview({
+      id: request.id,
+      serviceTokens: request.serviceTokens,
+      zip: request.zip,
+    });
+
+    return reply.send({ ok: true, request, deliveryPreview });
   });
 };
 
