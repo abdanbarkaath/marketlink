@@ -85,7 +85,7 @@ const requestsRoutes: FastifyPluginAsync = async (fastify) => {
         zip,
         budgetLabel,
         timelineLabel,
-        status: CustomerRequestStatus.OPEN,
+        status: CustomerRequestStatus.ACTIVE,
       },
       select: {
         id: true,

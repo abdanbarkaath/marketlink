@@ -149,7 +149,7 @@ test('POST /requests creates a customer request for the signed-in customer', asy
     assert.equal(body.request.id, 'request_1');
     assert.equal(body.request.requesterName, 'Jamie Rivera');
     assert.equal(body.request.requesterBusinessName, 'Westmont Dental');
-    assert.equal(body.request.status, 'OPEN');
+    assert.equal(body.request.status, 'ACTIVE');
   } finally {
     sessionModule.getUserFromRequest = originalGetUserFromRequest;
     prismaModule.prisma.customerProfile = originalCustomerProfile;
@@ -180,7 +180,7 @@ test('GET /requests lists only the signed-in customer requests', async () => {
           marketingSubjectId: 'local-search-seo',
           serviceTokens: ['seo', 'local-seo'],
           zip: '60601',
-          status: 'OPEN',
+          status: 'ACTIVE',
           createdAt: new Date('2026-05-24T15:00:00.000Z'),
           updatedAt: new Date('2026-05-24T15:00:00.000Z'),
         },
@@ -231,7 +231,7 @@ test('GET /requests/:id only returns a request owned by the signed-in customer',
         zip: '60614',
         budgetLabel: '$1k-$2k',
         timelineLabel: 'Next 30 days',
-        status: 'OPEN',
+        status: 'ACTIVE',
         requesterName: 'Jamie Rivera',
         requesterBusinessName: 'Westmont Dental',
         createdAt: new Date('2026-05-23T15:00:00.000Z'),
