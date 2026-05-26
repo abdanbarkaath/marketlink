@@ -9,6 +9,7 @@ import authRoutes from './routes/auth';
 import accountRoutes from './routes/account';
 import expertsRoutes from './routes/providers';
 import inquiriesRoutes from './routes/inquiries';
+import requestsRoutes from './routes/requests';
 
 function normalizeOrigin(raw: string) {
   return raw.trim().replace(/\/$/, '');
@@ -59,6 +60,7 @@ async function start() {
   await fastify.register(accountRoutes);
   await fastify.register(expertsRoutes);
   await fastify.register(inquiriesRoutes);
+  await fastify.register(requestsRoutes);
   await fastify.register(adminRoutes);
 
   const port = Number(process.env.PORT || 4000);
