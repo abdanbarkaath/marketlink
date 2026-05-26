@@ -7,6 +7,7 @@ const cookie = require('@fastify/cookie');
 
 const sessionModule = require('../src/lib/session');
 const prismaModule = require('../src/lib/prisma');
+const geocodingModule = require('../src/lib/geocoding');
 const requestsRoutes = require('../src/routes/requests').default;
 
 function buildFastify() {
@@ -93,6 +94,8 @@ test('POST /requests creates a customer request for the signed-in customer', asy
   const originalGetUserFromRequest = sessionModule.getUserFromRequest;
   const originalCustomerProfile = prismaModule.prisma.customerProfile;
   const originalCustomerRequest = prismaModule.prisma.customerRequest;
+  const originalExpert = prismaModule.prisma.expert;
+  const originalLookupZipLocation = geocodingModule.lookupZipLocation;
 
   sessionModule.getUserFromRequest = async () => ({
     id: 'customer_user_2',
@@ -127,6 +130,59 @@ test('POST /requests creates a customer request for the signed-in customer', asy
       updatedAt: new Date('2026-05-25T15:00:00.000Z'),
     }),
   };
+  prismaModule.prisma.expert = {
+    findMany: async () => [
+      {
+        id: 'expert_same_zip',
+        slug: 'westmont-growth',
+        businessName: 'Westmont Growth',
+        city: 'Westmont',
+        state: 'IL',
+        zip: '60559',
+        remoteFriendly: false,
+        servesNationwide: false,
+        services: ['paid-ads', 'google-ads'],
+        verified: true,
+        rating: 4.9,
+      },
+      {
+        id: 'expert_remote',
+        slug: 'remote-ppc-team',
+        businessName: 'Remote PPC Team',
+        city: 'Austin',
+        state: 'TX',
+        zip: '73301',
+        remoteFriendly: true,
+        servesNationwide: false,
+        services: ['google-ads'],
+        verified: false,
+        rating: 4.4,
+      },
+      {
+        id: 'expert_wrong_area',
+        slug: 'miami-social-house',
+        businessName: 'Miami Social House',
+        city: 'Miami',
+        state: 'FL',
+        zip: '33101',
+        remoteFriendly: false,
+        servesNationwide: false,
+        services: ['google-ads'],
+        verified: true,
+        rating: 4.7,
+      },
+    ],
+  };
+  geocodingModule.lookupZipLocation = async () => ({
+    ok: true,
+    city: 'Westmont',
+    state: 'IL',
+    zip: '60559',
+    latitude: 41.79,
+    longitude: -87.98,
+    geocodedAt: new Date('2026-05-25T15:00:00.000Z'),
+    geocodeProvider: 'geoapify',
+  });
 
   try {
     const response = await fastify.inject({
@@ -150,10 +206,19 @@ test('POST /requests creates a customer request for the signed-in customer', asy
     assert.equal(body.request.requesterName, 'Jamie Rivera');
     assert.equal(body.request.requesterBusinessName, 'Westmont Dental');
     assert.equal(body.request.status, 'ACTIVE');
+    assert.equal(body.deliveryPreview.matchingModel, 'city-zip-service-v1');
+    assert.equal(body.deliveryPreview.totalMatches, 2);
+    assert.deepEqual(
+      body.deliveryPreview.matchedExperts.map((expert) => expert.id),
+      ['expert_same_zip', 'expert_remote'],
+    );
+    assert.equal(body.deliveryPreview.matchedExperts[0].primaryReason, 'same_zip');
   } finally {
     sessionModule.getUserFromRequest = originalGetUserFromRequest;
     prismaModule.prisma.customerProfile = originalCustomerProfile;
     prismaModule.prisma.customerRequest = originalCustomerRequest;
+    prismaModule.prisma.expert = originalExpert;
+    geocodingModule.lookupZipLocation = originalLookupZipLocation;
     await fastify.close();
   }
 });
@@ -163,6 +228,8 @@ test('GET /requests lists only the signed-in customer requests', async () => {
 
   const originalGetUserFromRequest = sessionModule.getUserFromRequest;
   const originalCustomerRequest = prismaModule.prisma.customerRequest;
+  const originalExpert = prismaModule.prisma.expert;
+  const originalLookupZipLocation = geocodingModule.lookupZipLocation;
 
   sessionModule.getUserFromRequest = async () => ({
     id: 'customer_user_3',
@@ -211,6 +278,8 @@ test('GET /requests/:id only returns a request owned by the signed-in customer',
 
   const originalGetUserFromRequest = sessionModule.getUserFromRequest;
   const originalCustomerRequest = prismaModule.prisma.customerRequest;
+  const originalExpert = prismaModule.prisma.expert;
+  const originalLookupZipLocation = geocodingModule.lookupZipLocation;
 
   sessionModule.getUserFromRequest = async () => ({
     id: 'customer_user_4',
@@ -239,6 +308,46 @@ test('GET /requests/:id only returns a request owned by the signed-in customer',
       };
     },
   };
+  prismaModule.prisma.expert = {
+    findMany: async () => [
+      {
+        id: 'expert_same_city',
+        slug: 'lincoln-park-creators',
+        businessName: 'Lincoln Park Creators',
+        city: 'Chicago',
+        state: 'IL',
+        zip: '60639',
+        remoteFriendly: false,
+        servesNationwide: false,
+        services: ['creator-marketing', 'local-influencer'],
+        verified: true,
+        rating: 4.8,
+      },
+      {
+        id: 'expert_nationwide',
+        slug: 'nationwide-creator-team',
+        businessName: 'Nationwide Creator Team',
+        city: 'Los Angeles',
+        state: 'CA',
+        zip: '90001',
+        remoteFriendly: false,
+        servesNationwide: true,
+        services: ['creator-marketing'],
+        verified: false,
+        rating: 4.5,
+      },
+    ],
+  };
+  geocodingModule.lookupZipLocation = async () => ({
+    ok: true,
+    city: 'Chicago',
+    state: 'IL',
+    zip: '60614',
+    latitude: 41.92,
+    longitude: -87.65,
+    geocodedAt: new Date('2026-05-25T15:00:00.000Z'),
+    geocodeProvider: 'geoapify',
+  });
 
   try {
     const response = await fastify.inject({
@@ -251,9 +360,14 @@ test('GET /requests/:id only returns a request owned by the signed-in customer',
     assert.equal(body.ok, true);
     assert.equal(body.request.id, 'request_3');
     assert.equal(body.request.marketingSubjectId, 'creator-influencer-marketing');
+    assert.equal(body.deliveryPreview.totalMatches, 2);
+    assert.equal(body.deliveryPreview.matchedExperts[0].primaryReason, 'same_city');
+    assert.equal(body.deliveryPreview.matchedExperts[1].primaryReason, 'serves_nationwide');
   } finally {
     sessionModule.getUserFromRequest = originalGetUserFromRequest;
     prismaModule.prisma.customerRequest = originalCustomerRequest;
+    prismaModule.prisma.expert = originalExpert;
+    geocodingModule.lookupZipLocation = originalLookupZipLocation;
     await fastify.close();
   }
 });
