@@ -1,0 +1,3 @@
+ALTER TYPE "CustomerRequestStatus" RENAME VALUE 'OPEN' TO 'ACTIVE';
+
+ALTER TYPE "CustomerRequestStatus" ADD VALUE 'CANCELLED';
