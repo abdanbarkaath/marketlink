@@ -26,14 +26,31 @@ function DashboardRailCard({
 function FutureStateCard({
   title,
   body,
-}: Readonly<{ title: string; body: string }>) {
-  return (
-    <div className="ml-card rounded-[24px] p-5 shadow-[0_18px_44px_rgba(23,26,31,0.05)]">
+  href,
+  eyebrow = 'Reserved',
+}: Readonly<{ title: string; body: string; href?: string; eyebrow?: string }>) {
+  const content = (
+    <>
       <span className="ml-pill inline-flex rounded-xl px-3 py-1 text-[11px] font-medium uppercase tracking-[0.16em] text-slate-500">
-        Reserved
+        {eyebrow}
       </span>
       <h2 className="mt-4 text-xl font-semibold tracking-tight text-slate-950">{title}</h2>
       <p className="mt-2 text-sm leading-6 text-slate-600">{body}</p>
+      {href ? <span className="mt-4 inline-flex text-sm font-semibold text-slate-900">Open</span> : null}
+    </>
+  );
+
+  if (href) {
+    return (
+      <Link href={href} className="ml-card rounded-[24px] p-5 shadow-[0_18px_44px_rgba(23,26,31,0.05)] transition hover:-translate-y-0.5 hover:shadow-[0_22px_48px_rgba(23,26,31,0.08)]">
+        {content}
+      </Link>
+    );
+  }
+
+  return (
+    <div className="ml-card rounded-[24px] p-5 shadow-[0_18px_44px_rgba(23,26,31,0.05)]">
+      {content}
     </div>
   );
 }
@@ -104,6 +121,12 @@ export default async function CustomerDashboardPage() {
                   Edit profile
                 </Link>
                 <Link
+                  href="/dashboard/customer/requests/new"
+                  className="ml-btn-secondary inline-flex min-h-11 items-center justify-center rounded-xl px-5 text-sm font-semibold text-slate-900"
+                >
+                  Create request
+                </Link>
+                <Link
                   href="/experts"
                   className="ml-btn-secondary inline-flex min-h-11 items-center justify-center rounded-xl px-5 text-sm font-semibold text-slate-900"
                 >
@@ -144,7 +167,9 @@ export default async function CustomerDashboardPage() {
         <section className="mt-5 grid gap-4 md:grid-cols-3">
           <FutureStateCard
             title="Requests"
-            body="This space is reserved for the requests you send out once the customer request flow is added."
+            body="Create requests privately, revisit your history, and review the matching preview from one place."
+            href="/dashboard/customer/requests"
+            eyebrow="Live"
           />
           <FutureStateCard
             title="Messages"
