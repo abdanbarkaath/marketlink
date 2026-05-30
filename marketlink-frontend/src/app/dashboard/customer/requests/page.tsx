@@ -84,7 +84,7 @@ export default async function CustomerRequestsPage() {
             <p className="text-xs font-semibold uppercase tracking-[0.32em] text-slate-500">Customer requests</p>
             <h1 className="mt-2 text-3xl font-semibold tracking-tight text-slate-950 sm:text-4xl">Request history</h1>
             <p className="mt-3 max-w-2xl text-sm leading-6 text-slate-600">
-              Create requests privately, then revisit the matching preview and request details here.
+              Create requests privately, then revisit the matching preview and request details here. Active requests can keep matching, while closed and cancelled requests stay visible in your history.
             </p>
           </div>
 

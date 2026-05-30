@@ -2,6 +2,7 @@ import Link from 'next/link';
 import { cookies } from 'next/headers';
 import { redirect } from 'next/navigation';
 import { formatServiceTokenLabel, getMarketingSubjectById } from '@/lib/marketingTaxonomy';
+import RequestLifecycleActions from '../RequestLifecycleActions';
 
 const API_BASE = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:4000';
 
@@ -230,6 +231,8 @@ export default async function CustomerRequestDetailPage({
                 ))}
               </ul>
             ) : null}
+
+            <RequestLifecycleActions requestId={request.id} status={request.status} />
           </aside>
         </div>
 

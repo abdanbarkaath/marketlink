@@ -75,6 +75,13 @@ function getReasonWeight(reason: RequestMatchReason) {
   return 100;
 }
 
+function canTransitionRequestStatus(current: CustomerRequestStatus, next: CustomerRequestStatus) {
+  if (current === next) return true;
+  if (current === CustomerRequestStatus.ACTIVE && (next === CustomerRequestStatus.CLOSED || next === CustomerRequestStatus.CANCELLED)) return true;
+  if (current === CustomerRequestStatus.CLOSED && next === CustomerRequestStatus.ACTIVE) return true;
+  return false;
+}
+
 async function buildProviderMatchForRequest(expert: ProviderExpertForMatching, request: RequestForProviderMatching) {
   const matchedServiceTokens = expert.services.filter((token) => request.serviceTokens.includes(token));
   if (!matchedServiceTokens.length) return null;
@@ -354,6 +361,56 @@ const requestsRoutes: FastifyPluginAsync = async (fastify) => {
     });
 
     return reply.send({ ok: true, request, deliveryPreview });
+  });
+
+  fastify.patch('/requests/:id', async (req, reply) => {
+    const user = await getUserFromRequest(fastify, req);
+    if (!user) return reply.code(401).send({ error: 'Not authenticated' });
+    if (user.role !== 'customer') return reply.code(403).send({ error: 'Only customers can update requests.' });
+
+    const { id } = (req.params || {}) as { id?: string };
+    const body = (req.body || {}) as { status?: CustomerRequestStatus | string };
+    const nextStatus = String(body.status || '')
+      .trim()
+      .toUpperCase() as CustomerRequestStatus;
+
+    if (!id) return reply.code(400).send({ ok: false, error: 'Missing request id' });
+    if (!Object.values(CustomerRequestStatus).includes(nextStatus)) {
+      return reply.code(400).send({ ok: false, error: 'status must be ACTIVE, CLOSED, or CANCELLED' });
+    }
+
+    const existing = await prisma.customerRequest.findFirst({
+      where: {
+        id,
+        customerUserId: user.id,
+      },
+      select: {
+        id: true,
+        status: true,
+      },
+    });
+
+    if (!existing) return reply.code(404).send({ ok: false, error: 'Request not found' });
+
+    if (!canTransitionRequestStatus(existing.status, nextStatus)) {
+      return reply.code(409).send({
+        ok: false,
+        error: `This request cannot move from ${existing.status} to ${nextStatus}.`,
+      });
+    }
+
+    const updated = await prisma.customerRequest.update({
+      where: { id },
+      data: { status: nextStatus },
+      select: {
+        id: true,
+        status: true,
+        updatedAt: true,
+      },
+    });
+
+    req.log.info({ requestId: updated.id, status: updated.status, customerUserId: user.id }, 'customer-request.updated');
+    return reply.send({ ok: true, request: updated });
   });
 
   fastify.get('/provider/requests', async (req, reply) => {
