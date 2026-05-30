@@ -14,6 +14,36 @@ type DeliveryPreviewInput = {
   zip: string;
 };
 
+type ProviderExpertForMatching = {
+  id: string;
+  slug: string;
+  businessName: string;
+  city: string;
+  state: string;
+  zip: string | null;
+  remoteFriendly: boolean;
+  servesNationwide: boolean;
+  services: string[];
+  verified: boolean;
+  rating: number;
+};
+
+type RequestForProviderMatching = {
+  id: string;
+  title: string;
+  description: string;
+  marketingSubjectId: string;
+  serviceTokens: string[];
+  zip: string;
+  budgetLabel: string | null;
+  timelineLabel: string | null;
+  status: CustomerRequestStatus;
+  requesterName: string;
+  requesterBusinessName: string | null;
+  createdAt: Date;
+  updatedAt: Date;
+};
+
 function asCleanString(input: unknown) {
   return String(input || '').trim();
 }
@@ -43,6 +73,42 @@ function getReasonWeight(reason: RequestMatchReason) {
   if (reason === 'same_city') return 300;
   if (reason === 'serves_nationwide') return 200;
   return 100;
+}
+
+async function buildProviderMatchForRequest(expert: ProviderExpertForMatching, request: RequestForProviderMatching) {
+  const matchedServiceTokens = expert.services.filter((token) => request.serviceTokens.includes(token));
+  if (!matchedServiceTokens.length) return null;
+
+  const locationLookup = await lookupZipLocation({ zip: request.zip });
+  const requestCity = locationLookup.ok ? locationLookup.city : null;
+  const requestState = locationLookup.ok ? locationLookup.state : null;
+  const requestZip = locationLookup.ok ? locationLookup.zip : request.zip;
+
+  const sameZip = Boolean(expert.zip && expert.zip.trim() === requestZip);
+  const sameCity =
+    Boolean(requestCity && requestState) &&
+    normalizeCity(expert.city) === normalizeCity(requestCity) &&
+    normalizeState(expert.state) === normalizeState(requestState);
+
+  const reasons: RequestMatchReason[] = [];
+  if (sameZip) reasons.push('same_zip');
+  else if (sameCity) reasons.push('same_city');
+  else if (expert.servesNationwide) reasons.push('serves_nationwide');
+  else if (expert.remoteFriendly) reasons.push('remote_friendly');
+
+  if (!reasons.length) return null;
+
+  return {
+    primaryReason: reasons[0],
+    reasons,
+    matchedServiceTokens,
+    requestLocation: {
+      zip: requestZip,
+      city: requestCity,
+      state: requestState,
+      source: locationLookup.ok ? 'zip_lookup' : 'zip_only',
+    },
+  };
 }
 
 async function buildDeliveryPreview(input: DeliveryPreviewInput) {
@@ -288,6 +354,141 @@ const requestsRoutes: FastifyPluginAsync = async (fastify) => {
     });
 
     return reply.send({ ok: true, request, deliveryPreview });
+  });
+
+  fastify.get('/provider/requests', async (req, reply) => {
+    const user = await getUserFromRequest(fastify, req);
+    if (!user) return reply.code(401).send({ error: 'Not authenticated' });
+    if (user.role !== 'provider') return reply.code(403).send({ error: 'Only providers can view matched requests.' });
+
+    const expert = await prisma.expert.findFirst({
+      where: { userId: user.id },
+      select: {
+        id: true,
+        slug: true,
+        businessName: true,
+        city: true,
+        state: true,
+        zip: true,
+        remoteFriendly: true,
+        servesNationwide: true,
+        services: true,
+        verified: true,
+        rating: true,
+      },
+    });
+
+    if (!expert) return reply.code(404).send({ error: "You don't have an expert profile yet." });
+
+    const requests = await prisma.customerRequest.findMany({
+      where: { status: CustomerRequestStatus.ACTIVE },
+      orderBy: { createdAt: 'desc' },
+      select: {
+        id: true,
+        title: true,
+        description: true,
+        marketingSubjectId: true,
+        serviceTokens: true,
+        zip: true,
+        budgetLabel: true,
+        timelineLabel: true,
+        status: true,
+        requesterName: true,
+        requesterBusinessName: true,
+        createdAt: true,
+        updatedAt: true,
+      },
+      take: 100,
+    });
+
+    const matches = [];
+    for (const request of requests) {
+      const match = await buildProviderMatchForRequest(expert, request);
+      if (!match) continue;
+
+      matches.push({
+        id: request.id,
+        title: request.title,
+        marketingSubjectId: request.marketingSubjectId,
+        zip: request.zip,
+        budgetLabel: request.budgetLabel,
+        timelineLabel: request.timelineLabel,
+        status: request.status,
+        createdAt: request.createdAt,
+        updatedAt: request.updatedAt,
+        primaryReason: match.primaryReason,
+        reasons: match.reasons,
+        matchedServiceTokens: match.matchedServiceTokens,
+      });
+    }
+
+    return reply.send({ ok: true, data: matches });
+  });
+
+  fastify.get('/provider/requests/:id', async (req, reply) => {
+    const user = await getUserFromRequest(fastify, req);
+    if (!user) return reply.code(401).send({ error: 'Not authenticated' });
+    if (user.role !== 'provider') return reply.code(403).send({ error: 'Only providers can view matched requests.' });
+
+    const expert = await prisma.expert.findFirst({
+      where: { userId: user.id },
+      select: {
+        id: true,
+        slug: true,
+        businessName: true,
+        city: true,
+        state: true,
+        zip: true,
+        remoteFriendly: true,
+        servesNationwide: true,
+        services: true,
+        verified: true,
+        rating: true,
+      },
+    });
+
+    if (!expert) return reply.code(404).send({ error: "You don't have an expert profile yet." });
+
+    const { id } = (req.params || {}) as { id?: string };
+    if (!id) return reply.code(400).send({ ok: false, error: 'Missing request id' });
+
+    const request = await prisma.customerRequest.findFirst({
+      where: {
+        id,
+        status: CustomerRequestStatus.ACTIVE,
+      },
+      select: {
+        id: true,
+        title: true,
+        description: true,
+        marketingSubjectId: true,
+        serviceTokens: true,
+        zip: true,
+        budgetLabel: true,
+        timelineLabel: true,
+        status: true,
+        requesterName: true,
+        requesterBusinessName: true,
+        createdAt: true,
+        updatedAt: true,
+      },
+    });
+
+    if (!request) return reply.code(404).send({ ok: false, error: 'Request not found' });
+
+    const match = await buildProviderMatchForRequest(expert, request);
+    if (!match) return reply.code(404).send({ ok: false, error: 'Request not found' });
+
+    return reply.send({
+      ok: true,
+      request,
+      match: {
+        primaryReason: match.primaryReason,
+        reasons: match.reasons,
+        matchedServiceTokens: match.matchedServiceTokens,
+        requestLocation: match.requestLocation,
+      },
+    });
   });
 };
 

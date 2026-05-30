@@ -371,3 +371,213 @@ test('GET /requests/:id only returns a request owned by the signed-in customer',
     await fastify.close();
   }
 });
+
+test('GET /provider/requests lists active matched requests for the signed-in provider expert', async () => {
+  const fastify = await buildFastify();
+
+  const originalGetUserFromRequest = sessionModule.getUserFromRequest;
+  const originalExpert = prismaModule.prisma.expert;
+  const originalCustomerRequest = prismaModule.prisma.customerRequest;
+  const originalLookupZipLocation = geocodingModule.lookupZipLocation;
+
+  sessionModule.getUserFromRequest = async () => ({
+    id: 'provider_user_1',
+    email: 'provider@example.com',
+    role: 'provider',
+  });
+
+  prismaModule.prisma.expert = {
+    findFirst: async ({ where, select }) => {
+      if (where?.userId === 'provider_user_1') {
+        return {
+          id: 'expert_provider_1',
+          slug: 'westmont-growth',
+          businessName: 'Westmont Growth',
+          city: 'Westmont',
+          state: 'IL',
+          zip: '60559',
+          remoteFriendly: true,
+          servesNationwide: false,
+          services: ['paid-ads', 'google-ads', 'lead-generation'],
+          verified: true,
+          rating: 4.9,
+        };
+      }
+
+      throw new Error(`Unexpected expert.findFirst call: ${JSON.stringify({ where, select })}`);
+    },
+  };
+
+  prismaModule.prisma.customerRequest = {
+    findMany: async ({ where }) => {
+      assert.equal(where.status, 'ACTIVE');
+      return [
+        {
+          id: 'request_provider_match_1',
+          title: 'Need more local leads',
+          description: 'Looking for help with Google Ads and lead generation.',
+          marketingSubjectId: 'paid-ads-lead-generation',
+          serviceTokens: ['google-ads', 'lead-generation'],
+          zip: '60559',
+          budgetLabel: '$2k-$5k',
+          timelineLabel: 'ASAP',
+          status: 'ACTIVE',
+          requesterName: 'Jamie Rivera',
+          requesterBusinessName: 'Westmont Dental',
+          createdAt: new Date('2026-05-29T15:00:00.000Z'),
+          updatedAt: new Date('2026-05-29T15:00:00.000Z'),
+        },
+        {
+          id: 'request_provider_miss_1',
+          title: 'Need creator help',
+          description: 'Looking for local influencer support.',
+          marketingSubjectId: 'creator-influencer-marketing',
+          serviceTokens: ['creator-marketing', 'ugc'],
+          zip: '60614',
+          budgetLabel: '$1k-$2k',
+          timelineLabel: 'Next 30 days',
+          status: 'ACTIVE',
+          requesterName: 'Alex Kim',
+          requesterBusinessName: 'Lakeview Cafe',
+          createdAt: new Date('2026-05-29T16:00:00.000Z'),
+          updatedAt: new Date('2026-05-29T16:00:00.000Z'),
+        },
+      ];
+    },
+  };
+
+  geocodingModule.lookupZipLocation = async ({ zip }) => {
+    if (zip === '60559') {
+      return {
+        ok: true,
+        city: 'Westmont',
+        state: 'IL',
+        zip: '60559',
+        latitude: 41.79,
+        longitude: -87.98,
+        geocodedAt: new Date('2026-05-29T15:00:00.000Z'),
+        geocodeProvider: 'geoapify',
+      };
+    }
+
+    return {
+      ok: true,
+      city: 'Chicago',
+      state: 'IL',
+      zip: '60614',
+      latitude: 41.92,
+      longitude: -87.65,
+      geocodedAt: new Date('2026-05-29T16:00:00.000Z'),
+      geocodeProvider: 'geoapify',
+    };
+  };
+
+  try {
+    const response = await fastify.inject({
+      method: 'GET',
+      url: '/provider/requests',
+    });
+
+    assert.equal(response.statusCode, 200);
+    const body = response.json();
+    assert.equal(body.ok, true);
+    assert.equal(body.data.length, 1);
+    assert.equal(body.data[0].id, 'request_provider_match_1');
+    assert.equal(body.data[0].primaryReason, 'same_zip');
+  } finally {
+    sessionModule.getUserFromRequest = originalGetUserFromRequest;
+    prismaModule.prisma.expert = originalExpert;
+    prismaModule.prisma.customerRequest = originalCustomerRequest;
+    geocodingModule.lookupZipLocation = originalLookupZipLocation;
+    await fastify.close();
+  }
+});
+
+test('GET /provider/requests/:id only returns a matched active request for the signed-in provider expert', async () => {
+  const fastify = await buildFastify();
+
+  const originalGetUserFromRequest = sessionModule.getUserFromRequest;
+  const originalExpert = prismaModule.prisma.expert;
+  const originalCustomerRequest = prismaModule.prisma.customerRequest;
+  const originalLookupZipLocation = geocodingModule.lookupZipLocation;
+
+  sessionModule.getUserFromRequest = async () => ({
+    id: 'provider_user_2',
+    email: 'provider@example.com',
+    role: 'provider',
+  });
+
+  prismaModule.prisma.expert = {
+    findFirst: async ({ where, select }) => {
+      if (where?.userId === 'provider_user_2') {
+        return {
+          id: 'expert_provider_2',
+          slug: 'windy-city-growth',
+          businessName: 'Windy City Growth',
+          city: 'Westmont',
+          state: 'IL',
+          zip: '60559',
+          remoteFriendly: false,
+          servesNationwide: true,
+          services: ['ads', 'google-ads', 'paid-search'],
+          verified: true,
+          rating: 4.7,
+        };
+      }
+
+      throw new Error(`Unexpected expert.findFirst call: ${JSON.stringify({ where, select })}`);
+    },
+  };
+
+  prismaModule.prisma.customerRequest = {
+    findFirst: async ({ where }) => {
+      assert.equal(where.id, 'request_provider_detail_1');
+      assert.equal(where.status, 'ACTIVE');
+      return {
+        id: 'request_provider_detail_1',
+        title: 'Need Google Ads support for a local dental office',
+        description: 'Looking for an expert to audit and relaunch paid search campaigns.',
+        marketingSubjectId: 'paid-ads-lead-generation',
+        serviceTokens: ['google-ads', 'paid-search'],
+        zip: '60601',
+        budgetLabel: '$5k-$10k',
+        timelineLabel: 'This month',
+        status: 'ACTIVE',
+        requesterName: 'Jamie Rivera',
+        requesterBusinessName: 'Westmont Dental',
+        createdAt: new Date('2026-05-29T17:00:00.000Z'),
+        updatedAt: new Date('2026-05-29T17:00:00.000Z'),
+      };
+    },
+  };
+
+  geocodingModule.lookupZipLocation = async () => ({
+    ok: true,
+    city: 'Chicago',
+    state: 'IL',
+    zip: '60601',
+    latitude: 41.88,
+    longitude: -87.62,
+    geocodedAt: new Date('2026-05-29T17:00:00.000Z'),
+    geocodeProvider: 'geoapify',
+  });
+
+  try {
+    const response = await fastify.inject({
+      method: 'GET',
+      url: '/provider/requests/request_provider_detail_1',
+    });
+
+    assert.equal(response.statusCode, 200);
+    const body = response.json();
+    assert.equal(body.ok, true);
+    assert.equal(body.request.id, 'request_provider_detail_1');
+    assert.equal(body.match.primaryReason, 'serves_nationwide');
+  } finally {
+    sessionModule.getUserFromRequest = originalGetUserFromRequest;
+    prismaModule.prisma.expert = originalExpert;
+    prismaModule.prisma.customerRequest = originalCustomerRequest;
+    geocodingModule.lookupZipLocation = originalLookupZipLocation;
+    await fastify.close();
+  }
+});
