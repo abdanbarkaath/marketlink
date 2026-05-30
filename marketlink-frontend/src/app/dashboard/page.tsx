@@ -29,6 +29,12 @@ type InquiryRow = {
   createdAt: string;
 };
 
+type ProviderRequestRow = {
+  id: string;
+  status: 'ACTIVE' | 'CLOSED' | 'CANCELLED';
+  createdAt: string;
+};
+
 function formatExpertTypeLabel(expertType: ExpertSummary['expertType']) {
   switch (expertType) {
     case 'agency':
@@ -62,6 +68,7 @@ const [user, setUser] = useState<User | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [inquiryCount, setInquiryCount] = useState<number | null>(null);
   const [newInquiryCount, setNewInquiryCount] = useState<number | null>(null);
+  const [matchedRequestCount, setMatchedRequestCount] = useState<number | null>(null);
 
   useEffect(() => {
     (async () => {
@@ -107,19 +114,31 @@ const [user, setUser] = useState<User | null>(null);
 
     (async () => {
       try {
-        const res = await fetch(`${API_BASE}/inquiries`, {
-          credentials: 'include',
-          cache: 'no-store',
-        });
+        const [inquiriesRes, requestsRes] = await Promise.all([
+          fetch(`${API_BASE}/inquiries`, {
+            credentials: 'include',
+            cache: 'no-store',
+          }),
+          fetch(`${API_BASE}/provider/requests`, {
+            credentials: 'include',
+            cache: 'no-store',
+          }),
+        ]);
 
-        if (!res.ok) return;
+        if (inquiriesRes.ok) {
+          const body = (await inquiriesRes.json()) as { ok?: true; data?: InquiryRow[] };
+          const rows = Array.isArray(body?.data) ? body.data : [];
+          setInquiryCount(rows.length);
+          setNewInquiryCount(rows.filter((r) => r.status === 'NEW').length);
+        }
 
-        const body = (await res.json()) as { ok?: true; data?: InquiryRow[] };
-        const rows = Array.isArray(body?.data) ? body.data : [];
-        setInquiryCount(rows.length);
-        setNewInquiryCount(rows.filter((r) => r.status === 'NEW').length);
+        if (requestsRes.ok) {
+          const body = (await requestsRes.json()) as { ok?: true; data?: ProviderRequestRow[] };
+          const rows = Array.isArray(body?.data) ? body.data : [];
+          setMatchedRequestCount(rows.filter((r) => r.status === 'ACTIVE').length);
+        }
       } catch {
-        // ignore inquiry count failures on dashboard
+        // ignore dashboard sidebar count failures
       }
     })();
   }, [expert]);
@@ -216,6 +235,10 @@ const [user, setUser] = useState<User | null>(null);
                 <div className="text-xs font-semibold uppercase tracking-[0.26em] text-slate-400">Buyer inquiries</div>
                 <div className="mt-2 text-base font-semibold text-slate-900">{inquiryCount === null ? '—' : inquiryCount}</div>
               </div>
+              <div className={mutedCardClass}>
+                <div className="text-xs font-semibold uppercase tracking-[0.26em] text-slate-400">Matched requests</div>
+                <div className="mt-2 text-base font-semibold text-slate-900">{matchedRequestCount === null ? '—' : matchedRequestCount}</div>
+              </div>
               <div className={`${mutedCardClass} col-span-2 sm:col-span-1`}>
                 <div className="text-xs font-semibold uppercase tracking-[0.26em] text-slate-400">New inquiries</div>
                 <div className="mt-2 text-base font-semibold text-slate-900">{newInquiryCount === null ? '—' : newInquiryCount}</div>
@@ -275,6 +298,10 @@ const [user, setUser] = useState<User | null>(null);
                     <Link href="/dashboard/profile" className={primaryLinkClass}>
                       Edit profile
                     </Link>
+                    <Link href="/dashboard/requests" className={secondaryLinkClass}>
+                      Matched requests
+                      {matchedRequestCount !== null && matchedRequestCount > 0 ? <span className="ml-pill ml-2 rounded-xl px-2 py-0.5 text-xs normal-case tracking-normal">{matchedRequestCount} active</span> : null}
+                    </Link>
                     <Link href="/dashboard/inquiries" className={secondaryLinkClass}>
                       Inquiries
                       {newInquiryCount !== null && newInquiryCount > 0 ? <span className="ml-pill ml-2 rounded-xl px-2 py-0.5 text-xs normal-case tracking-normal">{newInquiryCount} new</span> : null}
@@ -303,6 +330,11 @@ const [user, setUser] = useState<User | null>(null);
                 <Link href={expert ? '/dashboard/inquiries' : '/dashboard/onboarding'} className={`${mutedCardClass} transition ${t.cardHover}`} aria-disabled={!expert}>
                   <div className="text-sm font-semibold text-slate-900">Buyer inquiries</div>
                   <p className={`mt-1 text-sm ${t.mutedText}`}>{expert ? 'Review new messages, triage active buyers, and keep response times tight.' : 'Create your expert profile first to receive inquiries.'}</p>
+                </Link>
+
+                <Link href={expert ? '/dashboard/requests' : '/dashboard/onboarding'} className={`${mutedCardClass} transition ${t.cardHover}`} aria-disabled={!expert}>
+                  <div className="text-sm font-semibold text-slate-900">Matched requests</div>
+                  <p className={`mt-1 text-sm ${t.mutedText}`}>{expert ? 'Review active customer requests that currently match your services and delivery footprint.' : 'Create your expert profile first to start receiving matched request opportunities.'}</p>
                 </Link>
 
                 <div className={mutedCardClass}>
