@@ -581,3 +581,183 @@ test('GET /provider/requests/:id only returns a matched active request for the s
     await fastify.close();
   }
 });
+
+test('PATCH /requests/:id lets a customer close their active request', async () => {
+  const fastify = await buildFastify();
+
+  const originalGetUserFromRequest = sessionModule.getUserFromRequest;
+  const originalCustomerRequest = prismaModule.prisma.customerRequest;
+
+  sessionModule.getUserFromRequest = async () => ({
+    id: 'customer_user_close_1',
+    email: 'customer@example.com',
+    role: 'customer',
+  });
+
+  prismaModule.prisma.customerRequest = {
+    findFirst: async ({ where }) => {
+      assert.equal(where.id, 'request_close_1');
+      assert.equal(where.customerUserId, 'customer_user_close_1');
+      return {
+        id: 'request_close_1',
+        status: 'ACTIVE',
+      };
+    },
+    update: async ({ where, data }) => {
+      assert.equal(where.id, 'request_close_1');
+      assert.equal(data.status, 'CLOSED');
+      return {
+        id: 'request_close_1',
+        status: 'CLOSED',
+        updatedAt: new Date('2026-05-30T01:00:00.000Z'),
+      };
+    },
+  };
+
+  try {
+    const response = await fastify.inject({
+      method: 'PATCH',
+      url: '/requests/request_close_1',
+      payload: {
+        status: 'CLOSED',
+      },
+    });
+
+    assert.equal(response.statusCode, 200);
+    const body = response.json();
+    assert.equal(body.ok, true);
+    assert.equal(body.request.id, 'request_close_1');
+    assert.equal(body.request.status, 'CLOSED');
+  } finally {
+    sessionModule.getUserFromRequest = originalGetUserFromRequest;
+    prismaModule.prisma.customerRequest = originalCustomerRequest;
+    await fastify.close();
+  }
+});
+
+test('PATCH /requests/:id rejects invalid lifecycle transitions', async () => {
+  const fastify = await buildFastify();
+
+  const originalGetUserFromRequest = sessionModule.getUserFromRequest;
+  const originalCustomerRequest = prismaModule.prisma.customerRequest;
+
+  sessionModule.getUserFromRequest = async () => ({
+    id: 'customer_user_cancelled_1',
+    email: 'customer@example.com',
+    role: 'customer',
+  });
+
+  prismaModule.prisma.customerRequest = {
+    findFirst: async ({ where }) => {
+      assert.equal(where.id, 'request_cancelled_1');
+      assert.equal(where.customerUserId, 'customer_user_cancelled_1');
+      return {
+        id: 'request_cancelled_1',
+        status: 'CANCELLED',
+      };
+    },
+  };
+
+  try {
+    const response = await fastify.inject({
+      method: 'PATCH',
+      url: '/requests/request_cancelled_1',
+      payload: {
+        status: 'ACTIVE',
+      },
+    });
+
+    assert.equal(response.statusCode, 409);
+    assert.equal(response.json().error, 'This request cannot move from CANCELLED to ACTIVE.');
+  } finally {
+    sessionModule.getUserFromRequest = originalGetUserFromRequest;
+    prismaModule.prisma.customerRequest = originalCustomerRequest;
+    await fastify.close();
+  }
+});
+
+test('GET /provider/requests excludes closed and cancelled requests', async () => {
+  const fastify = await buildFastify();
+
+  const originalGetUserFromRequest = sessionModule.getUserFromRequest;
+  const originalExpert = prismaModule.prisma.expert;
+  const originalCustomerRequest = prismaModule.prisma.customerRequest;
+  const originalLookupZipLocation = geocodingModule.lookupZipLocation;
+
+  sessionModule.getUserFromRequest = async () => ({
+    id: 'provider_user_filter_1',
+    email: 'provider@example.com',
+    role: 'provider',
+  });
+
+  prismaModule.prisma.expert = {
+    findFirst: async ({ where }) => {
+      assert.equal(where.userId, 'provider_user_filter_1');
+      return {
+        id: 'expert_provider_filter_1',
+        slug: 'windy-city-growth',
+        businessName: 'Windy City Growth',
+        city: 'Chicago',
+        state: 'IL',
+        zip: '60601',
+        remoteFriendly: true,
+        servesNationwide: true,
+        services: ['google-ads', 'paid-search', 'ads'],
+        verified: true,
+        rating: 4.7,
+      };
+    },
+  };
+
+  prismaModule.prisma.customerRequest = {
+    findMany: async ({ where }) => {
+      assert.equal(where.status, 'ACTIVE');
+      return [
+        {
+          id: 'request_active_1',
+          title: 'Active request',
+          description: 'Looking for Google Ads help.',
+          marketingSubjectId: 'paid-ads-lead-generation',
+          serviceTokens: ['google-ads'],
+          zip: '60601',
+          budgetLabel: null,
+          timelineLabel: null,
+          status: 'ACTIVE',
+          requesterName: 'Jamie Rivera',
+          requesterBusinessName: null,
+          createdAt: new Date('2026-05-30T01:00:00.000Z'),
+          updatedAt: new Date('2026-05-30T01:00:00.000Z'),
+        },
+      ];
+    },
+  };
+
+  geocodingModule.lookupZipLocation = async () => ({
+    ok: true,
+    city: 'Chicago',
+    state: 'IL',
+    zip: '60601',
+    latitude: 41.88,
+    longitude: -87.62,
+    geocodedAt: new Date('2026-05-30T01:00:00.000Z'),
+    geocodeProvider: 'geoapify',
+  });
+
+  try {
+    const response = await fastify.inject({
+      method: 'GET',
+      url: '/provider/requests',
+    });
+
+    assert.equal(response.statusCode, 200);
+    const body = response.json();
+    assert.equal(body.ok, true);
+    assert.deepEqual(body.data.map((row) => row.id), ['request_active_1']);
+  } finally {
+    sessionModule.getUserFromRequest = originalGetUserFromRequest;
+    prismaModule.prisma.expert = originalExpert;
+    prismaModule.prisma.customerRequest = originalCustomerRequest;
+    geocodingModule.lookupZipLocation = originalLookupZipLocation;
+    await fastify.close();
+  }
+});
