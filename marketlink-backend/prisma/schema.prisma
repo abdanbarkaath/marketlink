@@ -8,13 +8,13 @@ datasource db {
 }
 
 model User {
-  id                 String        @id @default(cuid())
-  email              String        @unique
-  role               UserRole      @default(provider)
-  createdAt          DateTime      @default(now())
-  updatedAt          DateTime      @updatedAt
-  isDisabled         Boolean       @default(false)
-  mustChangePassword Boolean       @default(true)
+  id                 String            @id @default(cuid())
+  email              String            @unique
+  role               UserRole          @default(provider)
+  createdAt          DateTime          @default(now())
+  updatedAt          DateTime          @updatedAt
+  isDisabled         Boolean           @default(false)
+  mustChangePassword Boolean           @default(true)
   passwordHash       String?
   adminActions       AdminAction[]
   customerProfile    CustomerProfile?
@@ -24,13 +24,13 @@ model User {
 }
 
 model CustomerProfile {
-  id           String   @id @default(cuid())
-  userId       String   @unique
+  id           String            @id @default(cuid())
+  userId       String            @unique
   name         String
   businessName String?
-  createdAt    DateTime @default(now())
-  updatedAt    DateTime @updatedAt
-  user         User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  createdAt    DateTime          @default(now())
+  updatedAt    DateTime          @updatedAt
+  user         User              @relation(fields: [userId], references: [id], onDelete: Cascade)
   requests     CustomerRequest[]
 }
 
@@ -87,6 +87,7 @@ model Expert {
   status              ExpertStatus          @default(active)
   adminActions        AdminAction[]
   owner               User?                 @relation(fields: [userId], references: [id])
+  proposals           Proposal[]
   projects            ExpertProject[]
   clients             ExpertClient[]
   media               ExpertMedia[]
@@ -190,6 +191,13 @@ enum CustomerRequestStatus {
   CANCELLED
 }
 
+enum ProposalStatus {
+  PENDING
+  ACCEPTED
+  DECLINED
+  WITHDRAWN
+}
+
 model CustomerRequest {
   id                    String                @id @default(cuid())
   customerUserId        String
@@ -208,11 +216,30 @@ model CustomerRequest {
   updatedAt             DateTime              @updatedAt
   customerUser          User                  @relation(fields: [customerUserId], references: [id], onDelete: Cascade)
   customerProfile       CustomerProfile?      @relation(fields: [customerProfileId], references: [id], onDelete: SetNull)
+  proposals             Proposal[]
 
   @@index([customerUserId, createdAt])
   @@index([status, createdAt])
   @@index([marketingSubjectId, status])
   @@index([zip, status])
+}
+
+model Proposal {
+  id            String          @id @default(cuid())
+  requestId     String
+  expertId      String
+  message       String
+  priceLabel    String?
+  timelineLabel String?
+  status        ProposalStatus  @default(PENDING)
+  createdAt     DateTime        @default(now())
+  updatedAt     DateTime        @updatedAt
+  request       CustomerRequest @relation(fields: [requestId], references: [id], onDelete: Cascade)
+  expert        Expert          @relation(fields: [expertId], references: [id], onDelete: Cascade)
+
+  @@unique([requestId, expertId])
+  @@index([requestId, status, createdAt])
+  @@index([expertId, status, createdAt])
 }
 
 ///
