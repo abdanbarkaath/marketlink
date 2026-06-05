@@ -582,6 +582,368 @@ test('GET /provider/requests/:id only returns a matched active request for the s
   }
 });
 
+test('POST /provider/requests/:id/proposals rejects non-provider users', async () => {
+  const fastify = await buildFastify();
+
+  const originalGetUserFromRequest = sessionModule.getUserFromRequest;
+  sessionModule.getUserFromRequest = async () => ({
+    id: 'customer_user_proposal_1',
+    email: 'customer@example.com',
+    role: 'customer',
+  });
+
+  try {
+    const response = await fastify.inject({
+      method: 'POST',
+      url: '/provider/requests/request_proposal_1/proposals',
+      payload: {
+        message: 'We can help with this request.',
+      },
+    });
+
+    assert.equal(response.statusCode, 403);
+    assert.equal(response.json().error, 'Only providers can create proposals.');
+  } finally {
+    sessionModule.getUserFromRequest = originalGetUserFromRequest;
+    await fastify.close();
+  }
+});
+
+test('POST /provider/requests/:id/proposals validates proposal fields', async () => {
+  const fastify = await buildFastify();
+
+  const originalGetUserFromRequest = sessionModule.getUserFromRequest;
+  sessionModule.getUserFromRequest = async () => ({
+    id: 'provider_user_proposal_validation',
+    email: 'provider@example.com',
+    role: 'provider',
+  });
+
+  try {
+    const response = await fastify.inject({
+      method: 'POST',
+      url: '/provider/requests/request_proposal_validation/proposals',
+      payload: {
+        message: '',
+      },
+    });
+
+    assert.equal(response.statusCode, 400);
+    assert.equal(response.json().error, 'message is required');
+  } finally {
+    sessionModule.getUserFromRequest = originalGetUserFromRequest;
+    await fastify.close();
+  }
+});
+
+test('POST /provider/requests/:id/proposals rejects unmatched requests', async () => {
+  const fastify = await buildFastify();
+
+  const originalGetUserFromRequest = sessionModule.getUserFromRequest;
+  const originalExpert = prismaModule.prisma.expert;
+  const originalCustomerRequest = prismaModule.prisma.customerRequest;
+  const originalProposal = prismaModule.prisma.proposal;
+  const originalLookupZipLocation = geocodingModule.lookupZipLocation;
+
+  sessionModule.getUserFromRequest = async () => ({
+    id: 'provider_user_proposal_unmatched',
+    email: 'provider@example.com',
+    role: 'provider',
+  });
+
+  prismaModule.prisma.expert = {
+    findFirst: async ({ where }) => {
+      assert.equal(where.userId, 'provider_user_proposal_unmatched');
+      return {
+        id: 'expert_proposal_unmatched',
+        slug: 'seo-only-shop',
+        businessName: 'SEO Only Shop',
+        city: 'Westmont',
+        state: 'IL',
+        zip: '60559',
+        remoteFriendly: false,
+        servesNationwide: false,
+        services: ['seo', 'local-seo'],
+        verified: true,
+        rating: 4.6,
+      };
+    },
+  };
+
+  prismaModule.prisma.customerRequest = {
+    findFirst: async ({ where }) => {
+      assert.equal(where.id, 'request_proposal_unmatched');
+      assert.equal(where.status, 'ACTIVE');
+      return {
+        id: 'request_proposal_unmatched',
+        title: 'Need paid ads help',
+        description: 'Looking for Google Ads support.',
+        marketingSubjectId: 'paid-ads-lead-generation',
+        serviceTokens: ['google-ads', 'paid-search'],
+        zip: '60559',
+        budgetLabel: '$2k-$5k',
+        timelineLabel: 'This month',
+        status: 'ACTIVE',
+        requesterName: 'Jamie Rivera',
+        requesterBusinessName: 'Westmont Dental',
+        createdAt: new Date('2026-06-05T15:00:00.000Z'),
+        updatedAt: new Date('2026-06-05T15:00:00.000Z'),
+      };
+    },
+  };
+
+  prismaModule.prisma.proposal = {
+    findUnique: async () => null,
+  };
+
+  geocodingModule.lookupZipLocation = async () => ({
+    ok: true,
+    city: 'Westmont',
+    state: 'IL',
+    zip: '60559',
+    latitude: 41.79,
+    longitude: -87.98,
+    geocodedAt: new Date('2026-06-05T15:00:00.000Z'),
+    geocodeProvider: 'geoapify',
+  });
+
+  try {
+    const response = await fastify.inject({
+      method: 'POST',
+      url: '/provider/requests/request_proposal_unmatched/proposals',
+      payload: {
+        message: 'We can help with this.',
+      },
+    });
+
+    assert.equal(response.statusCode, 404);
+    assert.equal(response.json().error, 'Request not found');
+  } finally {
+    sessionModule.getUserFromRequest = originalGetUserFromRequest;
+    prismaModule.prisma.expert = originalExpert;
+    prismaModule.prisma.customerRequest = originalCustomerRequest;
+    prismaModule.prisma.proposal = originalProposal;
+    geocodingModule.lookupZipLocation = originalLookupZipLocation;
+    await fastify.close();
+  }
+});
+
+test('POST /provider/requests/:id/proposals rejects duplicate proposals', async () => {
+  const fastify = await buildFastify();
+
+  const originalGetUserFromRequest = sessionModule.getUserFromRequest;
+  const originalExpert = prismaModule.prisma.expert;
+  const originalCustomerRequest = prismaModule.prisma.customerRequest;
+  const originalProposal = prismaModule.prisma.proposal;
+  const originalLookupZipLocation = geocodingModule.lookupZipLocation;
+
+  sessionModule.getUserFromRequest = async () => ({
+    id: 'provider_user_proposal_duplicate',
+    email: 'provider@example.com',
+    role: 'provider',
+  });
+
+  prismaModule.prisma.expert = {
+    findFirst: async () => ({
+      id: 'expert_proposal_duplicate',
+      slug: 'windy-city-growth',
+      businessName: 'Windy City Growth',
+      city: 'Westmont',
+      state: 'IL',
+      zip: '60559',
+      remoteFriendly: false,
+      servesNationwide: true,
+      services: ['ads', 'google-ads', 'paid-search'],
+      verified: true,
+      rating: 4.7,
+    }),
+  };
+
+  prismaModule.prisma.customerRequest = {
+    findFirst: async () => ({
+      id: 'request_proposal_duplicate',
+      title: 'Need Google Ads support',
+      description: 'Looking for help with paid search.',
+      marketingSubjectId: 'paid-ads-lead-generation',
+      serviceTokens: ['google-ads', 'paid-search'],
+      zip: '60601',
+      budgetLabel: '$5k-$10k',
+      timelineLabel: 'This month',
+      status: 'ACTIVE',
+      requesterName: 'Jamie Rivera',
+      requesterBusinessName: 'Westmont Dental',
+      createdAt: new Date('2026-06-05T15:00:00.000Z'),
+      updatedAt: new Date('2026-06-05T15:00:00.000Z'),
+    }),
+  };
+
+  prismaModule.prisma.proposal = {
+    findUnique: async ({ where }) => {
+      assert.deepEqual(where.requestId_expertId, {
+        requestId: 'request_proposal_duplicate',
+        expertId: 'expert_proposal_duplicate',
+      });
+      return {
+        id: 'proposal_duplicate_1',
+      };
+    },
+  };
+
+  geocodingModule.lookupZipLocation = async () => ({
+    ok: true,
+    city: 'Chicago',
+    state: 'IL',
+    zip: '60601',
+    latitude: 41.88,
+    longitude: -87.62,
+    geocodedAt: new Date('2026-06-05T15:00:00.000Z'),
+    geocodeProvider: 'geoapify',
+  });
+
+  try {
+    const response = await fastify.inject({
+      method: 'POST',
+      url: '/provider/requests/request_proposal_duplicate/proposals',
+      payload: {
+        message: 'We can help with this.',
+      },
+    });
+
+    assert.equal(response.statusCode, 409);
+    assert.equal(response.json().error, 'You have already submitted a proposal for this request.');
+  } finally {
+    sessionModule.getUserFromRequest = originalGetUserFromRequest;
+    prismaModule.prisma.expert = originalExpert;
+    prismaModule.prisma.customerRequest = originalCustomerRequest;
+    prismaModule.prisma.proposal = originalProposal;
+    geocodingModule.lookupZipLocation = originalLookupZipLocation;
+    await fastify.close();
+  }
+});
+
+test('POST /provider/requests/:id/proposals creates a proposal for a matched active request', async () => {
+  const fastify = await buildFastify();
+
+  const originalGetUserFromRequest = sessionModule.getUserFromRequest;
+  const originalExpert = prismaModule.prisma.expert;
+  const originalCustomerRequest = prismaModule.prisma.customerRequest;
+  const originalProposal = prismaModule.prisma.proposal;
+  const originalLookupZipLocation = geocodingModule.lookupZipLocation;
+
+  sessionModule.getUserFromRequest = async () => ({
+    id: 'provider_user_proposal_create',
+    email: 'provider@example.com',
+    role: 'provider',
+  });
+
+  prismaModule.prisma.expert = {
+    findFirst: async ({ where }) => {
+      assert.equal(where.userId, 'provider_user_proposal_create');
+      return {
+        id: 'expert_proposal_create',
+        slug: 'windy-city-growth',
+        businessName: 'Windy City Growth',
+        city: 'Westmont',
+        state: 'IL',
+        zip: '60559',
+        remoteFriendly: false,
+        servesNationwide: true,
+        services: ['ads', 'google-ads', 'paid-search'],
+        verified: true,
+        rating: 4.7,
+      };
+    },
+  };
+
+  prismaModule.prisma.customerRequest = {
+    findFirst: async ({ where }) => {
+      assert.equal(where.id, 'request_proposal_create');
+      assert.equal(where.status, 'ACTIVE');
+      return {
+        id: 'request_proposal_create',
+        title: 'Need Google Ads support',
+        description: 'Looking for help with paid search.',
+        marketingSubjectId: 'paid-ads-lead-generation',
+        serviceTokens: ['google-ads', 'paid-search'],
+        zip: '60601',
+        budgetLabel: '$5k-$10k',
+        timelineLabel: 'This month',
+        status: 'ACTIVE',
+        requesterName: 'Jamie Rivera',
+        requesterBusinessName: 'Westmont Dental',
+        createdAt: new Date('2026-06-05T15:00:00.000Z'),
+        updatedAt: new Date('2026-06-05T15:00:00.000Z'),
+      };
+    },
+  };
+
+  prismaModule.prisma.proposal = {
+    findUnique: async ({ where }) => {
+      assert.deepEqual(where.requestId_expertId, {
+        requestId: 'request_proposal_create',
+        expertId: 'expert_proposal_create',
+      });
+      return null;
+    },
+    create: async ({ data }) => {
+      assert.equal(data.requestId, 'request_proposal_create');
+      assert.equal(data.expertId, 'expert_proposal_create');
+      assert.equal(data.message, 'We can relaunch your Google Ads account and start with a quick audit.');
+      assert.equal(data.priceLabel, '$5k-$10k');
+      assert.equal(data.timelineLabel, 'This month');
+      return {
+        id: 'proposal_create_1',
+        requestId: data.requestId,
+        expertId: data.expertId,
+        message: data.message,
+        priceLabel: data.priceLabel,
+        timelineLabel: data.timelineLabel,
+        status: 'PENDING',
+        createdAt: new Date('2026-06-05T15:30:00.000Z'),
+        updatedAt: new Date('2026-06-05T15:30:00.000Z'),
+      };
+    },
+  };
+
+  geocodingModule.lookupZipLocation = async () => ({
+    ok: true,
+    city: 'Chicago',
+    state: 'IL',
+    zip: '60601',
+    latitude: 41.88,
+    longitude: -87.62,
+    geocodedAt: new Date('2026-06-05T15:00:00.000Z'),
+    geocodeProvider: 'geoapify',
+  });
+
+  try {
+    const response = await fastify.inject({
+      method: 'POST',
+      url: '/provider/requests/request_proposal_create/proposals',
+      payload: {
+        message: 'We can relaunch your Google Ads account and start with a quick audit.',
+        priceLabel: '$5k-$10k',
+        timelineLabel: 'This month',
+      },
+    });
+
+    assert.equal(response.statusCode, 201);
+    const body = response.json();
+    assert.equal(body.ok, true);
+    assert.equal(body.proposal.id, 'proposal_create_1');
+    assert.equal(body.proposal.status, 'PENDING');
+    assert.equal(body.proposal.requestId, 'request_proposal_create');
+    assert.equal(body.proposal.expertId, 'expert_proposal_create');
+  } finally {
+    sessionModule.getUserFromRequest = originalGetUserFromRequest;
+    prismaModule.prisma.expert = originalExpert;
+    prismaModule.prisma.customerRequest = originalCustomerRequest;
+    prismaModule.prisma.proposal = originalProposal;
+    geocodingModule.lookupZipLocation = originalLookupZipLocation;
+    await fastify.close();
+  }
+});
+
 test('PATCH /requests/:id lets a customer close their active request', async () => {
   const fastify = await buildFastify();
 
