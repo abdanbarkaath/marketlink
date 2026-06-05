@@ -1,5 +1,5 @@
 import type { FastifyPluginAsync } from 'fastify';
-import { CustomerRequestStatus, ExpertStatus } from '@prisma/client';
+import { CustomerRequestStatus, ExpertStatus, ProposalStatus } from '@prisma/client';
 import { prisma } from '../lib/prisma';
 import { getUserFromRequest } from '../lib/session';
 import { lookupZipLocation } from '../lib/geocoding';
@@ -546,6 +546,116 @@ const requestsRoutes: FastifyPluginAsync = async (fastify) => {
         requestLocation: match.requestLocation,
       },
     });
+  });
+
+  fastify.post('/provider/requests/:id/proposals', async (req, reply) => {
+    const user = await getUserFromRequest(fastify, req);
+    if (!user) return reply.code(401).send({ error: 'Not authenticated' });
+    if (user.role !== 'provider') return reply.code(403).send({ error: 'Only providers can create proposals.' });
+
+    const { id } = (req.params || {}) as { id?: string };
+    const body = (req.body || {}) as {
+      message?: unknown;
+      priceLabel?: unknown;
+      timelineLabel?: unknown;
+    };
+
+    const message = asCleanString(body.message);
+    const priceLabel = asCleanString(body.priceLabel) || null;
+    const timelineLabel = asCleanString(body.timelineLabel) || null;
+
+    if (!id) return reply.code(400).send({ ok: false, error: 'Missing request id' });
+    if (!message) return reply.code(400).send({ ok: false, error: 'message is required' });
+    if (message.length > 4000) return reply.code(400).send({ ok: false, error: 'message is too long' });
+    if (priceLabel && priceLabel.length > 80) return reply.code(400).send({ ok: false, error: 'priceLabel is too long' });
+    if (timelineLabel && timelineLabel.length > 80) return reply.code(400).send({ ok: false, error: 'timelineLabel is too long' });
+
+    const expert = await prisma.expert.findFirst({
+      where: { userId: user.id },
+      select: {
+        id: true,
+        slug: true,
+        businessName: true,
+        city: true,
+        state: true,
+        zip: true,
+        remoteFriendly: true,
+        servesNationwide: true,
+        services: true,
+        verified: true,
+        rating: true,
+      },
+    });
+
+    if (!expert) return reply.code(404).send({ error: "You don't have an expert profile yet." });
+
+    const request = await prisma.customerRequest.findFirst({
+      where: {
+        id,
+        status: CustomerRequestStatus.ACTIVE,
+      },
+      select: {
+        id: true,
+        title: true,
+        description: true,
+        marketingSubjectId: true,
+        serviceTokens: true,
+        zip: true,
+        budgetLabel: true,
+        timelineLabel: true,
+        status: true,
+        requesterName: true,
+        requesterBusinessName: true,
+        createdAt: true,
+        updatedAt: true,
+      },
+    });
+
+    if (!request) return reply.code(404).send({ ok: false, error: 'Request not found' });
+
+    const match = await buildProviderMatchForRequest(expert, request);
+    if (!match) return reply.code(404).send({ ok: false, error: 'Request not found' });
+
+    const existingProposal = await prisma.proposal.findUnique({
+      where: {
+        requestId_expertId: {
+          requestId: request.id,
+          expertId: expert.id,
+        },
+      },
+      select: {
+        id: true,
+      },
+    });
+
+    if (existingProposal) {
+      return reply.code(409).send({ ok: false, error: 'You have already submitted a proposal for this request.' });
+    }
+
+    const proposal = await prisma.proposal.create({
+      data: {
+        requestId: request.id,
+        expertId: expert.id,
+        message,
+        priceLabel,
+        timelineLabel,
+        status: ProposalStatus.PENDING,
+      },
+      select: {
+        id: true,
+        requestId: true,
+        expertId: true,
+        message: true,
+        priceLabel: true,
+        timelineLabel: true,
+        status: true,
+        createdAt: true,
+        updatedAt: true,
+      },
+    });
+
+    req.log.info({ proposalId: proposal.id, requestId: request.id, expertId: expert.id }, 'proposal.created');
+    return reply.code(201).send({ ok: true, proposal });
   });
 };
 
