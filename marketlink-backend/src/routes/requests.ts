@@ -536,6 +536,26 @@ const requestsRoutes: FastifyPluginAsync = async (fastify) => {
     const match = await buildProviderMatchForRequest(expert, request);
     if (!match) return reply.code(404).send({ ok: false, error: 'Request not found' });
 
+    const proposal = await prisma.proposal.findUnique({
+      where: {
+        requestId_expertId: {
+          requestId: request.id,
+          expertId: expert.id,
+        },
+      },
+      select: {
+        id: true,
+        requestId: true,
+        expertId: true,
+        message: true,
+        priceLabel: true,
+        timelineLabel: true,
+        status: true,
+        createdAt: true,
+        updatedAt: true,
+      },
+    });
+
     return reply.send({
       ok: true,
       request,
@@ -545,6 +565,7 @@ const requestsRoutes: FastifyPluginAsync = async (fastify) => {
         matchedServiceTokens: match.matchedServiceTokens,
         requestLocation: match.requestLocation,
       },
+      proposal,
     });
   });
 

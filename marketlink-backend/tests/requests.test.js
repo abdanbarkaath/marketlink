@@ -499,6 +499,7 @@ test('GET /provider/requests/:id only returns a matched active request for the s
   const originalGetUserFromRequest = sessionModule.getUserFromRequest;
   const originalExpert = prismaModule.prisma.expert;
   const originalCustomerRequest = prismaModule.prisma.customerRequest;
+  const originalProposal = prismaModule.prisma.proposal;
   const originalLookupZipLocation = geocodingModule.lookupZipLocation;
 
   sessionModule.getUserFromRequest = async () => ({
@@ -551,6 +552,26 @@ test('GET /provider/requests/:id only returns a matched active request for the s
     },
   };
 
+  prismaModule.prisma.proposal = {
+    findUnique: async ({ where }) => {
+      assert.deepEqual(where.requestId_expertId, {
+        requestId: 'request_provider_detail_1',
+        expertId: 'expert_provider_2',
+      });
+      return {
+        id: 'proposal_provider_detail_1',
+        requestId: 'request_provider_detail_1',
+        expertId: 'expert_provider_2',
+        message: 'We can audit and relaunch your paid search campaigns.',
+        priceLabel: '$5k-$10k',
+        timelineLabel: 'This month',
+        status: 'PENDING',
+        createdAt: new Date('2026-06-05T18:00:00.000Z'),
+        updatedAt: new Date('2026-06-05T18:00:00.000Z'),
+      };
+    },
+  };
+
   geocodingModule.lookupZipLocation = async () => ({
     ok: true,
     city: 'Chicago',
@@ -573,10 +594,13 @@ test('GET /provider/requests/:id only returns a matched active request for the s
     assert.equal(body.ok, true);
     assert.equal(body.request.id, 'request_provider_detail_1');
     assert.equal(body.match.primaryReason, 'serves_nationwide');
+    assert.equal(body.proposal.id, 'proposal_provider_detail_1');
+    assert.equal(body.proposal.status, 'PENDING');
   } finally {
     sessionModule.getUserFromRequest = originalGetUserFromRequest;
     prismaModule.prisma.expert = originalExpert;
     prismaModule.prisma.customerRequest = originalCustomerRequest;
+    prismaModule.prisma.proposal = originalProposal;
     geocodingModule.lookupZipLocation = originalLookupZipLocation;
     await fastify.close();
   }
