@@ -5,6 +5,7 @@ import Link from 'next/link';
 import { useRouter, useSearchParams } from 'next/navigation';
 import { formatServiceTokenLabel, getMarketingSubjectById } from '@/lib/marketingTaxonomy';
 import { useMarketLinkTheme } from '@/components/ThemeToggle';
+import ProposalForm from '../ProposalForm';
 
 const API_BASE = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:4000';
 
@@ -34,6 +35,17 @@ type ProviderRequestDetailResponse = {
     matchedServiceTokens: string[];
     requestLocation?: { zip?: string | null; city?: string | null; state?: string | null; source?: string | null } | null;
   };
+  proposal?: {
+    id: string;
+    requestId: string;
+    expertId: string;
+    message: string;
+    priceLabel?: string | null;
+    timelineLabel?: string | null;
+    status: 'PENDING' | 'ACCEPTED' | 'DECLINED' | 'WITHDRAWN';
+    createdAt: string;
+    updatedAt: string;
+  } | null;
   error?: string;
 };
 
@@ -144,6 +156,7 @@ function ProviderRequestDetailPageContent() {
 
   const request = data?.request;
   const match = data?.match;
+  const proposal = data?.proposal;
   const subject = request ? getMarketingSubjectById(request.marketingSubjectId) : null;
 
   return (
@@ -264,6 +277,8 @@ function ProviderRequestDetailPageContent() {
                     </div>
                   ) : null}
                 </div>
+
+                <ProposalForm requestId={request.id} initialProposal={proposal} />
               </aside>
             </div>
           </>
