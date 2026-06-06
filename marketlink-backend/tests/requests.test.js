@@ -229,6 +229,7 @@ test('GET /requests lists only the signed-in customer requests', async () => {
   const originalGetUserFromRequest = sessionModule.getUserFromRequest;
   const originalCustomerRequest = prismaModule.prisma.customerRequest;
   const originalExpert = prismaModule.prisma.expert;
+  const originalProposal = prismaModule.prisma.proposal;
   const originalLookupZipLocation = geocodingModule.lookupZipLocation;
 
   sessionModule.getUserFromRequest = async () => ({
@@ -279,6 +280,7 @@ test('GET /requests/:id only returns a request owned by the signed-in customer',
   const originalGetUserFromRequest = sessionModule.getUserFromRequest;
   const originalCustomerRequest = prismaModule.prisma.customerRequest;
   const originalExpert = prismaModule.prisma.expert;
+  const originalProposal = prismaModule.prisma.proposal;
   const originalLookupZipLocation = geocodingModule.lookupZipLocation;
 
   sessionModule.getUserFromRequest = async () => ({
@@ -338,6 +340,12 @@ test('GET /requests/:id only returns a request owned by the signed-in customer',
       },
     ],
   };
+  prismaModule.prisma.proposal = {
+    findMany: async ({ where }) => {
+      assert.equal(where.requestId, 'request_3');
+      return [];
+    },
+  };
   geocodingModule.lookupZipLocation = async () => ({
     ok: true,
     city: 'Chicago',
@@ -367,6 +375,129 @@ test('GET /requests/:id only returns a request owned by the signed-in customer',
     sessionModule.getUserFromRequest = originalGetUserFromRequest;
     prismaModule.prisma.customerRequest = originalCustomerRequest;
     prismaModule.prisma.expert = originalExpert;
+    prismaModule.prisma.proposal = originalProposal;
+    geocodingModule.lookupZipLocation = originalLookupZipLocation;
+    await fastify.close();
+  }
+});
+
+test('GET /requests/:id returns proposals with expert summaries for the signed-in customer request', async () => {
+  const fastify = await buildFastify();
+
+  const originalGetUserFromRequest = sessionModule.getUserFromRequest;
+  const originalCustomerRequest = prismaModule.prisma.customerRequest;
+  const originalExpert = prismaModule.prisma.expert;
+  const originalProposal = prismaModule.prisma.proposal;
+  const originalLookupZipLocation = geocodingModule.lookupZipLocation;
+
+  sessionModule.getUserFromRequest = async () => ({
+    id: 'customer_user_proposal_review',
+    email: 'customer@example.com',
+    role: 'customer',
+  });
+
+  prismaModule.prisma.customerRequest = {
+    findFirst: async ({ where }) => {
+      assert.equal(where.id, 'request_customer_proposals_1');
+      assert.equal(where.customerUserId, 'customer_user_proposal_review');
+      return {
+        id: 'request_customer_proposals_1',
+        title: 'Need Google Ads support for a local dental office',
+        description: 'Looking for an expert to audit and relaunch paid search campaigns.',
+        marketingSubjectId: 'paid-ads-lead-generation',
+        serviceTokens: ['google-ads', 'paid-search'],
+        zip: '60601',
+        budgetLabel: '$5k-$10k',
+        timelineLabel: 'This month',
+        status: 'ACTIVE',
+        requesterName: 'Jamie Rivera',
+        requesterBusinessName: 'Westmont Dental',
+        createdAt: new Date('2026-06-05T15:00:00.000Z'),
+        updatedAt: new Date('2026-06-05T15:00:00.000Z'),
+      };
+    },
+  };
+
+  prismaModule.prisma.expert = {
+    findMany: async () => [
+      {
+        id: 'expert_customer_proposal_1',
+        slug: 'windy-city-growth',
+        businessName: 'Windy City Growth',
+        city: 'Chicago',
+        state: 'IL',
+        zip: '60601',
+        remoteFriendly: true,
+        servesNationwide: false,
+        services: ['google-ads', 'paid-search'],
+        verified: true,
+        rating: 4.7,
+      },
+    ],
+  };
+
+  prismaModule.prisma.proposal = {
+    findMany: async ({ where, orderBy }) => {
+      assert.equal(where.requestId, 'request_customer_proposals_1');
+      assert.deepEqual(orderBy, { createdAt: 'desc' });
+      return [
+        {
+          id: 'proposal_customer_review_1',
+          requestId: 'request_customer_proposals_1',
+          expertId: 'expert_customer_proposal_1',
+          message: 'We can audit your account and rebuild the campaign around local search intent.',
+          priceLabel: '$5k-$10k',
+          timelineLabel: 'This month',
+          status: 'PENDING',
+          createdAt: new Date('2026-06-05T18:00:00.000Z'),
+          updatedAt: new Date('2026-06-05T18:00:00.000Z'),
+          expert: {
+            id: 'expert_customer_proposal_1',
+            slug: 'windy-city-growth',
+            businessName: 'Windy City Growth',
+            expertType: 'agency',
+            city: 'Chicago',
+            state: 'IL',
+            verified: true,
+            rating: 4.7,
+          },
+        },
+      ];
+    },
+  };
+
+  geocodingModule.lookupZipLocation = async () => ({
+    ok: true,
+    city: 'Chicago',
+    state: 'IL',
+    zip: '60601',
+    latitude: 41.88,
+    longitude: -87.62,
+    geocodedAt: new Date('2026-06-05T15:00:00.000Z'),
+    geocodeProvider: 'geoapify',
+  });
+
+  try {
+    const response = await fastify.inject({
+      method: 'GET',
+      url: '/requests/request_customer_proposals_1',
+    });
+
+    assert.equal(response.statusCode, 200);
+    const body = response.json();
+    assert.equal(body.ok, true);
+    assert.equal(body.request.id, 'request_customer_proposals_1');
+    assert.equal(body.proposals.length, 1);
+    assert.equal(body.proposals[0].id, 'proposal_customer_review_1');
+    assert.equal(body.proposals[0].status, 'PENDING');
+    assert.equal(body.proposals[0].expert.businessName, 'Windy City Growth');
+    assert.equal(body.proposals[0].expert.slug, 'windy-city-growth');
+    assert.equal(body.proposals[0].expert.verified, true);
+  } finally {
+    sessionModule.getUserFromRequest = originalGetUserFromRequest;
+    prismaModule.prisma.customerRequest = originalCustomerRequest;
+    prismaModule.prisma.expert = originalExpert;
+    prismaModule.prisma.proposal = originalProposal;
     geocodingModule.lookupZipLocation = originalLookupZipLocation;
     await fastify.close();
   }

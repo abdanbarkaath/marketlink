@@ -51,6 +51,27 @@ type RequestDetailResponse = {
     updatedAt: string;
   };
   deliveryPreview?: DeliveryPreview;
+  proposals?: Array<{
+    id: string;
+    requestId: string;
+    expertId: string;
+    message: string;
+    priceLabel?: string | null;
+    timelineLabel?: string | null;
+    status: 'PENDING' | 'ACCEPTED' | 'DECLINED' | 'WITHDRAWN';
+    createdAt: string;
+    updatedAt: string;
+    expert: {
+      id: string;
+      slug: string;
+      businessName: string;
+      expertType?: string | null;
+      city: string;
+      state: string;
+      verified: boolean;
+      rating: number;
+    };
+  }>;
 };
 
 function formatShortDate(value: string) {
@@ -78,6 +99,23 @@ function formatStatus(status: NonNullable<RequestDetailResponse['request']>['sta
   if (status === 'ACTIVE') return 'Active';
   if (status === 'CLOSED') return 'Closed';
   return 'Cancelled';
+}
+
+function formatProposalStatus(status: NonNullable<RequestDetailResponse['proposals']>[number]['status']) {
+  if (status === 'PENDING') return 'New proposal';
+  if (status === 'ACCEPTED') return 'Accepted';
+  if (status === 'DECLINED') return 'Declined';
+  return 'Withdrawn';
+}
+
+function formatExpertType(value?: string | null) {
+  const cleanValue = (value || 'expert').trim();
+
+  return cleanValue
+    .split('_')
+    .filter(Boolean)
+    .map((part) => part.charAt(0).toUpperCase() + part.slice(1).toLowerCase())
+    .join(' ');
 }
 
 export default async function CustomerRequestDetailPage({
@@ -135,6 +173,7 @@ export default async function CustomerRequestDetailPage({
 
   const subject = getMarketingSubjectById(request.marketingSubjectId);
   const preview = data.deliveryPreview;
+  const proposals = data.proposals || [];
 
   return (
     <main className="ml-page-bg min-h-[calc(100vh-72px)]">
@@ -235,6 +274,86 @@ export default async function CustomerRequestDetailPage({
             <RequestLifecycleActions requestId={request.id} status={request.status} />
           </aside>
         </div>
+
+        <section className="mt-5">
+          <div className="flex flex-col gap-3 sm:flex-row sm:items-end sm:justify-between">
+            <div>
+              <p className="text-xs font-semibold uppercase tracking-[0.26em] text-slate-400">Provider proposals</p>
+              <h2 className="mt-2 text-2xl font-semibold tracking-tight text-slate-950">
+                {proposals.length ? `${proposals.length} proposal${proposals.length === 1 ? '' : 's'} to review` : 'No proposals yet'}
+              </h2>
+              <p className="mt-2 max-w-2xl text-sm leading-6 text-slate-600">
+                Review who responded, their note, estimated budget, and timing. Messaging and accept/decline actions will come in the next workflow step.
+              </p>
+            </div>
+          </div>
+
+          {proposals.length ? (
+            <div className="mt-4 grid gap-4">
+              {proposals.map((proposal) => (
+                <article key={proposal.id} className="ml-card rounded-[28px] p-5 shadow-[0_18px_44px_rgba(23,26,31,0.05)]">
+                  <div className="flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between">
+                    <div>
+                      <div className="flex flex-wrap gap-2">
+                        <span className="ml-pill inline-flex rounded-xl px-3 py-1 text-[11px] font-medium uppercase tracking-[0.16em] text-slate-500">
+                          {formatProposalStatus(proposal.status)}
+                        </span>
+                        {proposal.expert.verified ? (
+                          <span className="ml-pill inline-flex rounded-xl px-3 py-1 text-[11px] font-medium uppercase tracking-[0.16em] text-slate-500">
+                            Verified
+                          </span>
+                        ) : null}
+                      </div>
+
+                      <h3 className="mt-3 text-xl font-semibold tracking-tight text-slate-950">{proposal.expert.businessName}</h3>
+                      <p className="mt-1 text-sm leading-6 text-slate-600">
+                        {formatExpertType(proposal.expert.expertType)} in {proposal.expert.city}, {proposal.expert.state}
+                      </p>
+                    </div>
+
+                    <Link
+                      href={`/experts/${proposal.expert.slug}`}
+                      className="ml-btn-secondary inline-flex min-h-11 items-center justify-center rounded-xl px-5 text-sm font-semibold text-slate-900"
+                    >
+                      View expert profile
+                    </Link>
+                  </div>
+
+                  <div className="mt-5 grid gap-4 md:grid-cols-[minmax(0,1fr)_260px]">
+                    <div>
+                      <div className="text-[11px] font-semibold uppercase tracking-[0.2em] text-slate-400">Provider note</div>
+                      <p className="mt-2 whitespace-pre-wrap text-sm leading-6 text-slate-700">{proposal.message}</p>
+                    </div>
+
+                    <div className="rounded-2xl bg-slate-50 p-4">
+                      <div className="text-[11px] font-semibold uppercase tracking-[0.2em] text-slate-400">Estimate</div>
+                      <dl className="mt-3 space-y-3 text-sm">
+                        <div>
+                          <dt className="text-slate-500">Budget</dt>
+                          <dd className="mt-1 font-semibold text-slate-950">{proposal.priceLabel || 'Not specified'}</dd>
+                        </div>
+                        <div>
+                          <dt className="text-slate-500">Timing</dt>
+                          <dd className="mt-1 font-semibold text-slate-950">{proposal.timelineLabel || 'Not specified'}</dd>
+                        </div>
+                        <div>
+                          <dt className="text-slate-500">Received</dt>
+                          <dd className="mt-1 font-semibold text-slate-950">{formatShortDate(proposal.createdAt)}</dd>
+                        </div>
+                      </dl>
+                    </div>
+                  </div>
+                </article>
+              ))}
+            </div>
+          ) : (
+            <div className="ml-card mt-4 rounded-[24px] p-5 shadow-[0_18px_44px_rgba(23,26,31,0.05)]">
+              <p className="text-sm leading-6 text-slate-600">
+                Providers have not sent proposals yet. This page will update once matched experts respond to the request.
+              </p>
+            </div>
+          )}
+        </section>
 
         <section className="mt-5">
           <div className="flex items-end justify-between">

@@ -360,7 +360,35 @@ const requestsRoutes: FastifyPluginAsync = async (fastify) => {
       zip: request.zip,
     });
 
-    return reply.send({ ok: true, request, deliveryPreview });
+    const proposals = await prisma.proposal.findMany({
+      where: { requestId: request.id },
+      orderBy: { createdAt: 'desc' },
+      select: {
+        id: true,
+        requestId: true,
+        expertId: true,
+        message: true,
+        priceLabel: true,
+        timelineLabel: true,
+        status: true,
+        createdAt: true,
+        updatedAt: true,
+        expert: {
+          select: {
+            id: true,
+            slug: true,
+            businessName: true,
+            expertType: true,
+            city: true,
+            state: true,
+            verified: true,
+            rating: true,
+          },
+        },
+      },
+    });
+
+    return reply.send({ ok: true, request, deliveryPreview, proposals });
   });
 
   fastify.patch('/requests/:id', async (req, reply) => {
