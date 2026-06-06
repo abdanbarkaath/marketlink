@@ -82,6 +82,10 @@ function canTransitionRequestStatus(current: CustomerRequestStatus, next: Custom
   return false;
 }
 
+function isCustomerProposalDecision(status: ProposalStatus) {
+  return status === ProposalStatus.ACCEPTED || status === ProposalStatus.DECLINED;
+}
+
 async function buildProviderMatchForRequest(expert: ProviderExpertForMatching, request: RequestForProviderMatching) {
   const matchedServiceTokens = expert.services.filter((token) => request.serviceTokens.includes(token));
   if (!matchedServiceTokens.length) return null;
@@ -389,6 +393,124 @@ const requestsRoutes: FastifyPluginAsync = async (fastify) => {
     });
 
     return reply.send({ ok: true, request, deliveryPreview, proposals });
+  });
+
+  fastify.get('/proposals', async (req, reply) => {
+    const user = await getUserFromRequest(fastify, req);
+    if (!user) return reply.code(401).send({ error: 'Not authenticated' });
+    if (user.role !== 'customer') return reply.code(403).send({ error: 'Only customers can view proposals.' });
+
+    const proposals = await prisma.proposal.findMany({
+      where: {
+        request: {
+          customerUserId: user.id,
+        },
+      },
+      orderBy: { createdAt: 'desc' },
+      select: {
+        id: true,
+        requestId: true,
+        expertId: true,
+        message: true,
+        priceLabel: true,
+        timelineLabel: true,
+        status: true,
+        createdAt: true,
+        updatedAt: true,
+        request: {
+          select: {
+            id: true,
+            title: true,
+            marketingSubjectId: true,
+            status: true,
+          },
+        },
+        expert: {
+          select: {
+            id: true,
+            slug: true,
+            businessName: true,
+            expertType: true,
+            city: true,
+            state: true,
+            verified: true,
+            rating: true,
+          },
+        },
+      },
+      take: 100,
+    });
+
+    return reply.send({ ok: true, data: proposals });
+  });
+
+  fastify.patch('/proposals/:id', async (req, reply) => {
+    const user = await getUserFromRequest(fastify, req);
+    if (!user) return reply.code(401).send({ error: 'Not authenticated' });
+    if (user.role !== 'customer') return reply.code(403).send({ error: 'Only customers can update proposals.' });
+
+    const { id } = (req.params || {}) as { id?: string };
+    const body = (req.body || {}) as { status?: ProposalStatus | string };
+    const nextStatus = String(body.status || '')
+      .trim()
+      .toUpperCase() as ProposalStatus;
+
+    if (!id) return reply.code(400).send({ ok: false, error: 'Missing proposal id' });
+    if (!Object.values(ProposalStatus).includes(nextStatus) || !isCustomerProposalDecision(nextStatus)) {
+      return reply.code(400).send({ ok: false, error: 'status must be ACCEPTED or DECLINED' });
+    }
+
+    const existing = await prisma.proposal.findFirst({
+      where: {
+        id,
+        request: {
+          customerUserId: user.id,
+        },
+      },
+      select: {
+        id: true,
+        requestId: true,
+        status: true,
+      },
+    });
+
+    if (!existing) return reply.code(404).send({ ok: false, error: 'Proposal not found' });
+
+    if (existing.status !== ProposalStatus.PENDING) {
+      return reply.code(409).send({ ok: false, error: `This proposal cannot move from ${existing.status} to ${nextStatus}.` });
+    }
+
+    const updated = await prisma.proposal.update({
+      where: { id },
+      data: { status: nextStatus },
+      select: {
+        id: true,
+        requestId: true,
+        expertId: true,
+        message: true,
+        priceLabel: true,
+        timelineLabel: true,
+        status: true,
+        createdAt: true,
+        updatedAt: true,
+      },
+    });
+
+    if (nextStatus === ProposalStatus.ACCEPTED) {
+      await prisma.proposal.updateMany({
+        where: {
+          requestId: existing.requestId,
+          id: { not: updated.id },
+          status: ProposalStatus.PENDING,
+        },
+        data: {
+          status: ProposalStatus.DECLINED,
+        },
+      });
+    }
+
+    req.log.info({ proposalId: updated.id, requestId: updated.requestId, status: updated.status, customerUserId: user.id }, 'proposal.updated');
+    return reply.send({ ok: true, proposal: updated });
   });
 
   fastify.patch('/requests/:id', async (req, reply) => {

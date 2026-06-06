@@ -2,6 +2,7 @@ import Link from 'next/link';
 import { cookies } from 'next/headers';
 import { redirect } from 'next/navigation';
 import { formatServiceTokenLabel, getMarketingSubjectById } from '@/lib/marketingTaxonomy';
+import ProposalDecisionActions from '../../proposals/ProposalDecisionActions';
 import RequestLifecycleActions from '../RequestLifecycleActions';
 
 const API_BASE = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:4000';
@@ -174,6 +175,7 @@ export default async function CustomerRequestDetailPage({
   const subject = getMarketingSubjectById(request.marketingSubjectId);
   const preview = data.deliveryPreview;
   const proposals = data.proposals || [];
+  const pendingProposalCount = proposals.filter((proposal) => proposal.status === 'PENDING').length;
 
   return (
     <main className="ml-page-bg min-h-[calc(100vh-72px)]">
@@ -280,12 +282,19 @@ export default async function CustomerRequestDetailPage({
             <div>
               <p className="text-xs font-semibold uppercase tracking-[0.26em] text-slate-400">Provider proposals</p>
               <h2 className="mt-2 text-2xl font-semibold tracking-tight text-slate-950">
-                {proposals.length ? `${proposals.length} proposal${proposals.length === 1 ? '' : 's'} to review` : 'No proposals yet'}
+                {proposals.length
+                  ? pendingProposalCount
+                    ? `${pendingProposalCount} proposal${pendingProposalCount === 1 ? '' : 's'} needs your decision`
+                    : `${proposals.length} proposal${proposals.length === 1 ? '' : 's'} received`
+                  : 'No proposals yet'}
               </h2>
               <p className="mt-2 max-w-2xl text-sm leading-6 text-slate-600">
-                Review who responded, their note, estimated budget, and timing. Messaging and accept/decline actions will come in the next workflow step.
+                Review who responded, their note, estimated budget, and timing. Accept the proposal you want to move forward with, or decline ones that are not a fit.
               </p>
             </div>
+            <Link href="/dashboard/customer/proposals" className="ml-btn-secondary inline-flex min-h-11 items-center justify-center rounded-xl px-5 text-sm font-semibold text-slate-900">
+              Proposal inbox
+            </Link>
           </div>
 
           {proposals.length ? (
@@ -325,22 +334,26 @@ export default async function CustomerRequestDetailPage({
                       <p className="mt-2 whitespace-pre-wrap text-sm leading-6 text-slate-700">{proposal.message}</p>
                     </div>
 
-                    <div className="rounded-2xl bg-slate-50 p-4">
-                      <div className="text-[11px] font-semibold uppercase tracking-[0.2em] text-slate-400">Estimate</div>
-                      <dl className="mt-3 space-y-3 text-sm">
-                        <div>
-                          <dt className="text-slate-500">Budget</dt>
-                          <dd className="mt-1 font-semibold text-slate-950">{proposal.priceLabel || 'Not specified'}</dd>
-                        </div>
-                        <div>
-                          <dt className="text-slate-500">Timing</dt>
-                          <dd className="mt-1 font-semibold text-slate-950">{proposal.timelineLabel || 'Not specified'}</dd>
-                        </div>
-                        <div>
-                          <dt className="text-slate-500">Received</dt>
-                          <dd className="mt-1 font-semibold text-slate-950">{formatShortDate(proposal.createdAt)}</dd>
-                        </div>
-                      </dl>
+                    <div className="grid gap-4">
+                      <div className="rounded-2xl bg-slate-50 p-4">
+                        <div className="text-[11px] font-semibold uppercase tracking-[0.2em] text-slate-400">Estimate</div>
+                        <dl className="mt-3 space-y-3 text-sm">
+                          <div>
+                            <dt className="text-slate-500">Budget</dt>
+                            <dd className="mt-1 font-semibold text-slate-950">{proposal.priceLabel || 'Not specified'}</dd>
+                          </div>
+                          <div>
+                            <dt className="text-slate-500">Timing</dt>
+                            <dd className="mt-1 font-semibold text-slate-950">{proposal.timelineLabel || 'Not specified'}</dd>
+                          </div>
+                          <div>
+                            <dt className="text-slate-500">Received</dt>
+                            <dd className="mt-1 font-semibold text-slate-950">{formatShortDate(proposal.createdAt)}</dd>
+                          </div>
+                        </dl>
+                      </div>
+
+                      <ProposalDecisionActions proposalId={proposal.id} status={proposal.status} />
                     </div>
                   </div>
                 </article>

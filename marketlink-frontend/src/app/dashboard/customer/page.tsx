@@ -102,7 +102,7 @@ export default async function CustomerDashboardPage() {
                 <p className="text-xs font-semibold uppercase tracking-[0.32em] text-slate-500">Customer dashboard</p>
                 <h1 className="mt-2 text-3xl font-semibold tracking-tight text-slate-950 sm:text-4xl">Good to see you, {name}.</h1>
                 <p className="mt-3 max-w-2xl text-sm leading-6 text-slate-600">
-                  This is your lightweight home base. Keep the basics current, browse experts, and use this space later to track requests, replies, and your shortlist as those tools come online.
+                  This is your lightweight home base. Keep the basics current, browse experts, track requests, and review provider proposals from one place.
                 </p>
               </div>
 
@@ -158,7 +158,7 @@ export default async function CustomerDashboardPage() {
               <DashboardRailCard
                 eyebrow="Next"
                 title="Use this as your base"
-                body="Later request, proposal, and messaging flows will plug into this dashboard instead of sending you through scattered screens."
+                body="Requests and proposals now stay connected here. Messaging can plug into the same workflow later."
               />
             </div>
           </aside>
@@ -172,8 +172,10 @@ export default async function CustomerDashboardPage() {
             eyebrow="Live"
           />
           <FutureStateCard
-            title="Messages"
-            body="When expert conversations go live, your replies and updates will show here in one place."
+            title="Proposals"
+            body="Compare provider responses, review estimates, and accept or decline proposals."
+            href="/dashboard/customer/proposals"
+            eyebrow="Live"
           />
           <FutureStateCard
             title="Shortlist"
