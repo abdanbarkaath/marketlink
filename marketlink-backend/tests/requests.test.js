@@ -503,6 +503,182 @@ test('GET /requests/:id returns proposals with expert summaries for the signed-i
   }
 });
 
+test('GET /proposals lists incoming proposals for the signed-in customer requests', async () => {
+  const fastify = await buildFastify();
+
+  const originalGetUserFromRequest = sessionModule.getUserFromRequest;
+  const originalProposal = prismaModule.prisma.proposal;
+
+  sessionModule.getUserFromRequest = async () => ({
+    id: 'customer_user_proposal_inbox',
+    email: 'customer@example.com',
+    role: 'customer',
+  });
+
+  prismaModule.prisma.proposal = {
+    findMany: async ({ where, orderBy }) => {
+      assert.equal(where.request.customerUserId, 'customer_user_proposal_inbox');
+      assert.deepEqual(orderBy, { createdAt: 'desc' });
+      return [
+        {
+          id: 'proposal_inbox_1',
+          requestId: 'request_inbox_1',
+          expertId: 'expert_inbox_1',
+          message: 'We can launch your local search campaign this month.',
+          priceLabel: '$5k-$10k',
+          timelineLabel: 'This month',
+          status: 'PENDING',
+          createdAt: new Date('2026-06-06T15:00:00.000Z'),
+          updatedAt: new Date('2026-06-06T15:00:00.000Z'),
+          request: {
+            id: 'request_inbox_1',
+            title: 'Need Google Ads support',
+            marketingSubjectId: 'paid-ads-lead-generation',
+            status: 'ACTIVE',
+          },
+          expert: {
+            id: 'expert_inbox_1',
+            slug: 'windy-city-growth',
+            businessName: 'Windy City Growth',
+            expertType: 'agency',
+            city: 'Chicago',
+            state: 'IL',
+            verified: true,
+            rating: 4.7,
+          },
+        },
+      ];
+    },
+  };
+
+  try {
+    const response = await fastify.inject({
+      method: 'GET',
+      url: '/proposals',
+    });
+
+    assert.equal(response.statusCode, 200);
+    const body = response.json();
+    assert.equal(body.ok, true);
+    assert.equal(body.data.length, 1);
+    assert.equal(body.data[0].id, 'proposal_inbox_1');
+    assert.equal(body.data[0].request.title, 'Need Google Ads support');
+    assert.equal(body.data[0].expert.businessName, 'Windy City Growth');
+  } finally {
+    sessionModule.getUserFromRequest = originalGetUserFromRequest;
+    prismaModule.prisma.proposal = originalProposal;
+    await fastify.close();
+  }
+});
+
+test('PATCH /proposals/:id lets a customer accept their pending proposal', async () => {
+  const fastify = await buildFastify();
+
+  const originalGetUserFromRequest = sessionModule.getUserFromRequest;
+  const originalProposal = prismaModule.prisma.proposal;
+  let declinedOtherPendingProposals = false;
+
+  sessionModule.getUserFromRequest = async () => ({
+    id: 'customer_user_proposal_accept',
+    email: 'customer@example.com',
+    role: 'customer',
+  });
+
+  prismaModule.prisma.proposal = {
+    findFirst: async ({ where }) => {
+      assert.equal(where.id, 'proposal_accept_1');
+      assert.equal(where.request.customerUserId, 'customer_user_proposal_accept');
+      return {
+        id: 'proposal_accept_1',
+        requestId: 'request_accept_1',
+        status: 'PENDING',
+      };
+    },
+    update: async ({ where, data }) => {
+      assert.equal(where.id, 'proposal_accept_1');
+      assert.equal(data.status, 'ACCEPTED');
+      return {
+        id: 'proposal_accept_1',
+        requestId: 'request_accept_1',
+        expertId: 'expert_accept_1',
+        message: 'We can help.',
+        priceLabel: '$5k-$10k',
+        timelineLabel: 'This month',
+        status: 'ACCEPTED',
+        createdAt: new Date('2026-06-06T15:00:00.000Z'),
+        updatedAt: new Date('2026-06-06T15:05:00.000Z'),
+      };
+    },
+    updateMany: async ({ where, data }) => {
+      declinedOtherPendingProposals = true;
+      assert.equal(where.requestId, 'request_accept_1');
+      assert.deepEqual(where.id, { not: 'proposal_accept_1' });
+      assert.equal(where.status, 'PENDING');
+      assert.equal(data.status, 'DECLINED');
+      return { count: 1 };
+    },
+  };
+
+  try {
+    const response = await fastify.inject({
+      method: 'PATCH',
+      url: '/proposals/proposal_accept_1',
+      payload: {
+        status: 'ACCEPTED',
+      },
+    });
+
+    assert.equal(response.statusCode, 200);
+    const body = response.json();
+    assert.equal(body.ok, true);
+    assert.equal(body.proposal.id, 'proposal_accept_1');
+    assert.equal(body.proposal.status, 'ACCEPTED');
+    assert.equal(declinedOtherPendingProposals, true);
+  } finally {
+    sessionModule.getUserFromRequest = originalGetUserFromRequest;
+    prismaModule.prisma.proposal = originalProposal;
+    await fastify.close();
+  }
+});
+
+test('PATCH /proposals/:id rejects proposal decisions for non-owned requests', async () => {
+  const fastify = await buildFastify();
+
+  const originalGetUserFromRequest = sessionModule.getUserFromRequest;
+  const originalProposal = prismaModule.prisma.proposal;
+
+  sessionModule.getUserFromRequest = async () => ({
+    id: 'customer_user_proposal_other',
+    email: 'customer@example.com',
+    role: 'customer',
+  });
+
+  prismaModule.prisma.proposal = {
+    findFirst: async ({ where }) => {
+      assert.equal(where.id, 'proposal_other_1');
+      assert.equal(where.request.customerUserId, 'customer_user_proposal_other');
+      return null;
+    },
+  };
+
+  try {
+    const response = await fastify.inject({
+      method: 'PATCH',
+      url: '/proposals/proposal_other_1',
+      payload: {
+        status: 'DECLINED',
+      },
+    });
+
+    assert.equal(response.statusCode, 404);
+    assert.equal(response.json().error, 'Proposal not found');
+  } finally {
+    sessionModule.getUserFromRequest = originalGetUserFromRequest;
+    prismaModule.prisma.proposal = originalProposal;
+    await fastify.close();
+  }
+});
+
 test('GET /provider/requests lists active matched requests for the signed-in provider expert', async () => {
   const fastify = await buildFastify();
 
