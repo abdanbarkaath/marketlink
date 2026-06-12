@@ -19,6 +19,12 @@ type RequestHistoryItem = {
   status: 'ACTIVE' | 'CLOSED' | 'CANCELLED';
   createdAt: string;
   updatedAt: string;
+  proposalSummary: {
+    total: number;
+    pending: number;
+    accepted: number;
+    declined: number;
+  };
 };
 
 type RequestsResponse = {
@@ -136,6 +142,19 @@ export default async function CustomerRequestsPage() {
                         <span className="ml-pill inline-flex rounded-xl px-3 py-1 text-[11px] font-medium uppercase tracking-[0.16em] text-slate-500">
                           {subject?.label || request.marketingSubjectId}
                         </span>
+                        {request.proposalSummary.pending > 0 ? (
+                          <span className="inline-flex rounded-xl bg-amber-50 px-3 py-1 text-[11px] font-semibold uppercase tracking-[0.16em] text-amber-700 ring-1 ring-amber-200">
+                            {request.proposalSummary.pending} needs decision
+                          </span>
+                        ) : request.proposalSummary.accepted > 0 ? (
+                          <span className="inline-flex rounded-xl bg-emerald-50 px-3 py-1 text-[11px] font-semibold uppercase tracking-[0.16em] text-emerald-700 ring-1 ring-emerald-200">
+                            Proposal accepted
+                          </span>
+                        ) : request.proposalSummary.total > 0 ? (
+                          <span className="ml-pill inline-flex rounded-xl px-3 py-1 text-[11px] font-medium uppercase tracking-[0.16em] text-slate-500">
+                            {request.proposalSummary.total} proposal{request.proposalSummary.total === 1 ? '' : 's'}
+                          </span>
+                        ) : null}
                       </div>
                       <h2 className="mt-3 text-xl font-semibold tracking-tight text-slate-950">{request.title}</h2>
                       <p className="mt-2 text-sm text-slate-600">
@@ -143,7 +162,9 @@ export default async function CustomerRequestsPage() {
                       </p>
                     </div>
 
-                    <span className="text-sm font-semibold text-slate-900">Open</span>
+                    <span className="text-sm font-semibold text-slate-900">
+                      {request.proposalSummary.pending > 0 ? 'Review proposals' : 'Open'}
+                    </span>
                   </div>
 
                   <div className="mt-4 flex flex-wrap gap-2">

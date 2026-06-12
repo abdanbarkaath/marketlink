@@ -228,9 +228,6 @@ test('GET /requests lists only the signed-in customer requests', async () => {
 
   const originalGetUserFromRequest = sessionModule.getUserFromRequest;
   const originalCustomerRequest = prismaModule.prisma.customerRequest;
-  const originalExpert = prismaModule.prisma.expert;
-  const originalProposal = prismaModule.prisma.proposal;
-  const originalLookupZipLocation = geocodingModule.lookupZipLocation;
 
   sessionModule.getUserFromRequest = async () => ({
     id: 'customer_user_3',
@@ -251,6 +248,10 @@ test('GET /requests lists only the signed-in customer requests', async () => {
           status: 'ACTIVE',
           createdAt: new Date('2026-05-24T15:00:00.000Z'),
           updatedAt: new Date('2026-05-24T15:00:00.000Z'),
+          proposals: [
+            { status: 'PENDING' },
+            { status: 'DECLINED' },
+          ],
         },
       ];
     },
@@ -267,6 +268,12 @@ test('GET /requests lists only the signed-in customer requests', async () => {
     assert.equal(body.ok, true);
     assert.equal(body.data.length, 1);
     assert.equal(body.data[0].id, 'request_2');
+    assert.deepEqual(body.data[0].proposalSummary, {
+      total: 2,
+      pending: 1,
+      accepted: 0,
+      declined: 1,
+    });
   } finally {
     sessionModule.getUserFromRequest = originalGetUserFromRequest;
     prismaModule.prisma.customerRequest = originalCustomerRequest;
@@ -685,6 +692,7 @@ test('GET /provider/requests lists active matched requests for the signed-in pro
   const originalGetUserFromRequest = sessionModule.getUserFromRequest;
   const originalExpert = prismaModule.prisma.expert;
   const originalCustomerRequest = prismaModule.prisma.customerRequest;
+  const originalProposal = prismaModule.prisma.proposal;
   const originalLookupZipLocation = geocodingModule.lookupZipLocation;
 
   sessionModule.getUserFromRequest = async () => ({
@@ -752,6 +760,18 @@ test('GET /provider/requests lists active matched requests for the signed-in pro
       ];
     },
   };
+  prismaModule.prisma.proposal = {
+    findMany: async ({ where }) => {
+      assert.equal(where.expertId, 'expert_provider_1');
+      assert.deepEqual(where.requestId.in, ['request_provider_match_1']);
+      return [
+        {
+          requestId: 'request_provider_match_1',
+          status: 'PENDING',
+        },
+      ];
+    },
+  };
 
   geocodingModule.lookupZipLocation = async ({ zip }) => {
     if (zip === '60559') {
@@ -791,10 +811,12 @@ test('GET /provider/requests lists active matched requests for the signed-in pro
     assert.equal(body.data.length, 1);
     assert.equal(body.data[0].id, 'request_provider_match_1');
     assert.equal(body.data[0].primaryReason, 'same_zip');
+    assert.equal(body.data[0].proposalStatus, 'PENDING');
   } finally {
     sessionModule.getUserFromRequest = originalGetUserFromRequest;
     prismaModule.prisma.expert = originalExpert;
     prismaModule.prisma.customerRequest = originalCustomerRequest;
+    prismaModule.prisma.proposal = originalProposal;
     geocodingModule.lookupZipLocation = originalLookupZipLocation;
     await fastify.close();
   }
@@ -1375,6 +1397,7 @@ test('GET /provider/requests excludes closed and cancelled requests', async () =
   const originalGetUserFromRequest = sessionModule.getUserFromRequest;
   const originalExpert = prismaModule.prisma.expert;
   const originalCustomerRequest = prismaModule.prisma.customerRequest;
+  const originalProposal = prismaModule.prisma.proposal;
   const originalLookupZipLocation = geocodingModule.lookupZipLocation;
 
   sessionModule.getUserFromRequest = async () => ({
@@ -1424,6 +1447,9 @@ test('GET /provider/requests excludes closed and cancelled requests', async () =
       ];
     },
   };
+  prismaModule.prisma.proposal = {
+    findMany: async () => [],
+  };
 
   geocodingModule.lookupZipLocation = async () => ({
     ok: true,
@@ -1450,6 +1476,7 @@ test('GET /provider/requests excludes closed and cancelled requests', async () =
     sessionModule.getUserFromRequest = originalGetUserFromRequest;
     prismaModule.prisma.expert = originalExpert;
     prismaModule.prisma.customerRequest = originalCustomerRequest;
+    prismaModule.prisma.proposal = originalProposal;
     geocodingModule.lookupZipLocation = originalLookupZipLocation;
     await fastify.close();
   }
