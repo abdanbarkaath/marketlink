@@ -9,6 +9,7 @@ import { useMarketLinkTheme } from '@/components/ThemeToggle';
 const API_BASE = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:4000';
 
 type ProviderRequestStatus = 'ACTIVE' | 'CLOSED' | 'CANCELLED';
+type ProposalStatus = 'PENDING' | 'ACCEPTED' | 'DECLINED' | 'WITHDRAWN';
 type MatchReason = 'same_zip' | 'same_city' | 'serves_nationwide' | 'remote_friendly';
 
 type ProviderRequestRow = {
@@ -24,6 +25,7 @@ type ProviderRequestRow = {
   primaryReason: MatchReason;
   reasons: MatchReason[];
   matchedServiceTokens: string[];
+  proposalStatus?: ProposalStatus | null;
 };
 
 type ProviderRequestsResponse = {
@@ -49,6 +51,13 @@ function formatStatus(status: ProviderRequestStatus) {
   if (status === 'ACTIVE') return 'Active';
   if (status === 'CLOSED') return 'Closed';
   return 'Cancelled';
+}
+
+function formatProposalStatus(status: ProposalStatus) {
+  if (status === 'PENDING') return 'Proposal pending';
+  if (status === 'ACCEPTED') return 'Proposal accepted';
+  if (status === 'DECLINED') return 'Proposal declined';
+  return 'Proposal withdrawn';
 }
 
 function formatShortDate(value: string) {
@@ -122,6 +131,9 @@ export default function ProviderRequestsPage() {
   }, [router]);
 
   const activeCount = useMemo(() => rows.filter((row) => row.status === 'ACTIVE').length, [rows]);
+  const needsProposalCount = useMemo(() => rows.filter((row) => !row.proposalStatus).length, [rows]);
+  const pendingProposalCount = useMemo(() => rows.filter((row) => row.proposalStatus === 'PENDING').length, [rows]);
+  const acceptedProposalCount = useMemo(() => rows.filter((row) => row.proposalStatus === 'ACCEPTED').length, [rows]);
 
   const shellClass =
     'rounded-[28px] border border-slate-200/80 bg-[linear-gradient(180deg,rgba(255,255,255,0.94),rgba(247,244,239,0.96))] p-5 shadow-[0_18px_50px_rgba(15,23,42,0.06)] sm:p-6';
@@ -149,12 +161,20 @@ export default function ProviderRequestsPage() {
             <div className={mutedCardClass}>
               <div className="grid grid-cols-2 gap-3">
                 <div className="rounded-2xl bg-slate-900 px-4 py-3 text-white shadow-[0_18px_34px_rgba(15,23,42,0.18)]">
-                  <div className="text-[11px] font-semibold uppercase tracking-[0.22em] text-slate-300">Active</div>
-                  <div className="mt-2 text-lg font-semibold">{activeCount}</div>
+                  <div className="text-[11px] font-semibold uppercase tracking-[0.22em] text-slate-300">Needs proposal</div>
+                  <div className="mt-2 text-lg font-semibold">{needsProposalCount}</div>
                 </div>
                 <div className="rounded-2xl border border-slate-200/80 bg-white/90 px-4 py-3">
-                  <div className="text-[11px] font-semibold uppercase tracking-[0.22em] text-slate-400">Total</div>
-                  <div className="mt-2 text-lg font-semibold text-slate-950">{rows.length}</div>
+                  <div className="text-[11px] font-semibold uppercase tracking-[0.22em] text-slate-400">Pending</div>
+                  <div className="mt-2 text-lg font-semibold text-slate-950">{pendingProposalCount}</div>
+                </div>
+                <div className="rounded-2xl border border-slate-200/80 bg-white/90 px-4 py-3">
+                  <div className="text-[11px] font-semibold uppercase tracking-[0.22em] text-slate-400">Accepted</div>
+                  <div className="mt-2 text-lg font-semibold text-slate-950">{acceptedProposalCount}</div>
+                </div>
+                <div className="rounded-2xl border border-slate-200/80 bg-white/90 px-4 py-3">
+                  <div className="text-[11px] font-semibold uppercase tracking-[0.22em] text-slate-400">Active matches</div>
+                  <div className="mt-2 text-lg font-semibold text-slate-950">{activeCount}</div>
                 </div>
               </div>
             </div>
@@ -205,6 +225,15 @@ export default function ProviderRequestsPage() {
                           <span className="rounded-full border border-slate-200/80 bg-white px-3 py-1 text-xs font-medium text-slate-700">
                             {formatReason(row.primaryReason)}
                           </span>
+                          {row.proposalStatus ? (
+                            <span className="rounded-full border border-slate-200/80 bg-white px-3 py-1 text-xs font-semibold text-slate-700">
+                              {formatProposalStatus(row.proposalStatus)}
+                            </span>
+                          ) : (
+                            <span className="rounded-full border border-amber-200 bg-amber-50 px-3 py-1 text-xs font-semibold text-amber-700">
+                              Needs proposal
+                            </span>
+                          )}
                           <span className={`text-xs ${t.mutedText}`}>Created {formatShortDate(row.createdAt)}</span>
                         </div>
 
@@ -214,7 +243,7 @@ export default function ProviderRequestsPage() {
                         </p>
                       </div>
 
-                      <span className="text-sm font-semibold text-slate-900">Open</span>
+                      <span className="text-sm font-semibold text-slate-900">{row.proposalStatus ? 'View proposal' : 'Review and respond'}</span>
                     </div>
 
                     <div className="flex flex-wrap gap-2">
