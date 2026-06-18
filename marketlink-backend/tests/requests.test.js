@@ -583,7 +583,10 @@ test('PATCH /proposals/:id lets a customer accept their pending proposal', async
 
   const originalGetUserFromRequest = sessionModule.getUserFromRequest;
   const originalProposal = prismaModule.prisma.proposal;
+  const originalConversation = prismaModule.prisma.conversation;
+  const originalTransaction = prismaModule.prisma.$transaction;
   let declinedOtherPendingProposals = false;
+  let createdConversation = false;
 
   sessionModule.getUserFromRequest = async () => ({
     id: 'customer_user_proposal_accept',
@@ -598,6 +601,9 @@ test('PATCH /proposals/:id lets a customer accept their pending proposal', async
       return {
         id: 'proposal_accept_1',
         requestId: 'request_accept_1',
+        request: {
+          customerUserId: 'customer_user_proposal_accept',
+        },
         status: 'PENDING',
       };
     },
@@ -626,6 +632,38 @@ test('PATCH /proposals/:id lets a customer accept their pending proposal', async
     },
   };
 
+  prismaModule.prisma.conversation = {
+    upsert: async ({ where, create, update, select }) => {
+      createdConversation = true;
+      assert.deepEqual(where, { proposalId: 'proposal_accept_1' });
+      assert.deepEqual(update, {});
+      assert.equal(create.proposalId, 'proposal_accept_1');
+      assert.equal(create.requestId, 'request_accept_1');
+      assert.equal(create.customerUserId, 'customer_user_proposal_accept');
+      assert.equal(create.expertId, 'expert_accept_1');
+      assert.deepEqual(select, {
+        id: true,
+        proposalId: true,
+        requestId: true,
+        customerUserId: true,
+        expertId: true,
+        createdAt: true,
+        updatedAt: true,
+      });
+      return {
+        id: 'conversation_accept_1',
+        proposalId: 'proposal_accept_1',
+        requestId: 'request_accept_1',
+        customerUserId: 'customer_user_proposal_accept',
+        expertId: 'expert_accept_1',
+        createdAt: new Date('2026-06-06T15:05:00.000Z'),
+        updatedAt: new Date('2026-06-06T15:05:00.000Z'),
+      };
+    },
+  };
+
+  prismaModule.prisma.$transaction = async (callback) => callback(prismaModule.prisma);
+
   try {
     const response = await fastify.inject({
       method: 'PATCH',
@@ -640,10 +678,15 @@ test('PATCH /proposals/:id lets a customer accept their pending proposal', async
     assert.equal(body.ok, true);
     assert.equal(body.proposal.id, 'proposal_accept_1');
     assert.equal(body.proposal.status, 'ACCEPTED');
+    assert.equal(body.conversation.id, 'conversation_accept_1');
+    assert.equal(body.conversation.proposalId, 'proposal_accept_1');
+    assert.equal(createdConversation, true);
     assert.equal(declinedOtherPendingProposals, true);
   } finally {
     sessionModule.getUserFromRequest = originalGetUserFromRequest;
     prismaModule.prisma.proposal = originalProposal;
+    prismaModule.prisma.conversation = originalConversation;
+    prismaModule.prisma.$transaction = originalTransaction;
     await fastify.close();
   }
 });

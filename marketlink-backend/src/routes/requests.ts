@@ -485,6 +485,11 @@ const requestsRoutes: FastifyPluginAsync = async (fastify) => {
       select: {
         id: true,
         requestId: true,
+        request: {
+          select: {
+            customerUserId: true,
+          },
+        },
         status: true,
       },
     });
@@ -495,37 +500,61 @@ const requestsRoutes: FastifyPluginAsync = async (fastify) => {
       return reply.code(409).send({ ok: false, error: `This proposal cannot move from ${existing.status} to ${nextStatus}.` });
     }
 
-    const updated = await prisma.proposal.update({
-      where: { id },
-      data: { status: nextStatus },
-      select: {
-        id: true,
-        requestId: true,
-        expertId: true,
-        message: true,
-        priceLabel: true,
-        timelineLabel: true,
-        status: true,
-        createdAt: true,
-        updatedAt: true,
-      },
-    });
+    const { updated, conversation } = await prisma.$transaction(async (tx) => {
+      const updated = await tx.proposal.update({
+        where: { id },
+        data: { status: nextStatus },
+        select: {
+          id: true,
+          requestId: true,
+          expertId: true,
+          message: true,
+          priceLabel: true,
+          timelineLabel: true,
+          status: true,
+          createdAt: true,
+          updatedAt: true,
+        },
+      });
 
-    if (nextStatus === ProposalStatus.ACCEPTED) {
-      await prisma.proposal.updateMany({
+      if (nextStatus !== ProposalStatus.ACCEPTED) {
+        return { updated, conversation: null };
+      }
+
+      await tx.proposal.updateMany({
         where: {
           requestId: existing.requestId,
           id: { not: updated.id },
           status: ProposalStatus.PENDING,
         },
-        data: {
-          status: ProposalStatus.DECLINED,
+        data: { status: ProposalStatus.DECLINED },
+      });
+
+      const conversation = await tx.conversation.upsert({
+        where: { proposalId: updated.id },
+        update: {},
+        create: {
+          proposalId: updated.id,
+          requestId: updated.requestId,
+          customerUserId: existing.request.customerUserId,
+          expertId: updated.expertId,
+        },
+        select: {
+          id: true,
+          proposalId: true,
+          requestId: true,
+          customerUserId: true,
+          expertId: true,
+          createdAt: true,
+          updatedAt: true,
         },
       });
-    }
+
+      return { updated, conversation };
+    });
 
     req.log.info({ proposalId: updated.id, requestId: updated.requestId, status: updated.status, customerUserId: user.id }, 'proposal.updated');
-    return reply.send({ ok: true, proposal: updated });
+    return reply.send({ ok: true, proposal: updated, conversation });
   });
 
   fastify.patch('/requests/:id', async (req, reply) => {
