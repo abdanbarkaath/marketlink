@@ -4,11 +4,13 @@ import Fastify from 'fastify';
 import cors from '@fastify/cors';
 import cookie from '@fastify/cookie';
 import rateLimit from '@fastify/rate-limit';
+import websocket from '@fastify/websocket';
 import adminRoutes from './routes/admin';
 import authRoutes from './routes/auth';
 import accountRoutes from './routes/account';
 import expertsRoutes from './routes/providers';
 import inquiriesRoutes from './routes/inquiries';
+import messagingRoutes from './routes/messaging';
 import requestsRoutes from './routes/requests';
 
 function normalizeOrigin(raw: string) {
@@ -49,6 +51,7 @@ async function start() {
 
   // 👇 register rate-limit plugin, but don't enable globally
   await fastify.register(rateLimit, { global: false });
+  await fastify.register(websocket);
 
   fastify.get('/health', async () => ({
     ok: true,
@@ -60,6 +63,7 @@ async function start() {
   await fastify.register(accountRoutes);
   await fastify.register(expertsRoutes);
   await fastify.register(inquiriesRoutes);
+  await fastify.register(messagingRoutes);
   await fastify.register(requestsRoutes);
   await fastify.register(adminRoutes);
 
