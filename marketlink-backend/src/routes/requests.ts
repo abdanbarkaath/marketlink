@@ -319,11 +319,26 @@ const requestsRoutes: FastifyPluginAsync = async (fastify) => {
         status: true,
         createdAt: true,
         updatedAt: true,
+        proposals: {
+          select: {
+            status: true,
+          },
+        },
       },
       take: 100,
     });
 
-    return reply.send({ ok: true, data: rows });
+    const data = rows.map(({ proposals, ...request }) => ({
+      ...request,
+      proposalSummary: {
+        total: proposals.length,
+        pending: proposals.filter((proposal) => proposal.status === ProposalStatus.PENDING).length,
+        accepted: proposals.filter((proposal) => proposal.status === ProposalStatus.ACCEPTED).length,
+        declined: proposals.filter((proposal) => proposal.status === ProposalStatus.DECLINED).length,
+      },
+    }));
+
+    return reply.send({ ok: true, data });
   });
 
   fastify.get('/requests/:id', async (req, reply) => {
@@ -629,7 +644,29 @@ const requestsRoutes: FastifyPluginAsync = async (fastify) => {
       });
     }
 
-    return reply.send({ ok: true, data: matches });
+    const proposals = matches.length
+      ? await prisma.proposal.findMany({
+          where: {
+            expertId: expert.id,
+            requestId: {
+              in: matches.map((request) => request.id),
+            },
+          },
+          select: {
+            requestId: true,
+            status: true,
+          },
+        })
+      : [];
+    const proposalStatusByRequestId = new Map(proposals.map((proposal) => [proposal.requestId, proposal.status]));
+
+    return reply.send({
+      ok: true,
+      data: matches.map((request) => ({
+        ...request,
+        proposalStatus: proposalStatusByRequestId.get(request.id) || null,
+      })),
+    });
   });
 
   fastify.get('/provider/requests/:id', async (req, reply) => {

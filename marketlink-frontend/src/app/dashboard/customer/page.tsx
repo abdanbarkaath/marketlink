@@ -9,6 +9,14 @@ type SummaryResponse = {
   customer?: { name?: string | null; businessName?: string | null } | null;
 };
 
+type CustomerRequestSummary = {
+  status: 'ACTIVE' | 'CLOSED' | 'CANCELLED';
+};
+
+type CustomerProposalSummary = {
+  status: 'PENDING' | 'ACCEPTED' | 'DECLINED' | 'WITHDRAWN';
+};
+
 function DashboardRailCard({
   eyebrow,
   title,
@@ -91,6 +99,24 @@ export default async function CustomerDashboardPage() {
     redirect('/dashboard/customer/onboarding');
   }
 
+  const [requestsRes, proposalsRes] = await Promise.all([
+    fetch(`${API_BASE}/requests`, {
+      headers: cookieHeader ? { cookie: cookieHeader } : {},
+      cache: 'no-store',
+    }),
+    fetch(`${API_BASE}/proposals`, {
+      headers: cookieHeader ? { cookie: cookieHeader } : {},
+      cache: 'no-store',
+    }),
+  ]);
+
+  const requestsData = requestsRes.ok ? ((await requestsRes.json()) as { data?: CustomerRequestSummary[] }) : {};
+  const proposalsData = proposalsRes.ok ? ((await proposalsRes.json()) as { data?: CustomerProposalSummary[] }) : {};
+  const requests = requestsData.data || [];
+  const proposals = proposalsData.data || [];
+  const activeRequestCount = requests.filter((request) => request.status === 'ACTIVE').length;
+  const pendingProposalCount = proposals.filter((proposal) => proposal.status === 'PENDING').length;
+
   return (
     <main className="ml-page-bg min-h-[calc(100vh-72px)]">
       <div className="mx-auto max-w-6xl px-4 py-6 sm:px-6 sm:py-8">
@@ -167,15 +193,23 @@ export default async function CustomerDashboardPage() {
         <section className="mt-5 grid gap-4 md:grid-cols-3">
           <FutureStateCard
             title="Requests"
-            body="Create requests privately, revisit your history, and review the matching preview from one place."
+            body={
+              activeRequestCount
+                ? `${activeRequestCount} active request${activeRequestCount === 1 ? '' : 's'}. Open history to review status and incoming proposals.`
+                : 'Create requests privately, revisit your history, and review the matching preview from one place.'
+            }
             href="/dashboard/customer/requests"
-            eyebrow="Live"
+            eyebrow={activeRequestCount ? `${activeRequestCount} active` : 'Live'}
           />
           <FutureStateCard
             title="Proposals"
-            body="Compare provider responses, review estimates, and accept or decline proposals."
+            body={
+              pendingProposalCount
+                ? `${pendingProposalCount} proposal${pendingProposalCount === 1 ? '' : 's'} waiting for your decision.`
+                : 'Compare provider responses, review estimates, and accept or decline proposals.'
+            }
             href="/dashboard/customer/proposals"
-            eyebrow="Live"
+            eyebrow={pendingProposalCount ? `${pendingProposalCount} needs action` : 'Live'}
           />
           <FutureStateCard
             title="Shortlist"

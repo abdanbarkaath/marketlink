@@ -33,6 +33,7 @@ type ProviderRequestRow = {
   id: string;
   status: 'ACTIVE' | 'CLOSED' | 'CANCELLED';
   createdAt: string;
+  proposalStatus?: 'PENDING' | 'ACCEPTED' | 'DECLINED' | 'WITHDRAWN' | null;
 };
 
 function formatExpertTypeLabel(expertType: ExpertSummary['expertType']) {
@@ -69,6 +70,9 @@ const [user, setUser] = useState<User | null>(null);
   const [inquiryCount, setInquiryCount] = useState<number | null>(null);
   const [newInquiryCount, setNewInquiryCount] = useState<number | null>(null);
   const [matchedRequestCount, setMatchedRequestCount] = useState<number | null>(null);
+  const [needsProposalCount, setNeedsProposalCount] = useState<number | null>(null);
+  const [pendingProposalCount, setPendingProposalCount] = useState<number | null>(null);
+  const [acceptedProposalCount, setAcceptedProposalCount] = useState<number | null>(null);
 
   useEffect(() => {
     (async () => {
@@ -136,6 +140,9 @@ const [user, setUser] = useState<User | null>(null);
           const body = (await requestsRes.json()) as { ok?: true; data?: ProviderRequestRow[] };
           const rows = Array.isArray(body?.data) ? body.data : [];
           setMatchedRequestCount(rows.filter((r) => r.status === 'ACTIVE').length);
+          setNeedsProposalCount(rows.filter((r) => !r.proposalStatus).length);
+          setPendingProposalCount(rows.filter((r) => r.proposalStatus === 'PENDING').length);
+          setAcceptedProposalCount(rows.filter((r) => r.proposalStatus === 'ACCEPTED').length);
         }
       } catch {
         // ignore dashboard sidebar count failures
@@ -239,9 +246,15 @@ const [user, setUser] = useState<User | null>(null);
                 <div className="text-xs font-semibold uppercase tracking-[0.26em] text-slate-400">Matched requests</div>
                 <div className="mt-2 text-base font-semibold text-slate-900">{matchedRequestCount === null ? '—' : matchedRequestCount}</div>
               </div>
+              <div className={mutedCardClass}>
+                <div className="text-xs font-semibold uppercase tracking-[0.26em] text-slate-400">Needs proposal</div>
+                <div className="mt-2 text-base font-semibold text-slate-900">{needsProposalCount === null ? '—' : needsProposalCount}</div>
+              </div>
               <div className={`${mutedCardClass} col-span-2 sm:col-span-1`}>
-                <div className="text-xs font-semibold uppercase tracking-[0.26em] text-slate-400">New inquiries</div>
-                <div className="mt-2 text-base font-semibold text-slate-900">{newInquiryCount === null ? '—' : newInquiryCount}</div>
+                <div className="text-xs font-semibold uppercase tracking-[0.26em] text-slate-400">Proposal decisions</div>
+                <div className="mt-2 text-sm font-semibold text-slate-900">
+                  {pendingProposalCount === null || acceptedProposalCount === null ? '—' : `${pendingProposalCount} pending • ${acceptedProposalCount} accepted`}
+                </div>
               </div>
             </div>
           </div>
@@ -300,7 +313,11 @@ const [user, setUser] = useState<User | null>(null);
                     </Link>
                     <Link href="/dashboard/requests" className={secondaryLinkClass}>
                       Matched requests
-                      {matchedRequestCount !== null && matchedRequestCount > 0 ? <span className="ml-pill ml-2 rounded-xl px-2 py-0.5 text-xs normal-case tracking-normal">{matchedRequestCount} active</span> : null}
+                      {needsProposalCount !== null && needsProposalCount > 0 ? (
+                        <span className="ml-pill ml-2 rounded-xl px-2 py-0.5 text-xs normal-case tracking-normal">{needsProposalCount} needs proposal</span>
+                      ) : matchedRequestCount !== null && matchedRequestCount > 0 ? (
+                        <span className="ml-pill ml-2 rounded-xl px-2 py-0.5 text-xs normal-case tracking-normal">{matchedRequestCount} active</span>
+                      ) : null}
                     </Link>
                     <Link href="/dashboard/inquiries" className={secondaryLinkClass}>
                       Inquiries
