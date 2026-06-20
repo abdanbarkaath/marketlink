@@ -17,6 +17,10 @@ type CustomerProposalSummary = {
   status: 'PENDING' | 'ACCEPTED' | 'DECLINED' | 'WITHDRAWN';
 };
 
+type CustomerConversationSummary = {
+  id: string;
+};
+
 function DashboardRailCard({
   eyebrow,
   title,
@@ -99,7 +103,7 @@ export default async function CustomerDashboardPage() {
     redirect('/dashboard/customer/onboarding');
   }
 
-  const [requestsRes, proposalsRes] = await Promise.all([
+  const [requestsRes, proposalsRes, conversationsRes] = await Promise.all([
     fetch(`${API_BASE}/requests`, {
       headers: cookieHeader ? { cookie: cookieHeader } : {},
       cache: 'no-store',
@@ -108,14 +112,21 @@ export default async function CustomerDashboardPage() {
       headers: cookieHeader ? { cookie: cookieHeader } : {},
       cache: 'no-store',
     }),
+    fetch(`${API_BASE}/conversations`, {
+      headers: cookieHeader ? { cookie: cookieHeader } : {},
+      cache: 'no-store',
+    }),
   ]);
 
   const requestsData = requestsRes.ok ? ((await requestsRes.json()) as { data?: CustomerRequestSummary[] }) : {};
   const proposalsData = proposalsRes.ok ? ((await proposalsRes.json()) as { data?: CustomerProposalSummary[] }) : {};
+  const conversationsData = conversationsRes.ok ? ((await conversationsRes.json()) as { data?: CustomerConversationSummary[] }) : {};
   const requests = requestsData.data || [];
   const proposals = proposalsData.data || [];
+  const conversations = conversationsData.data || [];
   const activeRequestCount = requests.filter((request) => request.status === 'ACTIVE').length;
   const pendingProposalCount = proposals.filter((proposal) => proposal.status === 'PENDING').length;
+  const conversationCount = conversations.length;
 
   return (
     <main className="ml-page-bg min-h-[calc(100vh-72px)]">
@@ -183,8 +194,8 @@ export default async function CustomerDashboardPage() {
               />
               <DashboardRailCard
                 eyebrow="Next"
-                title="Use this as your base"
-                body="Requests and proposals now stay connected here. Messaging can plug into the same workflow later."
+                title="Messages now stay in flow"
+                body="Accepted proposals open into private chat, so your dashboard, proposals, and messages all stay connected."
               />
             </div>
           </aside>
@@ -212,8 +223,14 @@ export default async function CustomerDashboardPage() {
             eyebrow={pendingProposalCount ? `${pendingProposalCount} needs action` : 'Live'}
           />
           <FutureStateCard
-            title="Shortlist"
-            body="As we add a saved-experts flow, this card will become the easiest place to revisit the providers you liked."
+            title="Messages"
+            body={
+              conversationCount
+                ? `${conversationCount} private conversation${conversationCount === 1 ? '' : 's'} ready for follow-up.`
+                : 'Accepted proposals open a private live chat here so you can keep each request and provider thread organized.'
+            }
+            href="/dashboard/customer/messages"
+            eyebrow={conversationCount ? `${conversationCount} live` : 'Live'}
           />
         </section>
       </div>
