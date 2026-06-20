@@ -73,6 +73,7 @@ const [user, setUser] = useState<User | null>(null);
   const [needsProposalCount, setNeedsProposalCount] = useState<number | null>(null);
   const [pendingProposalCount, setPendingProposalCount] = useState<number | null>(null);
   const [acceptedProposalCount, setAcceptedProposalCount] = useState<number | null>(null);
+  const [conversationCount, setConversationCount] = useState<number | null>(null);
 
   useEffect(() => {
     (async () => {
@@ -118,12 +119,16 @@ const [user, setUser] = useState<User | null>(null);
 
     (async () => {
       try {
-        const [inquiriesRes, requestsRes] = await Promise.all([
+        const [inquiriesRes, requestsRes, conversationsRes] = await Promise.all([
           fetch(`${API_BASE}/inquiries`, {
             credentials: 'include',
             cache: 'no-store',
           }),
           fetch(`${API_BASE}/provider/requests`, {
+            credentials: 'include',
+            cache: 'no-store',
+          }),
+          fetch(`${API_BASE}/conversations`, {
             credentials: 'include',
             cache: 'no-store',
           }),
@@ -143,6 +148,12 @@ const [user, setUser] = useState<User | null>(null);
           setNeedsProposalCount(rows.filter((r) => !r.proposalStatus).length);
           setPendingProposalCount(rows.filter((r) => r.proposalStatus === 'PENDING').length);
           setAcceptedProposalCount(rows.filter((r) => r.proposalStatus === 'ACCEPTED').length);
+        }
+
+        if (conversationsRes?.ok) {
+          const body = (await conversationsRes.json()) as { ok?: true; data?: Array<{ id: string }> };
+          const rows = Array.isArray(body?.data) ? body.data : [];
+          setConversationCount(rows.length);
         }
       } catch {
         // ignore dashboard sidebar count failures
@@ -256,6 +267,10 @@ const [user, setUser] = useState<User | null>(null);
                   {pendingProposalCount === null || acceptedProposalCount === null ? '—' : `${pendingProposalCount} pending • ${acceptedProposalCount} accepted`}
                 </div>
               </div>
+              <div className={`${mutedCardClass} col-span-2 sm:col-span-1`}>
+                <div className="text-xs font-semibold uppercase tracking-[0.26em] text-slate-400">Messages</div>
+                <div className="mt-2 text-sm font-semibold text-slate-900">{conversationCount === null ? '—' : `${conversationCount} live chats`}</div>
+              </div>
             </div>
           </div>
         </section>
@@ -323,6 +338,12 @@ const [user, setUser] = useState<User | null>(null);
                       Inquiries
                       {newInquiryCount !== null && newInquiryCount > 0 ? <span className="ml-pill ml-2 rounded-xl px-2 py-0.5 text-xs normal-case tracking-normal">{newInquiryCount} new</span> : null}
                     </Link>
+                    <Link href="/dashboard/messages" className={secondaryLinkClass}>
+                      Messages
+                      {conversationCount !== null && conversationCount > 0 ? (
+                        <span className="ml-pill ml-2 rounded-xl px-2 py-0.5 text-xs normal-case tracking-normal">{conversationCount} live</span>
+                      ) : null}
+                    </Link>
                   </div>
 
                   <div className="grid gap-3 sm:grid-cols-3">
@@ -352,6 +373,11 @@ const [user, setUser] = useState<User | null>(null);
                 <Link href={expert ? '/dashboard/requests' : '/dashboard/onboarding'} className={`${mutedCardClass} transition ${t.cardHover}`} aria-disabled={!expert}>
                   <div className="text-sm font-semibold text-slate-900">Matched requests</div>
                   <p className={`mt-1 text-sm ${t.mutedText}`}>{expert ? 'Review active customer requests that currently match your services and delivery footprint.' : 'Create your expert profile first to start receiving matched request opportunities.'}</p>
+                </Link>
+
+                <Link href={expert ? '/dashboard/messages' : '/dashboard/onboarding'} className={`${mutedCardClass} transition ${t.cardHover}`} aria-disabled={!expert}>
+                  <div className="text-sm font-semibold text-slate-900">Messages</div>
+                  <p className={`mt-1 text-sm ${t.mutedText}`}>{expert ? 'Keep accepted proposal chats moving without leaving the provider dashboard.' : 'Create your expert profile first before private customer chats can open here.'}</p>
                 </Link>
 
                 <div className={mutedCardClass}>
