@@ -243,7 +243,9 @@ export default function ProviderRequestsPage() {
                         </p>
                       </div>
 
-                      <span className="text-sm font-semibold text-slate-900">{row.proposalStatus ? 'View proposal' : 'Review and respond'}</span>
+                      <span className="text-sm font-semibold text-slate-900">
+                        {row.proposalStatus === 'ACCEPTED' ? 'Open chat' : row.proposalStatus ? 'View proposal' : 'Review and respond'}
+                      </span>
                     </div>
 
                     <div className="flex flex-wrap gap-2">

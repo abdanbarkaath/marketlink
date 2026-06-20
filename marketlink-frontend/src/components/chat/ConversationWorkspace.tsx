@@ -203,15 +203,18 @@ export default function ConversationWorkspace({
   preferredConversationId,
   preferredProposalId,
   preferredRequestId,
+  mode = 'customer',
 }: Readonly<{
   initialConversations: ConversationSummary[];
   currentUserId: string;
   preferredConversationId?: string | null;
   preferredProposalId?: string | null;
   preferredRequestId?: string | null;
+  mode?: 'customer' | 'provider';
 }>) {
   const pathname = usePathname();
   const router = useRouter();
+  const isCustomerMode = mode === 'customer';
   const [showInboxOnMobile, setShowInboxOnMobile] = useState(
     !preferredConversationId && !preferredProposalId && !preferredRequestId,
   );
@@ -382,6 +385,13 @@ export default function ConversationWorkspace({
   );
   const selectedSubject = getMarketingSubjectById(selectedSummary?.request.marketingSubjectId || '');
   const hasSelection = Boolean(selectedConversationId);
+  const selectedCounterpartyName = selectedSummary
+    ? isCustomerMode
+      ? selectedSummary.expert.businessName
+      : selectedSummary.request.customerProfile?.businessName?.trim() ||
+        selectedSummary.request.customerProfile?.name?.trim() ||
+        'Customer'
+    : '';
 
   async function handleSendMessage() {
     if (!selectedConversationId || sendPending) return;
@@ -443,23 +453,27 @@ export default function ConversationWorkspace({
     return (
       <section className="ml-card rounded-[28px] p-6 shadow-[0_18px_50px_rgba(23,26,31,0.06)]">
         <p className="text-xs font-semibold uppercase tracking-[0.26em] text-slate-400">No conversations yet</p>
-        <h2 className="mt-3 text-2xl font-semibold tracking-tight text-slate-950">Accepted proposals will open private chat here.</h2>
+        <h2 className="mt-3 text-2xl font-semibold tracking-tight text-slate-950">
+          {isCustomerMode ? 'Accepted proposals will open private chat here.' : 'Accepted requests will open private chat here.'}
+        </h2>
         <p className="mt-2 max-w-2xl text-sm leading-6 text-slate-600">
-          Once you accept a provider proposal, the conversation appears here with the request context, estimate details, and live replies.
+          {isCustomerMode
+            ? 'Once you accept a provider proposal, the conversation appears here with the request context, estimate details, and live replies.'
+            : 'Once a customer accepts your proposal, the conversation appears here with the request context, estimate details, and live replies.'}
         </p>
 
         <div className="mt-5 flex flex-col gap-3 sm:flex-row">
           <Link
-            href="/dashboard/customer/proposals"
+            href={isCustomerMode ? '/dashboard/customer/proposals' : '/dashboard/requests'}
             className="ml-btn-primary inline-flex min-h-11 items-center justify-center rounded-xl px-6 text-sm font-semibold text-white"
           >
-            Open proposal inbox
+            {isCustomerMode ? 'Open proposal inbox' : 'Open matched requests'}
           </Link>
           <Link
-            href="/dashboard/customer/requests"
+            href={isCustomerMode ? '/dashboard/customer/requests' : '/dashboard'}
             className="ml-btn-secondary inline-flex min-h-11 items-center justify-center rounded-xl px-5 text-sm font-semibold text-slate-900"
           >
-            Request history
+            {isCustomerMode ? 'Request history' : 'Back to dashboard'}
           </Link>
         </div>
       </section>
@@ -468,7 +482,7 @@ export default function ConversationWorkspace({
 
   return (
     <section className="grid gap-5 xl:grid-cols-[360px_minmax(0,1fr)]">
-      <aside className={`${showInboxOnMobile ? 'block' : 'hidden'} xl:block ml-card rounded-[28px] p-4 shadow-[0_18px_50px_rgba(23,26,31,0.06)] sm:p-5`}>
+      <aside className={`${showInboxOnMobile ? 'block' : 'hidden'} xl:block ml-card overflow-hidden rounded-[28px] p-4 shadow-[0_18px_50px_rgba(23,26,31,0.06)] sm:p-5`}>
         <div className="flex items-center justify-between gap-3 border-b border-slate-200/80 pb-4">
           <div>
             <div className="text-xs font-semibold uppercase tracking-[0.26em] text-slate-400">Inbox</div>
@@ -500,7 +514,13 @@ export default function ConversationWorkspace({
               >
                 <div className="flex items-start justify-between gap-3">
                   <div className="min-w-0">
-                    <div className={`truncate text-sm font-semibold ${isSelected ? 'text-white' : 'text-slate-950'}`}>{conversation.expert.businessName}</div>
+                    <div className={`truncate text-sm font-semibold ${isSelected ? 'text-white' : 'text-slate-950'}`}>
+                      {isCustomerMode
+                        ? conversation.expert.businessName
+                        : conversation.request.customerProfile?.businessName?.trim() ||
+                          conversation.request.customerProfile?.name?.trim() ||
+                          'Customer'}
+                    </div>
                     <div className={`mt-1 truncate text-sm ${isSelected ? 'text-white/75' : 'text-slate-500'}`}>{conversation.request.title}</div>
                   </div>
                   <div className={`shrink-0 text-xs ${isSelected ? 'text-white/65' : 'text-slate-400'}`}>
@@ -577,7 +597,7 @@ export default function ConversationWorkspace({
                     </span>
                   </div>
 
-                  <h2 className="mt-3 text-2xl font-semibold tracking-tight text-slate-950">{selectedSummary.expert.businessName}</h2>
+                  <h2 className="mt-3 text-2xl font-semibold tracking-tight text-slate-950">{selectedCounterpartyName}</h2>
                   <p className="mt-1 text-sm leading-6 text-slate-600">{selectedSummary.request.title}</p>
 
                   <div className="mt-3 flex flex-wrap gap-2 text-sm text-slate-600">
@@ -589,17 +609,23 @@ export default function ConversationWorkspace({
 
                 <div className="flex flex-col gap-3 sm:flex-row">
                   <Link
-                    href={`/dashboard/customer/requests/view?id=${encodeURIComponent(selectedSummary.request.id)}`}
+                    href={
+                      isCustomerMode
+                        ? `/dashboard/customer/requests/view?id=${encodeURIComponent(selectedSummary.request.id)}`
+                        : `/dashboard/requests/view?id=${encodeURIComponent(selectedSummary.request.id)}`
+                    }
                     className="ml-btn-secondary inline-flex min-h-11 items-center justify-center rounded-xl px-5 text-sm font-semibold text-slate-900"
                   >
                     Open request
                   </Link>
-                  <Link
-                    href={`/experts/${selectedSummary.expert.slug}`}
-                    className="inline-flex min-h-11 items-center justify-center rounded-xl border border-slate-200 bg-white px-5 text-sm font-semibold text-slate-700 transition hover:border-slate-300 hover:bg-slate-50"
-                  >
-                    Expert profile
-                  </Link>
+                  {isCustomerMode ? (
+                    <Link
+                      href={`/experts/${selectedSummary.expert.slug}`}
+                      className="inline-flex min-h-11 items-center justify-center rounded-xl border border-slate-200 bg-white px-5 text-sm font-semibold text-slate-700 transition hover:border-slate-300 hover:bg-slate-50"
+                    >
+                      Expert profile
+                    </Link>
+                  ) : null}
                 </div>
               </div>
             </div>
@@ -639,7 +665,11 @@ export default function ConversationWorkspace({
                     className="min-h-28 rounded-[24px] border border-slate-200 bg-white px-4 py-3 text-sm leading-6 text-slate-900 outline-none transition placeholder:text-slate-400 focus:border-slate-400 focus:ring-2 focus:ring-slate-200"
                   />
                   <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
-                    <p className="text-sm text-slate-500">Messages stay private between you and the accepted provider.</p>
+                    <p className="text-sm text-slate-500">
+                      {isCustomerMode
+                        ? 'Messages stay private between you and the accepted provider.'
+                        : 'Messages stay private between you and the customer for this accepted proposal.'}
+                    </p>
                     <button
                       type="button"
                       onClick={handleSendMessage}
