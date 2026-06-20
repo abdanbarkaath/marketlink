@@ -181,6 +181,14 @@ export default async function CustomerProposalsPage() {
                       >
                         Open request
                       </Link>
+                      {proposal.status === 'ACCEPTED' ? (
+                        <Link
+                          href={`/dashboard/customer/messages?proposalId=${encodeURIComponent(proposal.id)}`}
+                          className="ml-btn-primary inline-flex min-h-11 items-center justify-center rounded-xl px-5 text-sm font-semibold text-white"
+                        >
+                          Open chat
+                        </Link>
+                      ) : null}
                       <Link
                         href={`/experts/${proposal.expert.slug}`}
                         className="inline-flex min-h-11 items-center justify-center rounded-xl border border-slate-200 bg-white px-5 text-sm font-semibold text-slate-700 transition hover:border-slate-300 hover:bg-slate-50"

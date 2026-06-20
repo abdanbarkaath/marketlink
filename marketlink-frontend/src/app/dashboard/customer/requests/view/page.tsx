@@ -353,6 +353,15 @@ export default async function CustomerRequestDetailPage({
                         </dl>
                       </div>
 
+                      {proposal.status === 'ACCEPTED' ? (
+                        <Link
+                          href={`/dashboard/customer/messages?proposalId=${encodeURIComponent(proposal.id)}`}
+                          className="ml-btn-primary inline-flex min-h-11 items-center justify-center rounded-xl px-5 text-sm font-semibold text-white"
+                        >
+                          Open private chat
+                        </Link>
+                      ) : null}
+
                       <ProposalDecisionActions proposalId={proposal.id} status={proposal.status} />
                     </div>
                   </div>
