@@ -43,21 +43,23 @@ test('GET /conversations lists only the signed-in customer conversations', async
           customerUserId: 'customer_user_1',
           expertId: 'expert_1',
           lastMessageAt: new Date('2026-06-18T01:00:00.000Z'),
+          customerLastReadAt: new Date('2026-06-18T00:30:00.000Z'),
+          expertLastReadAt: new Date('2026-06-18T00:30:00.000Z'),
           updatedAt: new Date('2026-06-18T01:00:00.000Z'),
           request: {
             id: 'request_1',
             title: 'Need Google Ads help',
             marketingSubjectId: 'paid-ads',
+            customerProfile: {
+              name: 'Jamie Rivera',
+              businessName: 'Westmont Dental',
+            },
           },
           proposal: {
             id: 'proposal_1',
             priceLabel: '$3k-$5k',
             timelineLabel: 'This month',
             status: 'ACCEPTED',
-          },
-          customerProfile: {
-            name: 'Jamie Rivera',
-            businessName: 'Westmont Dental',
           },
           expert: {
             id: 'expert_1',
@@ -92,6 +94,94 @@ test('GET /conversations lists only the signed-in customer conversations', async
     assert.equal(body.data[0].request.title, 'Need Google Ads help');
     assert.equal(body.data[0].expert.businessName, 'Windy City Growth');
     assert.equal(body.data[0].latestMessage.id, 'message_1');
+    assert.equal(body.data[0].hasUnread, true);
+  } finally {
+    sessionModule.getUserFromRequest = originalGetUserFromRequest;
+    prismaModule.prisma.conversation = originalConversation;
+    await fastify.close();
+  }
+});
+
+test('GET /conversations/:id marks the opened conversation as read for the current participant', async () => {
+  const fastify = await buildFastify();
+
+  const originalGetUserFromRequest = sessionModule.getUserFromRequest;
+  const originalConversation = prismaModule.prisma.conversation;
+  let updatedReadAt = null;
+
+  sessionModule.getUserFromRequest = async () => ({
+    id: 'customer_user_1',
+    email: 'customer@example.com',
+    role: 'customer',
+  });
+
+  prismaModule.prisma.conversation = {
+    findFirst: async ({ where }) => {
+      assert.equal(where.id, 'conversation_1');
+      assert.equal(where.customerUserId, 'customer_user_1');
+      return {
+        id: 'conversation_1',
+        proposalId: 'proposal_1',
+        requestId: 'request_1',
+        customerUserId: 'customer_user_1',
+        expertId: 'expert_1',
+        lastMessageAt: new Date('2026-06-18T02:00:00.000Z'),
+        customerLastReadAt: new Date('2026-06-18T01:00:00.000Z'),
+        expertLastReadAt: new Date('2026-06-18T01:00:00.000Z'),
+        createdAt: new Date('2026-06-18T00:00:00.000Z'),
+        updatedAt: new Date('2026-06-18T02:00:00.000Z'),
+        request: {
+          id: 'request_1',
+          title: 'Need Google Ads help',
+          marketingSubjectId: 'paid-ads',
+          customerProfile: {
+            name: 'Jamie Rivera',
+            businessName: 'Westmont Dental',
+          },
+        },
+        proposal: {
+          id: 'proposal_1',
+          priceLabel: '$3k-$5k',
+          timelineLabel: 'This month',
+          status: 'ACCEPTED',
+        },
+        expert: {
+          id: 'expert_1',
+          businessName: 'Windy City Growth',
+          slug: 'windy-city-growth',
+          logo: null,
+        },
+        messages: [
+          {
+            id: 'message_1',
+            conversationId: 'conversation_1',
+            senderUserId: 'provider_user_1',
+            body: 'Happy to help.',
+            createdAt: new Date('2026-06-18T02:00:00.000Z'),
+          },
+        ],
+      };
+    },
+    update: async ({ where, data }) => {
+      assert.equal(where.id, 'conversation_1');
+      assert.ok(data.customerLastReadAt instanceof Date);
+      updatedReadAt = data.customerLastReadAt;
+      return { id: 'conversation_1' };
+    },
+  };
+
+  try {
+    const response = await fastify.inject({
+      method: 'GET',
+      url: '/conversations/conversation_1',
+    });
+
+    assert.equal(response.statusCode, 200);
+    const body = response.json();
+    assert.equal(body.ok, true);
+    assert.equal(body.conversation.id, 'conversation_1');
+    assert.equal(body.conversation.hasUnread, false);
+    assert.ok(updatedReadAt instanceof Date);
   } finally {
     sessionModule.getUserFromRequest = originalGetUserFromRequest;
     prismaModule.prisma.conversation = originalConversation;
@@ -209,6 +299,7 @@ test('POST /conversations/:id/messages creates a message and broadcasts it to th
     update: async ({ where, data }) => {
       assert.equal(where.id, 'conversation_1');
       assert.ok(data.lastMessageAt instanceof Date);
+      assert.ok(data.customerLastReadAt instanceof Date);
       return { id: 'conversation_1' };
     },
   };
@@ -266,6 +357,60 @@ test('POST /conversations/:id/messages creates a message and broadcasts it to th
     prismaModule.prisma.conversation = originalConversation;
     prismaModule.prisma.message = originalMessage;
     realtimeModule.publishConversationEvent = originalPublishConversationEvent;
+    await fastify.close();
+  }
+});
+
+test('POST /conversations/:id/read clears unread state for the current participant', async () => {
+  const fastify = await buildFastify();
+
+  const originalGetUserFromRequest = sessionModule.getUserFromRequest;
+  const originalConversation = prismaModule.prisma.conversation;
+  let updatedReadAt = null;
+
+  sessionModule.getUserFromRequest = async () => ({
+    id: 'provider_user_1',
+    email: 'provider@example.com',
+    role: 'provider',
+  });
+
+  const originalExpert = prismaModule.prisma.expert;
+  prismaModule.prisma.expert = {
+    findFirst: async ({ where }) => {
+      assert.equal(where.userId, 'provider_user_1');
+      return { id: 'expert_1' };
+    },
+  };
+
+  prismaModule.prisma.conversation = {
+    findFirst: async ({ where }) => {
+      assert.equal(where.id, 'conversation_1');
+      assert.equal(where.expertId, 'expert_1');
+      return { id: 'conversation_1' };
+    },
+    update: async ({ where, data }) => {
+      assert.equal(where.id, 'conversation_1');
+      assert.ok(data.expertLastReadAt instanceof Date);
+      updatedReadAt = data.expertLastReadAt;
+      return { id: 'conversation_1' };
+    },
+  };
+
+  try {
+    const response = await fastify.inject({
+      method: 'POST',
+      url: '/conversations/conversation_1/read',
+    });
+
+    assert.equal(response.statusCode, 200);
+    const body = response.json();
+    assert.equal(body.ok, true);
+    assert.equal(body.conversationId, 'conversation_1');
+    assert.ok(updatedReadAt instanceof Date);
+  } finally {
+    sessionModule.getUserFromRequest = originalGetUserFromRequest;
+    prismaModule.prisma.conversation = originalConversation;
+    prismaModule.prisma.expert = originalExpert;
     await fastify.close();
   }
 });
