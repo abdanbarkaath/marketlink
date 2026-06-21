@@ -188,6 +188,14 @@ function ProviderRequestDetailPageContent() {
                   <Link href="/dashboard/requests" className="rounded-full border border-slate-200/80 bg-white px-4 py-2.5 text-sm font-semibold text-slate-700 transition hover:border-slate-300 hover:bg-slate-50">
                     Back to inbox
                   </Link>
+                  {proposal?.status === 'ACCEPTED' ? (
+                    <Link
+                      href={`/dashboard/messages?proposalId=${encodeURIComponent(proposal.id)}`}
+                      className="rounded-full border border-slate-200/80 bg-white px-4 py-2.5 text-sm font-semibold text-slate-700 transition hover:border-slate-300 hover:bg-slate-50"
+                    >
+                      Open chat
+                    </Link>
+                  ) : null}
                   <Link href="/dashboard" className="rounded-full bg-slate-900 px-4 py-2.5 text-sm font-semibold text-white transition hover:bg-slate-800">
                     Dashboard
                   </Link>

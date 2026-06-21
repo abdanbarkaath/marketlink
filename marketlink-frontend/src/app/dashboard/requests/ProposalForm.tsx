@@ -1,5 +1,6 @@
 'use client';
 
+import Link from 'next/link';
 import { useState } from 'react';
 
 const API_BASE = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:4000';
@@ -94,6 +95,14 @@ export default function ProposalForm({ requestId, initialProposal = null }: Prop
             <div className="mt-1 font-medium text-slate-900">{proposal.timelineLabel || 'Not specified'}</div>
           </div>
         </div>
+        {proposal.status === 'ACCEPTED' ? (
+          <Link
+            href={`/dashboard/messages?proposalId=${encodeURIComponent(proposal.id)}`}
+            className="ml-btn-primary mt-4 inline-flex min-h-11 items-center justify-center rounded-xl px-5 text-sm font-semibold text-white"
+          >
+            Open chat
+          </Link>
+        ) : null}
       </section>
     );
   }
