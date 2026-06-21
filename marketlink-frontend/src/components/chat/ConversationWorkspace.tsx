@@ -1,7 +1,7 @@
 'use client';
 
 import Link from 'next/link';
-import { useEffect, useMemo, useRef, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { usePathname, useRouter } from 'next/navigation';
 import { getMarketingSubjectById } from '@/lib/marketingTaxonomy';
 
@@ -22,7 +22,10 @@ export type ConversationSummary = {
   customerUserId: string;
   expertId: string;
   lastMessageAt?: string | null;
+  customerLastReadAt?: string | null;
+  expertLastReadAt?: string | null;
   updatedAt: string;
+  hasUnread?: boolean;
   request: {
     id: string;
     title: string;
@@ -71,6 +74,13 @@ type SendMessageResponse = {
   error?: string;
 };
 
+type MarkReadResponse = {
+  ok?: boolean;
+  conversationId?: string;
+  readAt?: string;
+  error?: string;
+};
+
 type LiveConversationEvent =
   | { type: 'connected'; conversationId: string }
   | {
@@ -87,6 +97,10 @@ function toWebSocketBase(apiBase: string) {
 
 function sortConversations(conversations: ConversationSummary[]) {
   return [...conversations].sort((left, right) => {
+    const leftUnread = Boolean(left.hasUnread);
+    const rightUnread = Boolean(right.hasUnread);
+    if (leftUnread !== rightUnread) return leftUnread ? -1 : 1;
+
     const leftTime = left.lastMessageAt || left.updatedAt;
     const rightTime = right.lastMessageAt || right.updatedAt;
     return new Date(rightTime).getTime() - new Date(leftTime).getTime();
@@ -168,6 +182,10 @@ function updateConversationWithMessage(conversation: ConversationSummary, messag
   };
 }
 
+function getReadAtField(mode: 'customer' | 'provider') {
+  return mode === 'customer' ? 'customerLastReadAt' : 'expertLastReadAt';
+}
+
 function summarizeLiveStatus(status: 'connecting' | 'live' | 'offline') {
   if (status === 'live') return 'Live';
   if (status === 'connecting') return 'Connecting';
@@ -230,6 +248,49 @@ export default function ConversationWorkspace({
   const [sendError, setSendError] = useState<string | null>(null);
   const [liveStatus, setLiveStatus] = useState<'connecting' | 'live' | 'offline'>('offline');
   const messagesEndRef = useRef<HTMLDivElement | null>(null);
+  const unreadCount = useMemo(() => conversations.filter((conversation) => conversation.hasUnread).length, [conversations]);
+
+  const markConversationRead = useCallback(async (conversationId: string) => {
+    try {
+      const response = await fetch(`${API_BASE}/conversations/${conversationId}/read`, {
+        method: 'POST',
+        credentials: 'include',
+      });
+
+      const payload = (await response.json().catch(() => ({}))) as MarkReadResponse;
+      if (!response.ok || !payload.ok) {
+        throw new Error(payload.error || `Failed to mark conversation read (${response.status})`);
+      }
+
+      const readAt = payload.readAt || new Date().toISOString();
+      const readField = getReadAtField(mode);
+
+      setConversations((current) =>
+        sortConversations(
+          current.map((conversation) =>
+            conversation.id === conversationId
+              ? {
+                  ...conversation,
+                  hasUnread: false,
+                  [readField]: readAt,
+                }
+              : conversation,
+          ),
+        ),
+      );
+      setSelectedConversation((current) =>
+        current && current.id === conversationId
+          ? {
+              ...current,
+              hasUnread: false,
+              [readField]: readAt,
+            }
+          : current,
+      );
+    } catch {
+      // best effort; keep live thread responsive even if the read marker write fails
+    }
+  }, [mode]);
 
   useEffect(() => {
     setConversations(sortConversations(initialConversations));
@@ -294,11 +355,14 @@ export default function ConversationWorkspace({
               conversation.id === body.conversation?.id
                 ? {
                     ...conversation,
+                    customerLastReadAt: body.conversation?.customerLastReadAt || conversation.customerLastReadAt,
+                    expertLastReadAt: body.conversation?.expertLastReadAt || conversation.expertLastReadAt,
                     lastMessageAt:
                       body.conversation?.messages[body.conversation.messages.length - 1]?.createdAt ||
                       conversation.lastMessageAt,
                     latestMessage:
                       body.conversation?.messages[body.conversation.messages.length - 1] || conversation.latestMessage,
+                    hasUnread: false,
                   }
                 : conversation,
             ),
@@ -315,7 +379,7 @@ export default function ConversationWorkspace({
     return () => {
       cancelled = true;
     };
-  }, [selectedConversationId]);
+  }, [currentUserId, markConversationRead, selectedConversationId]);
 
   useEffect(() => {
     if (!selectedConversationId) {
@@ -335,6 +399,8 @@ export default function ConversationWorkspace({
       }
 
       if (payload.type !== 'message.created') return;
+      const isOwnMessage = payload.message.senderUserId === currentUserId;
+      const isSelectedThread = payload.conversationId === selectedConversationId;
 
       setSelectedConversation((current) => {
         if (!current || current.id !== payload.conversationId) return current;
@@ -348,6 +414,7 @@ export default function ConversationWorkspace({
             createdAt: payload.message.createdAt,
           },
           messages: upsertMessage(current.messages, payload.message),
+          hasUnread: false,
         };
       });
 
@@ -355,11 +422,18 @@ export default function ConversationWorkspace({
         sortConversations(
           current.map((conversation) =>
             conversation.id === payload.conversationId
-              ? updateConversationWithMessage(conversation, payload.message)
+              ? {
+                  ...updateConversationWithMessage(conversation, payload.message),
+                  hasUnread: isOwnMessage ? false : !isSelectedThread,
+                }
               : conversation,
           ),
         ),
       );
+
+      if (!isOwnMessage && isSelectedThread) {
+        void markConversationRead(payload.conversationId);
+      }
     };
 
     socket.onerror = () => {
@@ -373,7 +447,7 @@ export default function ConversationWorkspace({
     return () => {
       socket.close();
     };
-  }, [selectedConversationId]);
+  }, [currentUserId, markConversationRead, selectedConversationId]);
 
   useEffect(() => {
     messagesEndRef.current?.scrollIntoView({ behavior: 'smooth', block: 'end' });
@@ -431,13 +505,17 @@ export default function ConversationWorkspace({
             createdAt: payload.message!.createdAt,
           },
           messages: upsertMessage(current.messages, payload.message!),
+          hasUnread: false,
         };
       });
       setConversations((current) =>
         sortConversations(
           current.map((conversation) =>
             conversation.id === selectedConversationId
-              ? updateConversationWithMessage(conversation, payload.message!)
+              ? {
+                  ...updateConversationWithMessage(conversation, payload.message!),
+                  hasUnread: false,
+                }
               : conversation,
           ),
         ),
@@ -488,9 +566,16 @@ export default function ConversationWorkspace({
             <div className="text-xs font-semibold uppercase tracking-[0.26em] text-slate-400">Inbox</div>
             <h2 className="mt-2 text-2xl font-semibold tracking-tight text-slate-950">Accepted conversations</h2>
           </div>
-          <span className="ml-pill inline-flex rounded-xl px-3 py-1 text-[11px] font-medium uppercase tracking-[0.16em] text-slate-500">
-            {conversations.length}
-          </span>
+          <div className="flex items-center gap-2">
+            {unreadCount ? (
+              <span className="inline-flex rounded-xl bg-slate-900 px-3 py-1 text-[11px] font-semibold uppercase tracking-[0.16em] text-white">
+                {unreadCount} unread
+              </span>
+            ) : null}
+            <span className="ml-pill inline-flex rounded-xl px-3 py-1 text-[11px] font-medium uppercase tracking-[0.16em] text-slate-500">
+              {conversations.length}
+            </span>
+          </div>
         </div>
 
         <div className="mt-4 grid gap-3">
@@ -529,6 +614,15 @@ export default function ConversationWorkspace({
                 </div>
 
                 <div className="mt-3 flex flex-wrap gap-2">
+                  {conversation.hasUnread ? (
+                    <span
+                      className={`inline-flex rounded-xl px-3 py-1 text-[11px] font-semibold uppercase tracking-[0.16em] ${
+                        isSelected ? 'bg-white/15 text-white' : 'bg-[#1f314d] text-white'
+                      }`}
+                    >
+                      Unread
+                    </span>
+                  ) : null}
                   <span className={`inline-flex rounded-xl px-3 py-1 text-[11px] font-medium uppercase tracking-[0.16em] ${isSelected ? 'bg-white/10 text-white/80' : 'bg-slate-100 text-slate-500'}`}>
                     {subject?.label || conversation.request.marketingSubjectId}
                   </span>
