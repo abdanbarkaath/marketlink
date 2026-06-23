@@ -194,6 +194,11 @@ enum CustomerRequestStatus {
   CANCELLED
 }
 
+enum CustomerRequestIntakeMode {
+  SPECIFIC
+  UNSURE
+}
+
 enum ProposalStatus {
   PENDING
   ACCEPTED
@@ -209,9 +214,12 @@ model CustomerRequest {
   requesterBusinessName String?
   title                 String
   description           String
-  marketingSubjectId    String
+  intakeMode            CustomerRequestIntakeMode @default(SPECIFIC)
+  marketingSubjectId    String?
+  subcategoryId         String?
   serviceTokens         String[]              @default([])
-  zip                   String
+  zip                   String?
+  radiusMiles           Int?
   budgetLabel           String?
   timelineLabel         String?
   status                CustomerRequestStatus @default(ACTIVE)
@@ -224,6 +232,7 @@ model CustomerRequest {
 
   @@index([customerUserId, createdAt])
   @@index([status, createdAt])
+  @@index([intakeMode, status, createdAt])
   @@index([marketingSubjectId, status])
   @@index([zip, status])
 }

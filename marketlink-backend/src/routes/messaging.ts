@@ -79,7 +79,7 @@ function serializeConversationSummary(
     request: {
       id: string;
       title: string;
-      marketingSubjectId: string;
+      marketingSubjectId: string | null;
       customerProfile?: {
         name?: string | null;
         businessName?: string | null;

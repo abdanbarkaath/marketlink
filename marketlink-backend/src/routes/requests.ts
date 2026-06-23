@@ -1,5 +1,5 @@
 import type { FastifyPluginAsync } from 'fastify';
-import { CustomerRequestStatus, ExpertStatus, ProposalStatus } from '@prisma/client';
+import { CustomerRequestIntakeMode, CustomerRequestStatus, ExpertStatus, ProposalStatus } from '@prisma/client';
 import { prisma } from '../lib/prisma';
 import { getUserFromRequest } from '../lib/session';
 import { lookupZipLocation } from '../lib/geocoding';
@@ -11,7 +11,7 @@ type RequestMatchReason = 'same_zip' | 'same_city' | 'serves_nationwide' | 'remo
 type DeliveryPreviewInput = {
   id: string;
   serviceTokens: string[];
-  zip: string;
+  zip: string | null;
 };
 
 type ProviderExpertForMatching = {
@@ -32,9 +32,9 @@ type RequestForProviderMatching = {
   id: string;
   title: string;
   description: string;
-  marketingSubjectId: string;
+  marketingSubjectId: string | null;
   serviceTokens: string[];
-  zip: string;
+  zip: string | null;
   budgetLabel: string | null;
   timelineLabel: string | null;
   status: CustomerRequestStatus;
@@ -48,6 +48,11 @@ function asCleanString(input: unknown) {
   return String(input || '').trim();
 }
 
+function asOptionalCleanString(input: unknown) {
+  const value = asCleanString(input);
+  return value || null;
+}
+
 function asServiceTokens(input: unknown) {
   if (!Array.isArray(input)) return [];
 
@@ -58,6 +63,18 @@ function asServiceTokens(input: unknown) {
         .filter(Boolean),
     ),
   );
+}
+
+function asRadiusMiles(input: unknown) {
+  if (input === null || typeof input === 'undefined' || input === '') return null;
+  const value = Number(input);
+  if (!Number.isInteger(value)) return null;
+  return value;
+}
+
+function inferIntakeMode(marketingSubjectId: string | null, serviceTokens: string[]) {
+  if (marketingSubjectId || serviceTokens.length > 0) return CustomerRequestIntakeMode.SPECIFIC;
+  return CustomerRequestIntakeMode.UNSURE;
 }
 
 function normalizeCity(value: string | null | undefined) {
@@ -87,6 +104,8 @@ function isCustomerProposalDecision(status: ProposalStatus) {
 }
 
 async function buildProviderMatchForRequest(expert: ProviderExpertForMatching, request: RequestForProviderMatching) {
+  if (!request.zip || request.serviceTokens.length === 0) return null;
+
   const matchedServiceTokens = expert.services.filter((token) => request.serviceTokens.includes(token));
   if (!matchedServiceTokens.length) return null;
 
@@ -123,6 +142,8 @@ async function buildProviderMatchForRequest(expert: ProviderExpertForMatching, r
 }
 
 async function buildDeliveryPreview(input: DeliveryPreviewInput) {
+  if (!input.zip || input.serviceTokens.length === 0) return null;
+
   const locationLookup = await lookupZipLocation({ zip: input.zip });
   const requestCity = locationLookup.ok ? locationLookup.city : null;
   const requestState = locationLookup.ok ? locationLookup.state : null;
@@ -217,31 +238,69 @@ const requestsRoutes: FastifyPluginAsync = async (fastify) => {
       title?: unknown;
       description?: unknown;
       marketingSubjectId?: unknown;
+      subcategoryId?: unknown;
       serviceTokens?: unknown;
       zip?: unknown;
+      radiusMiles?: unknown;
       budgetLabel?: unknown;
       timelineLabel?: unknown;
     };
 
     const title = asCleanString(body.title);
     const description = asCleanString(body.description);
-    const marketingSubjectId = asCleanString(body.marketingSubjectId);
+    const marketingSubjectId = asOptionalCleanString(body.marketingSubjectId);
+    const subcategoryId = asOptionalCleanString(body.subcategoryId);
     const serviceTokens = asServiceTokens(body.serviceTokens);
-    const zip = asCleanString(body.zip);
+    const zip = asOptionalCleanString(body.zip);
+    const radiusMiles = asRadiusMiles(body.radiusMiles);
     const budgetLabel = asCleanString(body.budgetLabel) || null;
     const timelineLabel = asCleanString(body.timelineLabel) || null;
+    const intakeMode = inferIntakeMode(marketingSubjectId, serviceTokens);
 
     if (!title) return reply.code(400).send({ ok: false, error: 'title is required' });
     if (!description) return reply.code(400).send({ ok: false, error: 'description is required' });
-    if (!marketingSubjectId) return reply.code(400).send({ ok: false, error: 'marketingSubjectId is required' });
-    if (serviceTokens.length === 0) return reply.code(400).send({ ok: false, error: 'serviceTokens must include at least one item' });
-    if (!zip || !ZIP_RE.test(zip)) return reply.code(400).send({ ok: false, error: 'zip must be a valid 5-digit ZIP code' });
+
+    if (intakeMode === CustomerRequestIntakeMode.SPECIFIC) {
+      if (!marketingSubjectId) {
+        return reply.code(400).send({ ok: false, error: 'marketingSubjectId is required when a specific marketing area is selected' });
+      }
+
+      if (serviceTokens.length === 0) {
+        return reply.code(400).send({
+          ok: false,
+          error: 'serviceTokens must include at least one item when a specific marketing area is selected',
+        });
+      }
+    } else {
+      if (!zip) {
+        return reply.code(400).send({ ok: false, error: 'zip is required when no marketing area is selected' });
+      }
+
+      if (!ZIP_RE.test(zip)) {
+        return reply.code(400).send({ ok: false, error: 'zip must be a valid 5-digit ZIP code' });
+      }
+
+      if (radiusMiles === null) {
+        return reply.code(400).send({ ok: false, error: 'radiusMiles is required when no marketing area is selected' });
+      }
+
+      if (radiusMiles < 1 || radiusMiles > 100) {
+        return reply.code(400).send({ ok: false, error: 'radiusMiles must be between 1 and 100' });
+      }
+
+      const locationLookup = await lookupZipLocation({ zip });
+      if (!locationLookup.ok) {
+        return reply.code(400).send({ ok: false, error: 'We could not verify that ZIP code for an unsure request.' });
+      }
+    }
 
     if (title.length > 140) return reply.code(400).send({ ok: false, error: 'title is too long' });
     if (description.length > 4000) return reply.code(400).send({ ok: false, error: 'description is too long' });
-    if (marketingSubjectId.length > 80) return reply.code(400).send({ ok: false, error: 'marketingSubjectId is too long' });
+    if (marketingSubjectId && marketingSubjectId.length > 80) return reply.code(400).send({ ok: false, error: 'marketingSubjectId is too long' });
+    if (subcategoryId && subcategoryId.length > 80) return reply.code(400).send({ ok: false, error: 'subcategoryId is too long' });
     if (serviceTokens.length > 12) return reply.code(400).send({ ok: false, error: 'serviceTokens cannot exceed 12 items' });
     if (serviceTokens.some((token) => token.length > 80)) return reply.code(400).send({ ok: false, error: 'serviceTokens contains an item that is too long' });
+    if (zip && !ZIP_RE.test(zip)) return reply.code(400).send({ ok: false, error: 'zip must be a valid 5-digit ZIP code' });
     if (budgetLabel && budgetLabel.length > 80) return reply.code(400).send({ ok: false, error: 'budgetLabel is too long' });
     if (timelineLabel && timelineLabel.length > 80) return reply.code(400).send({ ok: false, error: 'timelineLabel is too long' });
 
@@ -266,9 +325,12 @@ const requestsRoutes: FastifyPluginAsync = async (fastify) => {
         requesterBusinessName: customerProfile.businessName?.trim() || null,
         title,
         description,
+        intakeMode,
         marketingSubjectId,
+        subcategoryId,
         serviceTokens,
         zip,
+        radiusMiles,
         budgetLabel,
         timelineLabel,
         status: CustomerRequestStatus.ACTIVE,
@@ -281,9 +343,12 @@ const requestsRoutes: FastifyPluginAsync = async (fastify) => {
         requesterBusinessName: true,
         title: true,
         description: true,
+        intakeMode: true,
         marketingSubjectId: true,
+        subcategoryId: true,
         serviceTokens: true,
         zip: true,
+        radiusMiles: true,
         budgetLabel: true,
         timelineLabel: true,
         status: true,
@@ -293,11 +358,14 @@ const requestsRoutes: FastifyPluginAsync = async (fastify) => {
     });
 
     req.log.info({ requestId: created.id, customerUserId: user.id }, 'customer-request.created');
-    const deliveryPreview = await buildDeliveryPreview({
-      id: created.id,
-      serviceTokens: created.serviceTokens,
-      zip: created.zip,
-    });
+    const deliveryPreview =
+      created.zip && created.serviceTokens.length > 0
+        ? await buildDeliveryPreview({
+            id: created.id,
+            serviceTokens: created.serviceTokens,
+            zip: created.zip,
+          })
+        : null;
 
     return reply.code(201).send({ ok: true, request: created, deliveryPreview });
   });
@@ -313,9 +381,12 @@ const requestsRoutes: FastifyPluginAsync = async (fastify) => {
       select: {
         id: true,
         title: true,
+        intakeMode: true,
         marketingSubjectId: true,
+        subcategoryId: true,
         serviceTokens: true,
         zip: true,
+        radiusMiles: true,
         status: true,
         createdAt: true,
         updatedAt: true,
@@ -360,9 +431,12 @@ const requestsRoutes: FastifyPluginAsync = async (fastify) => {
         requesterBusinessName: true,
         title: true,
         description: true,
+        intakeMode: true,
         marketingSubjectId: true,
+        subcategoryId: true,
         serviceTokens: true,
         zip: true,
+        radiusMiles: true,
         budgetLabel: true,
         timelineLabel: true,
         status: true,
@@ -373,11 +447,14 @@ const requestsRoutes: FastifyPluginAsync = async (fastify) => {
 
     if (!request) return reply.code(404).send({ ok: false, error: 'Request not found' });
 
-    const deliveryPreview = await buildDeliveryPreview({
-      id: request.id,
-      serviceTokens: request.serviceTokens,
-      zip: request.zip,
-    });
+    const deliveryPreview =
+      request.zip && request.serviceTokens.length > 0
+        ? await buildDeliveryPreview({
+            id: request.id,
+            serviceTokens: request.serviceTokens,
+            zip: request.zip,
+          })
+        : null;
 
     const proposals = await prisma.proposal.findMany({
       where: { requestId: request.id },
