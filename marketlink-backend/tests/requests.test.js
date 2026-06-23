@@ -88,6 +88,236 @@ test('POST /requests validates required request fields', async () => {
   }
 });
 
+test('POST /requests creates a specific request without ZIP when a marketing area is selected', async () => {
+  const fastify = await buildFastify();
+
+  const originalGetUserFromRequest = sessionModule.getUserFromRequest;
+  const originalCustomerProfile = prismaModule.prisma.customerProfile;
+  const originalCustomerRequest = prismaModule.prisma.customerRequest;
+  const originalExpert = prismaModule.prisma.expert;
+
+  sessionModule.getUserFromRequest = async () => ({
+    id: 'customer_user_specific',
+    email: 'customer@example.com',
+    role: 'customer',
+  });
+
+  prismaModule.prisma.customerProfile = {
+    findUnique: async () => ({
+      id: 'customer_profile_specific',
+      name: 'Jamie Rivera',
+      businessName: 'Westmont Dental',
+    }),
+  };
+
+  prismaModule.prisma.customerRequest = {
+    create: async ({ data }) => ({
+      id: 'request_specific_1',
+      ...data,
+      createdAt: new Date('2026-06-22T10:00:00.000Z'),
+      updatedAt: new Date('2026-06-22T10:00:00.000Z'),
+    }),
+  };
+
+  prismaModule.prisma.expert = {
+    findMany: async () => [],
+  };
+
+  try {
+    const response = await fastify.inject({
+      method: 'POST',
+      url: '/requests',
+      payload: {
+        title: 'Need help with Google Ads',
+        description: 'Looking for a PPC specialist.',
+        marketingSubjectId: 'paid-ads-lead-generation',
+        subcategoryId: 'google-ads',
+        serviceTokens: ['paid-ads', 'google-ads'],
+      },
+    });
+
+    assert.equal(response.statusCode, 201);
+    const body = response.json();
+    assert.equal(body.request.intakeMode, 'SPECIFIC');
+    assert.equal(body.request.marketingSubjectId, 'paid-ads-lead-generation');
+    assert.equal(body.request.subcategoryId, 'google-ads');
+    assert.equal(body.request.zip, null);
+    assert.equal(body.request.radiusMiles, null);
+    assert.equal(body.deliveryPreview, null);
+  } finally {
+    sessionModule.getUserFromRequest = originalGetUserFromRequest;
+    prismaModule.prisma.customerProfile = originalCustomerProfile;
+    prismaModule.prisma.customerRequest = originalCustomerRequest;
+    prismaModule.prisma.expert = originalExpert;
+    await fastify.close();
+  }
+});
+
+test('POST /requests creates an unsure request with ZIP and radius when no marketing area is selected', async () => {
+  const fastify = await buildFastify();
+
+  const originalGetUserFromRequest = sessionModule.getUserFromRequest;
+  const originalCustomerProfile = prismaModule.prisma.customerProfile;
+  const originalCustomerRequest = prismaModule.prisma.customerRequest;
+  const originalLookupZipLocation = geocodingModule.lookupZipLocation;
+
+  sessionModule.getUserFromRequest = async () => ({
+    id: 'customer_user_unsure',
+    email: 'customer@example.com',
+    role: 'customer',
+  });
+
+  prismaModule.prisma.customerProfile = {
+    findUnique: async () => ({
+      id: 'customer_profile_unsure',
+      name: 'Jamie Rivera',
+      businessName: 'Westmont Dental',
+    }),
+  };
+
+  prismaModule.prisma.customerRequest = {
+    create: async ({ data }) => ({
+      id: 'request_unsure_1',
+      ...data,
+      createdAt: new Date('2026-06-22T10:00:00.000Z'),
+      updatedAt: new Date('2026-06-22T10:00:00.000Z'),
+    }),
+  };
+
+  geocodingModule.lookupZipLocation = async () => ({
+    ok: true,
+    city: 'Westmont',
+    state: 'IL',
+    zip: '60559',
+    latitude: 41.79,
+    longitude: -87.98,
+    geocodedAt: new Date('2026-06-22T10:00:00.000Z'),
+    geocodeProvider: 'geoapify',
+  });
+
+  try {
+    const response = await fastify.inject({
+      method: 'POST',
+      url: '/requests',
+      payload: {
+        title: 'Not sure what kind of marketing help I need',
+        description: 'Need guidance for getting more leads.',
+        zip: '60559',
+        radiusMiles: 15,
+      },
+    });
+
+    assert.equal(response.statusCode, 201);
+    const body = response.json();
+    assert.equal(body.request.intakeMode, 'UNSURE');
+    assert.equal(body.request.marketingSubjectId, null);
+    assert.equal(body.request.subcategoryId, null);
+    assert.deepEqual(body.request.serviceTokens, []);
+    assert.equal(body.request.zip, '60559');
+    assert.equal(body.request.radiusMiles, 15);
+    assert.equal(body.deliveryPreview, null);
+  } finally {
+    sessionModule.getUserFromRequest = originalGetUserFromRequest;
+    prismaModule.prisma.customerProfile = originalCustomerProfile;
+    prismaModule.prisma.customerRequest = originalCustomerRequest;
+    geocodingModule.lookupZipLocation = originalLookupZipLocation;
+    await fastify.close();
+  }
+});
+
+test('POST /requests rejects unsure requests without ZIP', async () => {
+  const fastify = await buildFastify();
+
+  const originalGetUserFromRequest = sessionModule.getUserFromRequest;
+  const originalCustomerProfile = prismaModule.prisma.customerProfile;
+
+  sessionModule.getUserFromRequest = async () => ({
+    id: 'customer_user_unsure_no_zip',
+    email: 'customer@example.com',
+    role: 'customer',
+  });
+
+  prismaModule.prisma.customerProfile = {
+    findUnique: async () => ({
+      id: 'customer_profile_unsure_no_zip',
+      name: 'Jamie Rivera',
+      businessName: null,
+    }),
+  };
+
+  try {
+    const response = await fastify.inject({
+      method: 'POST',
+      url: '/requests',
+      payload: {
+        title: 'Need help',
+        description: 'Not sure what I need yet.',
+        radiusMiles: 15,
+      },
+    });
+
+    assert.equal(response.statusCode, 400);
+    assert.equal(response.json().error, 'zip is required when no marketing area is selected');
+  } finally {
+    sessionModule.getUserFromRequest = originalGetUserFromRequest;
+    prismaModule.prisma.customerProfile = originalCustomerProfile;
+    await fastify.close();
+  }
+});
+
+test('POST /requests rejects unsure requests without radius', async () => {
+  const fastify = await buildFastify();
+
+  const originalGetUserFromRequest = sessionModule.getUserFromRequest;
+  const originalCustomerProfile = prismaModule.prisma.customerProfile;
+  const originalLookupZipLocation = geocodingModule.lookupZipLocation;
+
+  sessionModule.getUserFromRequest = async () => ({
+    id: 'customer_user_unsure_no_radius',
+    email: 'customer@example.com',
+    role: 'customer',
+  });
+
+  prismaModule.prisma.customerProfile = {
+    findUnique: async () => ({
+      id: 'customer_profile_unsure_no_radius',
+      name: 'Jamie Rivera',
+      businessName: null,
+    }),
+  };
+
+  geocodingModule.lookupZipLocation = async () => ({
+    ok: true,
+    city: 'Westmont',
+    state: 'IL',
+    zip: '60559',
+    latitude: 41.79,
+    longitude: -87.98,
+    geocodedAt: new Date('2026-06-22T10:00:00.000Z'),
+    geocodeProvider: 'geoapify',
+  });
+
+  try {
+    const response = await fastify.inject({
+      method: 'POST',
+      url: '/requests',
+      payload: {
+        title: 'Need help',
+        description: 'Not sure what I need yet.',
+        zip: '60559',
+      },
+    });
+
+    assert.equal(response.statusCode, 400);
+    assert.equal(response.json().error, 'radiusMiles is required when no marketing area is selected');
+  } finally {
+    sessionModule.getUserFromRequest = originalGetUserFromRequest;
+    prismaModule.prisma.customerProfile = originalCustomerProfile;
+    geocodingModule.lookupZipLocation = originalLookupZipLocation;
+    await fastify.close();
+  }
+});
+
 test('POST /requests creates a customer request for the signed-in customer', async () => {
   const fastify = await buildFastify();
 
@@ -120,9 +350,12 @@ test('POST /requests creates a customer request for the signed-in customer', asy
       requesterBusinessName: data.requesterBusinessName,
       title: data.title,
       description: data.description,
+      intakeMode: data.intakeMode,
       marketingSubjectId: data.marketingSubjectId,
+      subcategoryId: data.subcategoryId,
       serviceTokens: data.serviceTokens,
       zip: data.zip,
+      radiusMiles: data.radiusMiles,
       budgetLabel: data.budgetLabel,
       timelineLabel: data.timelineLabel,
       status: data.status,
@@ -205,6 +438,9 @@ test('POST /requests creates a customer request for the signed-in customer', asy
     assert.equal(body.request.id, 'request_1');
     assert.equal(body.request.requesterName, 'Jamie Rivera');
     assert.equal(body.request.requesterBusinessName, 'Westmont Dental');
+    assert.equal(body.request.intakeMode, 'SPECIFIC');
+    assert.equal(body.request.subcategoryId, null);
+    assert.equal(body.request.radiusMiles, null);
     assert.equal(body.request.status, 'ACTIVE');
     assert.equal(body.deliveryPreview.matchingModel, 'city-zip-service-v1');
     assert.equal(body.deliveryPreview.totalMatches, 2);
@@ -242,9 +478,12 @@ test('GET /requests lists only the signed-in customer requests', async () => {
         {
           id: 'request_2',
           title: 'Need local SEO help',
+          intakeMode: 'SPECIFIC',
           marketingSubjectId: 'local-search-seo',
+          subcategoryId: null,
           serviceTokens: ['seo', 'local-seo'],
           zip: '60601',
+          radiusMiles: null,
           status: 'ACTIVE',
           createdAt: new Date('2026-05-24T15:00:00.000Z'),
           updatedAt: new Date('2026-05-24T15:00:00.000Z'),
@@ -268,6 +507,9 @@ test('GET /requests lists only the signed-in customer requests', async () => {
     assert.equal(body.ok, true);
     assert.equal(body.data.length, 1);
     assert.equal(body.data[0].id, 'request_2');
+    assert.equal(body.data[0].intakeMode, 'SPECIFIC');
+    assert.equal(body.data[0].subcategoryId, null);
+    assert.equal(body.data[0].radiusMiles, null);
     assert.deepEqual(body.data[0].proposalSummary, {
       total: 2,
       pending: 1,
@@ -304,9 +546,12 @@ test('GET /requests/:id only returns a request owned by the signed-in customer',
         id: 'request_3',
         title: 'Need creator support for a restaurant launch',
         description: 'Looking for local creators who can visit and post.',
+        intakeMode: 'SPECIFIC',
         marketingSubjectId: 'creator-influencer-marketing',
+        subcategoryId: null,
         serviceTokens: ['creator-marketing', 'local-influencer'],
         zip: '60614',
+        radiusMiles: null,
         budgetLabel: '$1k-$2k',
         timelineLabel: 'Next 30 days',
         status: 'ACTIVE',
@@ -374,7 +619,10 @@ test('GET /requests/:id only returns a request owned by the signed-in customer',
     const body = response.json();
     assert.equal(body.ok, true);
     assert.equal(body.request.id, 'request_3');
+    assert.equal(body.request.intakeMode, 'SPECIFIC');
     assert.equal(body.request.marketingSubjectId, 'creator-influencer-marketing');
+    assert.equal(body.request.subcategoryId, null);
+    assert.equal(body.request.radiusMiles, null);
     assert.equal(body.deliveryPreview.totalMatches, 2);
     assert.equal(body.deliveryPreview.matchedExperts[0].primaryReason, 'same_city');
     assert.equal(body.deliveryPreview.matchedExperts[1].primaryReason, 'serves_nationwide');
