@@ -24,7 +24,7 @@ type ProposalInboxItem = {
   request: {
     id: string;
     title: string;
-    marketingSubjectId: string;
+    marketingSubjectId?: string | null;
     status: 'ACTIVE' | 'CLOSED' | 'CANCELLED';
   };
   expert: {
@@ -148,7 +148,7 @@ export default async function CustomerProposalsPage() {
         {proposals.length ? (
           <section className="mt-5 grid gap-4">
             {proposals.map((proposal) => {
-              const subject = getMarketingSubjectById(proposal.request.marketingSubjectId);
+              const subject = getMarketingSubjectById(proposal.request.marketingSubjectId || '');
               return (
                 <article key={proposal.id} className="ml-card rounded-[28px] p-5 shadow-[0_18px_44px_rgba(23,26,31,0.05)]">
                   <div className="flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between">
@@ -158,7 +158,7 @@ export default async function CustomerProposalsPage() {
                           {formatProposalStatus(proposal.status)}
                         </span>
                         <span className="ml-pill inline-flex rounded-xl px-3 py-1 text-[11px] font-medium uppercase tracking-[0.16em] text-slate-500">
-                          {subject?.label || proposal.request.marketingSubjectId}
+                          {subject?.label || 'Not sure yet'}
                         </span>
                         {proposal.expert.verified ? (
                           <span className="ml-pill inline-flex rounded-xl px-3 py-1 text-[11px] font-medium uppercase tracking-[0.16em] text-slate-500">

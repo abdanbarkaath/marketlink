@@ -13,9 +13,12 @@ type SummaryResponse = {
 type RequestHistoryItem = {
   id: string;
   title: string;
-  marketingSubjectId: string;
+  intakeMode: 'SPECIFIC' | 'UNSURE';
+  marketingSubjectId?: string | null;
+  subcategoryId?: string | null;
   serviceTokens: string[];
-  zip: string;
+  zip?: string | null;
+  radiusMiles?: number | null;
   status: 'ACTIVE' | 'CLOSED' | 'CANCELLED';
   createdAt: string;
   updatedAt: string;
@@ -44,6 +47,23 @@ function formatShortDate(value: string) {
     day: 'numeric',
     year: 'numeric',
   });
+}
+
+function getRequestAreaLabel(request: RequestHistoryItem) {
+  const subject = request.marketingSubjectId ? getMarketingSubjectById(request.marketingSubjectId) : null;
+  const subcategory = request.subcategoryId ? subject?.subcategories.find((item) => item.id === request.subcategoryId) ?? null : null;
+
+  if (subcategory) return subcategory.label;
+  if (subject) return subject.label;
+  if (request.intakeMode === 'UNSURE') return 'Not sure yet';
+  return 'General request';
+}
+
+function getRequestLocationLabel(request: RequestHistoryItem) {
+  if (request.zip && request.radiusMiles) return `ZIP ${request.zip} • ${request.radiusMiles} miles`;
+  if (request.zip) return `ZIP ${request.zip}`;
+  if (request.intakeMode === 'UNSURE') return 'Open local request';
+  return 'Specific request';
 }
 
 export default async function CustomerRequestsPage() {
@@ -125,48 +145,47 @@ export default async function CustomerRequestsPage() {
           </section>
         ) : (
           <section className="mt-5 grid gap-4">
-            {requests.map((request) => {
-              const subject = getMarketingSubjectById(request.marketingSubjectId);
-              return (
-                <Link
-                  key={request.id}
-                  href={`/dashboard/customer/requests/view?id=${encodeURIComponent(request.id)}`}
-                  className="ml-card rounded-[24px] p-5 shadow-[0_18px_44px_rgba(23,26,31,0.05)] transition hover:-translate-y-0.5 hover:shadow-[0_22px_48px_rgba(23,26,31,0.08)]"
-                >
-                  <div className="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
-                    <div>
-                      <div className="flex flex-wrap gap-2">
-                        <span className="ml-pill inline-flex rounded-xl px-3 py-1 text-[11px] font-medium uppercase tracking-[0.16em] text-slate-500">
-                          {formatRequestStatus(request.status)}
+            {requests.map((request) => (
+              <Link
+                key={request.id}
+                href={`/dashboard/customer/requests/view?id=${encodeURIComponent(request.id)}`}
+                className="ml-card rounded-[24px] p-5 shadow-[0_18px_44px_rgba(23,26,31,0.05)] transition hover:-translate-y-0.5 hover:shadow-[0_22px_48px_rgba(23,26,31,0.08)]"
+              >
+                <div className="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
+                  <div>
+                    <div className="flex flex-wrap gap-2">
+                      <span className="ml-pill inline-flex rounded-xl px-3 py-1 text-[11px] font-medium uppercase tracking-[0.16em] text-slate-500">
+                        {formatRequestStatus(request.status)}
+                      </span>
+                      <span className="ml-pill inline-flex rounded-xl px-3 py-1 text-[11px] font-medium uppercase tracking-[0.16em] text-slate-500">
+                        {getRequestAreaLabel(request)}
+                      </span>
+                      {request.proposalSummary.pending > 0 ? (
+                        <span className="inline-flex rounded-xl bg-amber-50 px-3 py-1 text-[11px] font-semibold uppercase tracking-[0.16em] text-amber-700 ring-1 ring-amber-200">
+                          {request.proposalSummary.pending} needs decision
                         </span>
-                        <span className="ml-pill inline-flex rounded-xl px-3 py-1 text-[11px] font-medium uppercase tracking-[0.16em] text-slate-500">
-                          {subject?.label || request.marketingSubjectId}
+                      ) : request.proposalSummary.accepted > 0 ? (
+                        <span className="inline-flex rounded-xl bg-emerald-50 px-3 py-1 text-[11px] font-semibold uppercase tracking-[0.16em] text-emerald-700 ring-1 ring-emerald-200">
+                          Proposal accepted
                         </span>
-                        {request.proposalSummary.pending > 0 ? (
-                          <span className="inline-flex rounded-xl bg-amber-50 px-3 py-1 text-[11px] font-semibold uppercase tracking-[0.16em] text-amber-700 ring-1 ring-amber-200">
-                            {request.proposalSummary.pending} needs decision
-                          </span>
-                        ) : request.proposalSummary.accepted > 0 ? (
-                          <span className="inline-flex rounded-xl bg-emerald-50 px-3 py-1 text-[11px] font-semibold uppercase tracking-[0.16em] text-emerald-700 ring-1 ring-emerald-200">
-                            Proposal accepted
-                          </span>
-                        ) : request.proposalSummary.total > 0 ? (
-                          <span className="ml-pill inline-flex rounded-xl px-3 py-1 text-[11px] font-medium uppercase tracking-[0.16em] text-slate-500">
-                            {request.proposalSummary.total} proposal{request.proposalSummary.total === 1 ? '' : 's'}
-                          </span>
-                        ) : null}
-                      </div>
-                      <h2 className="mt-3 text-xl font-semibold tracking-tight text-slate-950">{request.title}</h2>
-                      <p className="mt-2 text-sm text-slate-600">
-                        Created {formatShortDate(request.createdAt)} • ZIP {request.zip}
-                      </p>
+                      ) : request.proposalSummary.total > 0 ? (
+                        <span className="ml-pill inline-flex rounded-xl px-3 py-1 text-[11px] font-medium uppercase tracking-[0.16em] text-slate-500">
+                          {request.proposalSummary.total} proposal{request.proposalSummary.total === 1 ? '' : 's'}
+                        </span>
+                      ) : null}
                     </div>
-
-                    <span className="text-sm font-semibold text-slate-900">
-                      {request.proposalSummary.pending > 0 ? 'Review proposals' : 'Open'}
-                    </span>
+                    <h2 className="mt-3 text-xl font-semibold tracking-tight text-slate-950">{request.title}</h2>
+                    <p className="mt-2 text-sm text-slate-600">
+                      Created {formatShortDate(request.createdAt)} • {getRequestLocationLabel(request)}
+                    </p>
                   </div>
 
+                  <span className="text-sm font-semibold text-slate-900">
+                    {request.proposalSummary.pending > 0 ? 'Review proposals' : 'Open'}
+                  </span>
+                </div>
+
+                {request.serviceTokens.length ? (
                   <div className="mt-4 flex flex-wrap gap-2">
                     {request.serviceTokens.slice(0, 4).map((token) => (
                       <span
@@ -177,9 +196,11 @@ export default async function CustomerRequestsPage() {
                       </span>
                     ))}
                   </div>
-                </Link>
-              );
-            })}
+                ) : (
+                  <p className="mt-4 text-sm leading-6 text-slate-500">This request started broad, without a specific marketing category yet.</p>
+                )}
+              </Link>
+            ))}
           </section>
         )}
       </div>

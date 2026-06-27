@@ -44,7 +44,7 @@ export default async function CustomerNewRequestPage() {
               <p className="text-xs font-semibold uppercase tracking-[0.32em] text-slate-500">Customer requests</p>
               <h1 className="text-3xl font-semibold tracking-tight text-slate-950 sm:text-4xl">Create a request</h1>
               <p className="max-w-2xl text-sm leading-6 text-slate-600">
-                Keep this simple. Tell us the problem, the marketing area, and where the business is located, then MarketLink will show the first plausible expert matches privately inside your dashboard.
+                Keep this simple. If you know the kind of help you want, choose it. If not, start broad with your ZIP code and radius, and keep the request easy to understand.
               </p>
             </div>
 
@@ -61,8 +61,8 @@ export default async function CustomerNewRequestPage() {
                 <p className="mt-1 text-sm leading-6 text-slate-600">Requests stay inside your customer dashboard. Nothing here becomes a public marketplace page.</p>
               </div>
               <div className="ml-surface-muted rounded-2xl p-4">
-                <div className="text-sm font-semibold text-slate-900">Locality is MVP-simple</div>
-                <p className="mt-1 text-sm leading-6 text-slate-600">Matching currently uses service tags plus same ZIP, same city, nationwide coverage, or remote-friendly service area.</p>
+                <div className="text-sm font-semibold text-slate-900">Two ways to start</div>
+                <p className="mt-1 text-sm leading-6 text-slate-600">Use the specific path when you know the marketing area. Use the unsure path when you just want nearby help without picking a category first.</p>
               </div>
             </div>
 
