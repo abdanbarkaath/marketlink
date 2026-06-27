@@ -29,7 +29,7 @@ export type ConversationSummary = {
   request: {
     id: string;
     title: string;
-    marketingSubjectId: string;
+    marketingSubjectId?: string | null;
     customerProfile?: {
       name?: string | null;
       businessName?: string | null;
@@ -580,7 +580,7 @@ export default function ConversationWorkspace({
 
         <div className="mt-4 grid gap-3">
           {conversations.map((conversation) => {
-            const subject = getMarketingSubjectById(conversation.request.marketingSubjectId);
+            const subject = getMarketingSubjectById(conversation.request.marketingSubjectId || '');
             const isSelected = conversation.id === selectedConversationId;
 
             return (
@@ -624,7 +624,7 @@ export default function ConversationWorkspace({
                     </span>
                   ) : null}
                   <span className={`inline-flex rounded-xl px-3 py-1 text-[11px] font-medium uppercase tracking-[0.16em] ${isSelected ? 'bg-white/10 text-white/80' : 'bg-slate-100 text-slate-500'}`}>
-                    {subject?.label || conversation.request.marketingSubjectId}
+                    {subject?.label || 'Not sure yet'}
                   </span>
                   {conversation.proposal?.priceLabel ? (
                     <span className={`inline-flex rounded-xl px-3 py-1 text-[11px] font-medium ${isSelected ? 'bg-white/10 text-white/80' : 'bg-slate-100 text-slate-500'}`}>
@@ -678,7 +678,7 @@ export default function ConversationWorkspace({
 
                   <div className="mt-1 flex flex-wrap gap-2 xl:mt-0">
                     <span className="ml-pill inline-flex rounded-xl px-3 py-1 text-[11px] font-medium uppercase tracking-[0.16em] text-slate-500">
-                      {selectedSubject?.label || selectedSummary.request.marketingSubjectId}
+                      {selectedSubject?.label || 'Not sure yet'}
                     </span>
                     <span
                       className={

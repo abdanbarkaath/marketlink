@@ -34,24 +34,29 @@ type DeliveryPreview = {
   }>;
 };
 
+type RequestDetail = {
+  id: string;
+  requesterName: string;
+  requesterBusinessName?: string | null;
+  title: string;
+  description: string;
+  intakeMode: 'SPECIFIC' | 'UNSURE';
+  marketingSubjectId?: string | null;
+  subcategoryId?: string | null;
+  serviceTokens: string[];
+  zip?: string | null;
+  radiusMiles?: number | null;
+  budgetLabel?: string | null;
+  timelineLabel?: string | null;
+  status: 'ACTIVE' | 'CLOSED' | 'CANCELLED';
+  createdAt: string;
+  updatedAt: string;
+};
+
 type RequestDetailResponse = {
   ok?: boolean;
-  request?: {
-    id: string;
-    requesterName: string;
-    requesterBusinessName?: string | null;
-    title: string;
-    description: string;
-    marketingSubjectId: string;
-    serviceTokens: string[];
-    zip: string;
-    budgetLabel?: string | null;
-    timelineLabel?: string | null;
-    status: 'ACTIVE' | 'CLOSED' | 'CANCELLED';
-    createdAt: string;
-    updatedAt: string;
-  };
-  deliveryPreview?: DeliveryPreview;
+  request?: RequestDetail;
+  deliveryPreview?: DeliveryPreview | null;
   proposals?: Array<{
     id: string;
     requestId: string;
@@ -96,7 +101,7 @@ function formatReason(reason: DeliveryPreview['matchedExperts'][number]['primary
   }
 }
 
-function formatStatus(status: NonNullable<RequestDetailResponse['request']>['status']) {
+function formatStatus(status: RequestDetail['status']) {
   if (status === 'ACTIVE') return 'Active';
   if (status === 'CLOSED') return 'Closed';
   return 'Cancelled';
@@ -117,6 +122,32 @@ function formatExpertType(value?: string | null) {
     .filter(Boolean)
     .map((part) => part.charAt(0).toUpperCase() + part.slice(1).toLowerCase())
     .join(' ');
+}
+
+function getRequestAreaDetails(request: RequestDetail) {
+  const subject = request.marketingSubjectId ? getMarketingSubjectById(request.marketingSubjectId) : null;
+  const subcategory = request.subcategoryId ? subject?.subcategories.find((item) => item.id === request.subcategoryId) ?? null : null;
+
+  return {
+    subject,
+    subcategory,
+    label: subcategory?.label || subject?.label || (request.intakeMode === 'UNSURE' ? 'Not sure yet' : 'General request'),
+  };
+}
+
+function getLocationSummary(request: RequestDetail) {
+  if (request.zip && request.radiusMiles) return `ZIP ${request.zip} • ${request.radiusMiles} mile radius`;
+  if (request.zip) return `ZIP ${request.zip}`;
+  if (request.intakeMode === 'UNSURE') return 'Open local request';
+  return 'Specific request';
+}
+
+function getPreviewEmptyMessage(request: RequestDetail) {
+  if (request.intakeMode === 'UNSURE') {
+    return 'This request started broad. The location is saved, and the next matching step can use it without locking the request into one category.';
+  }
+
+  return 'No matching preview is available for this request yet. Providers can still respond privately through the normal request flow.';
 }
 
 export default async function CustomerRequestDetailPage({
@@ -172,7 +203,7 @@ export default async function CustomerRequestDetailPage({
     throw new Error('Customer request payload was missing.');
   }
 
-  const subject = getMarketingSubjectById(request.marketingSubjectId);
+  const areaDetails = getRequestAreaDetails(request);
   const preview = data.deliveryPreview;
   const proposals = data.proposals || [];
   const pendingProposalCount = proposals.filter((proposal) => proposal.status === 'PENDING').length;
@@ -185,7 +216,7 @@ export default async function CustomerRequestDetailPage({
             <p className="text-xs font-semibold uppercase tracking-[0.32em] text-slate-500">Customer requests</p>
             <h1 className="mt-2 text-3xl font-semibold tracking-tight text-slate-950 sm:text-4xl">{request.title}</h1>
             <p className="mt-3 text-sm leading-6 text-slate-600">
-              Created {formatShortDate(request.createdAt)} • {formatStatus(request.status)} • ZIP {request.zip}
+              Created {formatShortDate(request.createdAt)} • {formatStatus(request.status)} • {getLocationSummary(request)}
             </p>
           </div>
 
@@ -206,7 +237,10 @@ export default async function CustomerRequestDetailPage({
                 {formatStatus(request.status)}
               </span>
               <span className="ml-pill inline-flex rounded-xl px-3 py-1 text-[11px] font-medium uppercase tracking-[0.16em] text-slate-500">
-                {subject?.label || request.marketingSubjectId}
+                {areaDetails.label}
+              </span>
+              <span className="ml-pill inline-flex rounded-xl px-3 py-1 text-[11px] font-medium uppercase tracking-[0.16em] text-slate-500">
+                {request.intakeMode === 'UNSURE' ? 'Unsure path' : 'Specific path'}
               </span>
             </div>
 
@@ -218,8 +252,12 @@ export default async function CustomerRequestDetailPage({
 
               <div className="space-y-4">
                 <div>
+                  <div className="text-[11px] font-semibold uppercase tracking-[0.2em] text-slate-400">Request path</div>
+                  <div className="mt-1 text-sm font-medium text-slate-900">{request.intakeMode === 'UNSURE' ? 'Not sure yet' : 'Specific marketing area selected'}</div>
+                </div>
+                <div>
                   <div className="text-[11px] font-semibold uppercase tracking-[0.2em] text-slate-400">Business location</div>
-                  <div className="mt-1 text-sm font-medium text-slate-900">ZIP {request.zip}</div>
+                  <div className="mt-1 text-sm font-medium text-slate-900">{getLocationSummary(request)}</div>
                 </div>
                 <div>
                   <div className="text-[11px] font-semibold uppercase tracking-[0.2em] text-slate-400">Budget</div>
@@ -234,33 +272,39 @@ export default async function CustomerRequestDetailPage({
 
             <div className="mt-5">
               <div className="text-[11px] font-semibold uppercase tracking-[0.2em] text-slate-400">Matching tags</div>
-              <div className="mt-2 flex flex-wrap gap-2">
-                {request.serviceTokens.map((token) => (
-                  <span
-                    key={token}
-                    className="inline-flex rounded-xl bg-slate-50 px-3 py-1 text-xs font-medium text-slate-600 ring-1 ring-slate-200"
-                  >
-                    {formatServiceTokenLabel(token)}
-                  </span>
-                ))}
-              </div>
+              {request.serviceTokens.length ? (
+                <div className="mt-2 flex flex-wrap gap-2">
+                  {request.serviceTokens.map((token) => (
+                    <span
+                      key={token}
+                      className="inline-flex rounded-xl bg-slate-50 px-3 py-1 text-xs font-medium text-slate-600 ring-1 ring-slate-200"
+                    >
+                      {formatServiceTokenLabel(token)}
+                    </span>
+                  ))}
+                </div>
+              ) : (
+                <p className="mt-2 text-sm leading-6 text-slate-500">This request was kept broad, so there are no category tags attached yet.</p>
+              )}
             </div>
           </section>
 
           <aside className="ml-card rounded-[28px] p-6 shadow-[0_18px_50px_rgba(23,26,31,0.06)]">
             <div className="text-xs font-semibold uppercase tracking-[0.26em] text-slate-400">Matching preview</div>
             <h2 className="mt-3 text-2xl font-semibold tracking-tight text-slate-950">
-              {preview?.totalMatches ?? 0} plausible match{preview?.totalMatches === 1 ? '' : 'es'}
+              {preview ? `${preview.totalMatches} plausible match${preview.totalMatches === 1 ? '' : 'es'}` : 'Preview not available yet'}
             </h2>
             <p className="mt-2 text-sm leading-6 text-slate-600">
-              This preview is private and based on the current MVP model: service tags plus ZIP, city, nationwide coverage, or remote-friendly service area.
+              {preview
+                ? 'This preview is private and based on the current MVP model: service tags plus ZIP, city, nationwide coverage, or remote-friendly service area.'
+                : getPreviewEmptyMessage(request)}
             </p>
 
             {preview?.requestLocation ? (
               <div className="mt-4 rounded-2xl bg-slate-50 px-4 py-4">
                 <div className="text-[11px] font-semibold uppercase tracking-[0.2em] text-slate-400">Request location</div>
                 <div className="mt-2 text-sm font-medium text-slate-900">
-                  {[preview.requestLocation.city, preview.requestLocation.state].filter(Boolean).join(', ') || `ZIP ${request.zip}`}
+                  {[preview.requestLocation.city, preview.requestLocation.state].filter(Boolean).join(', ') || getLocationSummary(request)}
                 </div>
               </div>
             ) : null}
@@ -424,9 +468,7 @@ export default async function CustomerRequestDetailPage({
             </div>
           ) : (
             <div className="ml-card mt-4 rounded-[24px] p-5 shadow-[0_18px_44px_rgba(23,26,31,0.05)]">
-              <p className="text-sm leading-6 text-slate-600">
-                No plausible matches showed up yet. Try broadening the marketing area, adjusting the ZIP, or browsing experts directly.
-              </p>
+              <p className="text-sm leading-6 text-slate-600">{getPreviewEmptyMessage(request)}</p>
             </div>
           )}
         </section>

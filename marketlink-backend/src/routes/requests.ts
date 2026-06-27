@@ -5,6 +5,7 @@ import { getUserFromRequest } from '../lib/session';
 import { lookupZipLocation } from '../lib/geocoding';
 
 const ZIP_RE = /^\d{5}$/;
+const MAX_REQUEST_SERVICE_TOKENS = 24;
 
 type RequestMatchReason = 'same_zip' | 'same_city' | 'serves_nationwide' | 'remote_friendly';
 
@@ -298,7 +299,9 @@ const requestsRoutes: FastifyPluginAsync = async (fastify) => {
     if (description.length > 4000) return reply.code(400).send({ ok: false, error: 'description is too long' });
     if (marketingSubjectId && marketingSubjectId.length > 80) return reply.code(400).send({ ok: false, error: 'marketingSubjectId is too long' });
     if (subcategoryId && subcategoryId.length > 80) return reply.code(400).send({ ok: false, error: 'subcategoryId is too long' });
-    if (serviceTokens.length > 12) return reply.code(400).send({ ok: false, error: 'serviceTokens cannot exceed 12 items' });
+    if (serviceTokens.length > MAX_REQUEST_SERVICE_TOKENS) {
+      return reply.code(400).send({ ok: false, error: `serviceTokens cannot exceed ${MAX_REQUEST_SERVICE_TOKENS} items` });
+    }
     if (serviceTokens.some((token) => token.length > 80)) return reply.code(400).send({ ok: false, error: 'serviceTokens contains an item that is too long' });
     if (zip && !ZIP_RE.test(zip)) return reply.code(400).send({ ok: false, error: 'zip must be a valid 5-digit ZIP code' });
     if (budgetLabel && budgetLabel.length > 80) return reply.code(400).send({ ok: false, error: 'budgetLabel is too long' });
