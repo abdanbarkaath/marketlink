@@ -159,6 +159,7 @@ test('POST /requests creates an unsure request with ZIP and radius when no marke
   const originalGetUserFromRequest = sessionModule.getUserFromRequest;
   const originalCustomerProfile = prismaModule.prisma.customerProfile;
   const originalCustomerRequest = prismaModule.prisma.customerRequest;
+  const originalExpert = prismaModule.prisma.expert;
   const originalLookupZipLocation = geocodingModule.lookupZipLocation;
 
   sessionModule.getUserFromRequest = async () => ({
@@ -182,6 +183,40 @@ test('POST /requests creates an unsure request with ZIP and radius when no marke
       createdAt: new Date('2026-06-22T10:00:00.000Z'),
       updatedAt: new Date('2026-06-22T10:00:00.000Z'),
     }),
+  };
+  prismaModule.prisma.expert = {
+    findMany: async () => [
+      {
+        id: 'expert_nearby_1',
+        slug: 'westmont-growth',
+        businessName: 'Westmont Growth',
+        city: 'Westmont',
+        state: 'IL',
+        zip: '60559',
+        latitude: 41.79,
+        longitude: -87.98,
+        remoteFriendly: false,
+        servesNationwide: false,
+        services: ['paid-ads'],
+        verified: true,
+        rating: 4.9,
+      },
+      {
+        id: 'expert_far_1',
+        slug: 'chicago-social-house',
+        businessName: 'Chicago Social House',
+        city: 'Chicago',
+        state: 'IL',
+        zip: '60614',
+        latitude: 41.92,
+        longitude: -87.65,
+        remoteFriendly: false,
+        servesNationwide: false,
+        services: ['seo'],
+        verified: true,
+        rating: 4.7,
+      },
+    ],
   };
 
   geocodingModule.lookupZipLocation = async () => ({
@@ -215,11 +250,18 @@ test('POST /requests creates an unsure request with ZIP and radius when no marke
     assert.deepEqual(body.request.serviceTokens, []);
     assert.equal(body.request.zip, '60559');
     assert.equal(body.request.radiusMiles, 15);
-    assert.equal(body.deliveryPreview, null);
+    assert.equal(body.deliveryPreview.matchingModel, 'zip-radius-v1');
+    assert.equal(body.deliveryPreview.totalMatches, 1);
+    assert.deepEqual(
+      body.deliveryPreview.matchedExperts.map((expert) => expert.id),
+      ['expert_nearby_1'],
+    );
+    assert.equal(body.deliveryPreview.matchedExperts[0].primaryReason, 'within_radius');
   } finally {
     sessionModule.getUserFromRequest = originalGetUserFromRequest;
     prismaModule.prisma.customerProfile = originalCustomerProfile;
     prismaModule.prisma.customerRequest = originalCustomerRequest;
+    prismaModule.prisma.expert = originalExpert;
     geocodingModule.lookupZipLocation = originalLookupZipLocation;
     await fastify.close();
   }
@@ -1103,6 +1145,137 @@ test('GET /provider/requests lists active matched requests for the signed-in pro
     assert.equal(body.data[0].id, 'request_provider_match_1');
     assert.equal(body.data[0].primaryReason, 'same_zip');
     assert.equal(body.data[0].proposalStatus, 'PENDING');
+  } finally {
+    sessionModule.getUserFromRequest = originalGetUserFromRequest;
+    prismaModule.prisma.expert = originalExpert;
+    prismaModule.prisma.customerRequest = originalCustomerRequest;
+    prismaModule.prisma.proposal = originalProposal;
+    geocodingModule.lookupZipLocation = originalLookupZipLocation;
+    await fastify.close();
+  }
+});
+
+test('GET /provider/requests only includes unsure requests when the signed-in provider is inside the request radius', async () => {
+  const fastify = await buildFastify();
+
+  const originalGetUserFromRequest = sessionModule.getUserFromRequest;
+  const originalExpert = prismaModule.prisma.expert;
+  const originalCustomerRequest = prismaModule.prisma.customerRequest;
+  const originalProposal = prismaModule.prisma.proposal;
+  const originalLookupZipLocation = geocodingModule.lookupZipLocation;
+
+  sessionModule.getUserFromRequest = async () => ({
+    id: 'provider_user_unsure_radius_1',
+    email: 'provider@example.com',
+    role: 'provider',
+  });
+
+  prismaModule.prisma.expert = {
+    findFirst: async ({ where }) => {
+      assert.equal(where.userId, 'provider_user_unsure_radius_1');
+      return {
+        id: 'expert_unsure_radius_1',
+        slug: 'westmont-growth',
+        businessName: 'Westmont Growth',
+        city: 'Westmont',
+        state: 'IL',
+        zip: '60559',
+        latitude: 41.79,
+        longitude: -87.98,
+        remoteFriendly: true,
+        servesNationwide: true,
+        services: ['paid-ads', 'seo'],
+        verified: true,
+        rating: 4.9,
+      };
+    },
+  };
+
+  prismaModule.prisma.customerRequest = {
+    findMany: async ({ where }) => {
+      assert.equal(where.status, 'ACTIVE');
+      return [
+        {
+          id: 'request_unsure_nearby_1',
+          title: 'Not sure what help I need',
+          description: 'Need more leads for a local business.',
+          intakeMode: 'UNSURE',
+          marketingSubjectId: null,
+          serviceTokens: [],
+          zip: '60559',
+          radiusMiles: 15,
+          budgetLabel: '$2k-$5k',
+          timelineLabel: 'ASAP',
+          status: 'ACTIVE',
+          requesterName: 'Jamie Rivera',
+          requesterBusinessName: 'Westmont Dental',
+          createdAt: new Date('2026-06-29T15:00:00.000Z'),
+          updatedAt: new Date('2026-06-29T15:00:00.000Z'),
+        },
+        {
+          id: 'request_unsure_far_1',
+          title: 'Not sure what help I need',
+          description: 'Need more leads for a local business.',
+          intakeMode: 'UNSURE',
+          marketingSubjectId: null,
+          serviceTokens: [],
+          zip: '60614',
+          radiusMiles: 5,
+          budgetLabel: '$2k-$5k',
+          timelineLabel: 'ASAP',
+          status: 'ACTIVE',
+          requesterName: 'Alex Kim',
+          requesterBusinessName: 'Lakeview Cafe',
+          createdAt: new Date('2026-06-29T16:00:00.000Z'),
+          updatedAt: new Date('2026-06-29T16:00:00.000Z'),
+        },
+      ];
+    },
+  };
+  prismaModule.prisma.proposal = {
+    findMany: async ({ where }) => {
+      assert.deepEqual(where.requestId.in, ['request_unsure_nearby_1']);
+      return [];
+    },
+  };
+
+  geocodingModule.lookupZipLocation = async ({ zip }) => {
+    if (zip === '60559') {
+      return {
+        ok: true,
+        city: 'Westmont',
+        state: 'IL',
+        zip: '60559',
+        latitude: 41.79,
+        longitude: -87.98,
+        geocodedAt: new Date('2026-06-29T15:00:00.000Z'),
+        geocodeProvider: 'geoapify',
+      };
+    }
+
+    return {
+      ok: true,
+      city: 'Chicago',
+      state: 'IL',
+      zip: '60614',
+      latitude: 41.92,
+      longitude: -87.65,
+      geocodedAt: new Date('2026-06-29T16:00:00.000Z'),
+      geocodeProvider: 'geoapify',
+    };
+  };
+
+  try {
+    const response = await fastify.inject({
+      method: 'GET',
+      url: '/provider/requests',
+    });
+
+    assert.equal(response.statusCode, 200);
+    const body = response.json();
+    assert.equal(body.ok, true);
+    assert.deepEqual(body.data.map((request) => request.id), ['request_unsure_nearby_1']);
+    assert.equal(body.data[0].primaryReason, 'within_radius');
   } finally {
     sessionModule.getUserFromRequest = originalGetUserFromRequest;
     prismaModule.prisma.expert = originalExpert;

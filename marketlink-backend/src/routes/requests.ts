@@ -7,12 +7,14 @@ import { lookupZipLocation } from '../lib/geocoding';
 const ZIP_RE = /^\d{5}$/;
 const MAX_REQUEST_SERVICE_TOKENS = 24;
 
-type RequestMatchReason = 'same_zip' | 'same_city' | 'serves_nationwide' | 'remote_friendly';
+type RequestMatchReason = 'within_radius' | 'same_zip' | 'same_city' | 'serves_nationwide' | 'remote_friendly';
 
 type DeliveryPreviewInput = {
   id: string;
+  intakeMode: CustomerRequestIntakeMode;
   serviceTokens: string[];
   zip: string | null;
+  radiusMiles: number | null;
 };
 
 type ProviderExpertForMatching = {
@@ -22,6 +24,8 @@ type ProviderExpertForMatching = {
   city: string;
   state: string;
   zip: string | null;
+  latitude: number | null;
+  longitude: number | null;
   remoteFriendly: boolean;
   servesNationwide: boolean;
   services: string[];
@@ -33,9 +37,11 @@ type RequestForProviderMatching = {
   id: string;
   title: string;
   description: string;
+  intakeMode: CustomerRequestIntakeMode;
   marketingSubjectId: string | null;
   serviceTokens: string[];
   zip: string | null;
+  radiusMiles: number | null;
   budgetLabel: string | null;
   timelineLabel: string | null;
   status: CustomerRequestStatus;
@@ -86,7 +92,23 @@ function normalizeState(value: string | null | undefined) {
   return String(value || '').trim().toUpperCase();
 }
 
+function toRadians(value: number) {
+  return (value * Math.PI) / 180;
+}
+
+function haversineMiles(fromLat: number, fromLng: number, toLat: number, toLng: number) {
+  const earthRadiusMiles = 3958.7613;
+  const dLat = toRadians(toLat - fromLat);
+  const dLng = toRadians(toLng - fromLng);
+  const a =
+    Math.sin(dLat / 2) ** 2 +
+    Math.cos(toRadians(fromLat)) * Math.cos(toRadians(toLat)) * Math.sin(dLng / 2) ** 2;
+
+  return earthRadiusMiles * (2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a)));
+}
+
 function getReasonWeight(reason: RequestMatchReason) {
+  if (reason === 'within_radius') return 500;
   if (reason === 'same_zip') return 400;
   if (reason === 'same_city') return 300;
   if (reason === 'serves_nationwide') return 200;
@@ -105,15 +127,40 @@ function isCustomerProposalDecision(status: ProposalStatus) {
 }
 
 async function buildProviderMatchForRequest(expert: ProviderExpertForMatching, request: RequestForProviderMatching) {
-  if (!request.zip || request.serviceTokens.length === 0) return null;
-
-  const matchedServiceTokens = expert.services.filter((token) => request.serviceTokens.includes(token));
-  if (!matchedServiceTokens.length) return null;
+  if (!request.zip) return null;
 
   const locationLookup = await lookupZipLocation({ zip: request.zip });
   const requestCity = locationLookup.ok ? locationLookup.city : null;
   const requestState = locationLookup.ok ? locationLookup.state : null;
   const requestZip = locationLookup.ok ? locationLookup.zip : request.zip;
+
+  if (request.intakeMode === CustomerRequestIntakeMode.UNSURE) {
+    if (!locationLookup.ok || request.radiusMiles === null) return null;
+    if (typeof expert.latitude !== 'number' || typeof expert.longitude !== 'number') return null;
+
+    const distanceMiles = Number(
+      haversineMiles(locationLookup.latitude, locationLookup.longitude, expert.latitude, expert.longitude).toFixed(1),
+    );
+    if (distanceMiles > request.radiusMiles) return null;
+
+    return {
+      primaryReason: 'within_radius' as const,
+      reasons: ['within_radius' as const],
+      matchedServiceTokens: [],
+      distanceMiles,
+      requestLocation: {
+        zip: requestZip,
+        city: requestCity,
+        state: requestState,
+        source: 'zip_lookup',
+      },
+    };
+  }
+
+  if (request.serviceTokens.length === 0) return null;
+
+  const matchedServiceTokens = expert.services.filter((token) => request.serviceTokens.includes(token));
+  if (!matchedServiceTokens.length) return null;
 
   const sameZip = Boolean(expert.zip && expert.zip.trim() === requestZip);
   const sameCity =
@@ -143,12 +190,86 @@ async function buildProviderMatchForRequest(expert: ProviderExpertForMatching, r
 }
 
 async function buildDeliveryPreview(input: DeliveryPreviewInput) {
-  if (!input.zip || input.serviceTokens.length === 0) return null;
+  if (!input.zip) return null;
 
   const locationLookup = await lookupZipLocation({ zip: input.zip });
   const requestCity = locationLookup.ok ? locationLookup.city : null;
   const requestState = locationLookup.ok ? locationLookup.state : null;
   const requestZip = locationLookup.ok ? locationLookup.zip : input.zip;
+
+  if (input.intakeMode === CustomerRequestIntakeMode.UNSURE) {
+    if (!locationLookup.ok || input.radiusMiles === null) return null;
+    const radiusMiles = input.radiusMiles;
+
+    const experts = await prisma.expert.findMany({
+      where: {
+        status: ExpertStatus.active,
+        latitude: { not: null },
+        longitude: { not: null },
+      },
+      select: {
+        id: true,
+        slug: true,
+        businessName: true,
+        city: true,
+        state: true,
+        zip: true,
+        latitude: true,
+        longitude: true,
+        remoteFriendly: true,
+        servesNationwide: true,
+        services: true,
+        verified: true,
+        rating: true,
+      },
+      take: 200,
+    });
+
+    const matches = experts
+      .map((expert) => {
+        if (typeof expert.latitude !== 'number' || typeof expert.longitude !== 'number') return null;
+
+        const distanceMiles = Number(
+          haversineMiles(locationLookup.latitude, locationLookup.longitude, expert.latitude, expert.longitude).toFixed(1),
+        );
+        if (distanceMiles > radiusMiles) return null;
+
+        return {
+          id: expert.id,
+          slug: expert.slug,
+          businessName: expert.businessName,
+          city: expert.city,
+          state: expert.state,
+          zip: expert.zip,
+          verified: expert.verified,
+          rating: expert.rating,
+          remoteFriendly: expert.remoteFriendly,
+          servesNationwide: expert.servesNationwide,
+          matchedServiceTokens: [],
+          primaryReason: 'within_radius' as const,
+          reasons: ['within_radius' as const],
+          distanceMiles,
+        };
+      })
+      .filter((match): match is NonNullable<typeof match> => Boolean(match))
+      .sort((a, b) => a.distanceMiles - b.distanceMiles || b.rating - a.rating || a.businessName.localeCompare(b.businessName));
+
+    return {
+      requestId: input.id,
+      matchingModel: 'zip-radius-v1',
+      requestLocation: {
+        zip: requestZip,
+        city: requestCity,
+        state: requestState,
+        source: 'zip_lookup',
+      },
+      notes: ['Unsure requests are delivered only to experts with saved coordinates inside the selected ZIP-centered radius.'],
+      totalMatches: matches.length,
+      matchedExperts: matches,
+    };
+  }
+
+  if (input.serviceTokens.length === 0) return null;
 
   const experts = await prisma.expert.findMany({
     where: {
@@ -162,6 +283,8 @@ async function buildDeliveryPreview(input: DeliveryPreviewInput) {
       city: true,
       state: true,
       zip: true,
+      latitude: true,
+      longitude: true,
       remoteFriendly: true,
       servesNationwide: true,
       services: true,
@@ -362,11 +485,13 @@ const requestsRoutes: FastifyPluginAsync = async (fastify) => {
 
     req.log.info({ requestId: created.id, customerUserId: user.id }, 'customer-request.created');
     const deliveryPreview =
-      created.zip && created.serviceTokens.length > 0
+      created.zip
         ? await buildDeliveryPreview({
             id: created.id,
+            intakeMode: created.intakeMode,
             serviceTokens: created.serviceTokens,
             zip: created.zip,
+            radiusMiles: created.radiusMiles,
           })
         : null;
 
@@ -451,11 +576,13 @@ const requestsRoutes: FastifyPluginAsync = async (fastify) => {
     if (!request) return reply.code(404).send({ ok: false, error: 'Request not found' });
 
     const deliveryPreview =
-      request.zip && request.serviceTokens.length > 0
+      request.zip
         ? await buildDeliveryPreview({
             id: request.id,
+            intakeMode: request.intakeMode,
             serviceTokens: request.serviceTokens,
             zip: request.zip,
+            radiusMiles: request.radiusMiles,
           })
         : null;
 
@@ -701,6 +828,8 @@ const requestsRoutes: FastifyPluginAsync = async (fastify) => {
         city: true,
         state: true,
         zip: true,
+        latitude: true,
+        longitude: true,
         remoteFriendly: true,
         servesNationwide: true,
         services: true,
@@ -718,9 +847,11 @@ const requestsRoutes: FastifyPluginAsync = async (fastify) => {
         id: true,
         title: true,
         description: true,
+        intakeMode: true,
         marketingSubjectId: true,
         serviceTokens: true,
         zip: true,
+        radiusMiles: true,
         budgetLabel: true,
         timelineLabel: true,
         status: true,
@@ -740,8 +871,10 @@ const requestsRoutes: FastifyPluginAsync = async (fastify) => {
       matches.push({
         id: request.id,
         title: request.title,
+        intakeMode: request.intakeMode,
         marketingSubjectId: request.marketingSubjectId,
         zip: request.zip,
+        radiusMiles: request.radiusMiles,
         budgetLabel: request.budgetLabel,
         timelineLabel: request.timelineLabel,
         status: request.status,
@@ -792,6 +925,8 @@ const requestsRoutes: FastifyPluginAsync = async (fastify) => {
         city: true,
         state: true,
         zip: true,
+        latitude: true,
+        longitude: true,
         remoteFriendly: true,
         servesNationwide: true,
         services: true,
@@ -814,9 +949,11 @@ const requestsRoutes: FastifyPluginAsync = async (fastify) => {
         id: true,
         title: true,
         description: true,
+        intakeMode: true,
         marketingSubjectId: true,
         serviceTokens: true,
         zip: true,
+        radiusMiles: true,
         budgetLabel: true,
         timelineLabel: true,
         status: true,
@@ -896,6 +1033,8 @@ const requestsRoutes: FastifyPluginAsync = async (fastify) => {
         city: true,
         state: true,
         zip: true,
+        latitude: true,
+        longitude: true,
         remoteFriendly: true,
         servesNationwide: true,
         services: true,
@@ -915,9 +1054,11 @@ const requestsRoutes: FastifyPluginAsync = async (fastify) => {
         id: true,
         title: true,
         description: true,
+        intakeMode: true,
         marketingSubjectId: true,
         serviceTokens: true,
         zip: true,
+        radiusMiles: true,
         budgetLabel: true,
         timelineLabel: true,
         status: true,
