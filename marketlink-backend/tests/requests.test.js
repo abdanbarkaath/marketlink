@@ -250,13 +250,16 @@ test('POST /requests creates an unsure request with ZIP and radius when no marke
     assert.deepEqual(body.request.serviceTokens, []);
     assert.equal(body.request.zip, '60559');
     assert.equal(body.request.radiusMiles, 15);
-    assert.equal(body.deliveryPreview.matchingModel, 'zip-radius-v1');
+    assert.equal(body.deliveryPreview.matchingModel, 'zip-radius-v2');
+    assert.equal(body.deliveryPreview.totalDelivered, 1);
     assert.equal(body.deliveryPreview.totalMatches, 1);
     assert.deepEqual(
-      body.deliveryPreview.matchedExperts.map((expert) => expert.id),
+      body.deliveryPreview.deliveredExperts.map((expert) => expert.id),
       ['expert_nearby_1'],
     );
-    assert.equal(body.deliveryPreview.matchedExperts[0].primaryReason, 'within_radius');
+    assert.equal(body.deliveryPreview.deliveredExperts[0].primaryReason, 'within_radius');
+    assert.deepEqual(body.deliveryPreview.justOutsideExperts, []);
+    assert.deepEqual(body.deliveryPreview.strongFitFartherAwayExperts, []);
   } finally {
     sessionModule.getUserFromRequest = originalGetUserFromRequest;
     prismaModule.prisma.customerProfile = originalCustomerProfile;
@@ -514,6 +517,10 @@ test('GET /requests lists only the signed-in customer requests', async () => {
   });
 
   prismaModule.prisma.customerRequest = {
+    count: async ({ where }) => {
+      assert.equal(where.customerUserId, 'customer_user_3');
+      return 1;
+    },
     findMany: async ({ where }) => {
       assert.equal(where.customerUserId, 'customer_user_3');
       return [
@@ -548,6 +555,12 @@ test('GET /requests lists only the signed-in customer requests', async () => {
     const body = response.json();
     assert.equal(body.ok, true);
     assert.equal(body.data.length, 1);
+    assert.deepEqual(body.meta, {
+      total: 1,
+      page: 1,
+      limit: 10,
+      totalPages: 1,
+    });
     assert.equal(body.data[0].id, 'request_2');
     assert.equal(body.data[0].intakeMode, 'SPECIFIC');
     assert.equal(body.data[0].subcategoryId, null);
@@ -558,6 +571,85 @@ test('GET /requests lists only the signed-in customer requests', async () => {
       accepted: 0,
       declined: 1,
     });
+  } finally {
+    sessionModule.getUserFromRequest = originalGetUserFromRequest;
+    prismaModule.prisma.customerRequest = originalCustomerRequest;
+    await fastify.close();
+  }
+});
+
+test('GET /requests paginates customer request history at 10 items per page', async () => {
+  const fastify = await buildFastify();
+
+  const originalGetUserFromRequest = sessionModule.getUserFromRequest;
+  const originalCustomerRequest = prismaModule.prisma.customerRequest;
+
+  sessionModule.getUserFromRequest = async () => ({
+    id: 'customer_user_paged_1',
+    email: 'customer@example.com',
+    role: 'customer',
+  });
+
+  prismaModule.prisma.customerRequest = {
+    count: async ({ where }) => {
+      assert.equal(where.customerUserId, 'customer_user_paged_1');
+      return 23;
+    },
+    findMany: async ({ where, skip, take, orderBy }) => {
+      assert.equal(where.customerUserId, 'customer_user_paged_1');
+      assert.equal(skip, 10);
+      assert.equal(take, 10);
+      assert.deepEqual(orderBy, { createdAt: 'desc' });
+      return [
+        {
+          id: 'request_page_2_a',
+          title: 'Paged request A',
+          intakeMode: 'UNSURE',
+          marketingSubjectId: null,
+          subcategoryId: null,
+          serviceTokens: [],
+          zip: '60559',
+          radiusMiles: 10,
+          status: 'ACTIVE',
+          createdAt: new Date('2026-05-24T15:00:00.000Z'),
+          updatedAt: new Date('2026-05-24T15:00:00.000Z'),
+          proposals: [],
+        },
+        {
+          id: 'request_page_2_b',
+          title: 'Paged request B',
+          intakeMode: 'SPECIFIC',
+          marketingSubjectId: 'local-search-seo',
+          subcategoryId: null,
+          serviceTokens: ['seo'],
+          zip: '60601',
+          radiusMiles: null,
+          status: 'CLOSED',
+          createdAt: new Date('2026-05-23T15:00:00.000Z'),
+          updatedAt: new Date('2026-05-23T15:00:00.000Z'),
+          proposals: [{ status: 'PENDING' }],
+        },
+      ];
+    },
+  };
+
+  try {
+    const response = await fastify.inject({
+      method: 'GET',
+      url: '/requests?page=2',
+    });
+
+    assert.equal(response.statusCode, 200);
+    const body = response.json();
+    assert.equal(body.ok, true);
+    assert.deepEqual(body.meta, {
+      total: 23,
+      page: 2,
+      limit: 10,
+      totalPages: 3,
+    });
+    assert.deepEqual(body.data.map((request) => request.id), ['request_page_2_a', 'request_page_2_b']);
+    assert.equal(body.data[1].proposalSummary.pending, 1);
   } finally {
     sessionModule.getUserFromRequest = originalGetUserFromRequest;
     prismaModule.prisma.customerRequest = originalCustomerRequest;
@@ -668,6 +760,163 @@ test('GET /requests/:id only returns a request owned by the signed-in customer',
     assert.equal(body.deliveryPreview.totalMatches, 2);
     assert.equal(body.deliveryPreview.matchedExperts[0].primaryReason, 'same_city');
     assert.equal(body.deliveryPreview.matchedExperts[1].primaryReason, 'serves_nationwide');
+  } finally {
+    sessionModule.getUserFromRequest = originalGetUserFromRequest;
+    prismaModule.prisma.customerRequest = originalCustomerRequest;
+    prismaModule.prisma.expert = originalExpert;
+    prismaModule.prisma.proposal = originalProposal;
+    geocodingModule.lookupZipLocation = originalLookupZipLocation;
+    await fastify.close();
+  }
+});
+
+test('GET /requests/:id returns private match buckets for an unsure customer request', async () => {
+  const fastify = await buildFastify();
+
+  const originalGetUserFromRequest = sessionModule.getUserFromRequest;
+  const originalCustomerRequest = prismaModule.prisma.customerRequest;
+  const originalExpert = prismaModule.prisma.expert;
+  const originalProposal = prismaModule.prisma.proposal;
+  const originalLookupZipLocation = geocodingModule.lookupZipLocation;
+
+  sessionModule.getUserFromRequest = async () => ({
+    id: 'customer_user_unsure_preview',
+    email: 'customer@example.com',
+    role: 'customer',
+  });
+
+  prismaModule.prisma.customerRequest = {
+    findFirst: async ({ where }) => {
+      assert.equal(where.id, 'request_unsure_preview_1');
+      assert.equal(where.customerUserId, 'customer_user_unsure_preview');
+      return {
+        id: 'request_unsure_preview_1',
+        title: 'Need help but not sure what to ask for',
+        description: 'Need more leads and probably ads help.',
+        intakeMode: 'UNSURE',
+        marketingSubjectId: null,
+        subcategoryId: null,
+        serviceTokens: ['google-ads', 'lead-generation'],
+        zip: '60559',
+        radiusMiles: 10,
+        budgetLabel: '$2k-$5k',
+        timelineLabel: 'This month',
+        status: 'ACTIVE',
+        requesterName: 'Jamie Rivera',
+        requesterBusinessName: 'Westmont Dental',
+        createdAt: new Date('2026-06-29T15:00:00.000Z'),
+        updatedAt: new Date('2026-06-29T15:00:00.000Z'),
+      };
+    },
+  };
+  prismaModule.prisma.expert = {
+    findMany: async () => [
+      {
+        id: 'expert_delivered_1',
+        slug: 'westmont-growth',
+        businessName: 'Westmont Growth',
+        city: 'Westmont',
+        state: 'IL',
+        zip: '60559',
+        latitude: 41.79,
+        longitude: -87.98,
+        remoteFriendly: false,
+        servesNationwide: false,
+        services: ['google-ads', 'lead-generation'],
+        verified: true,
+        rating: 4.9,
+      },
+      {
+        id: 'expert_nearby_2',
+        slug: 'downers-grove-growth',
+        businessName: 'Downers Grove Growth',
+        city: 'Downers Grove',
+        state: 'IL',
+        zip: '60515',
+        latitude: 41.96,
+        longitude: -87.98,
+        remoteFriendly: false,
+        servesNationwide: false,
+        services: ['seo'],
+        verified: true,
+        rating: 4.8,
+      },
+      {
+        id: 'expert_strong_fit_1',
+        slug: 'chicago-ads-lab',
+        businessName: 'Chicago Ads Lab',
+        city: 'Chicago',
+        state: 'IL',
+        zip: '60614',
+        latitude: 41.92,
+        longitude: -87.65,
+        remoteFriendly: false,
+        servesNationwide: false,
+        services: ['google-ads', 'lead-generation', 'paid-search'],
+        verified: true,
+        rating: 4.7,
+      },
+      {
+        id: 'expert_weak_fit_1',
+        slug: 'single-token-shop',
+        businessName: 'Single Token Shop',
+        city: 'Chicago',
+        state: 'IL',
+        zip: '60614',
+        latitude: 41.92,
+        longitude: -87.65,
+        remoteFriendly: false,
+        servesNationwide: false,
+        services: ['google-ads'],
+        verified: true,
+        rating: 4.6,
+      },
+    ],
+  };
+  prismaModule.prisma.proposal = {
+    findMany: async ({ where, orderBy }) => {
+      assert.equal(where.requestId, 'request_unsure_preview_1');
+      assert.deepEqual(orderBy, { createdAt: 'desc' });
+      return [];
+    },
+  };
+
+  geocodingModule.lookupZipLocation = async () => ({
+    ok: true,
+    city: 'Westmont',
+    state: 'IL',
+    zip: '60559',
+    latitude: 41.79,
+    longitude: -87.98,
+    geocodedAt: new Date('2026-06-29T15:00:00.000Z'),
+    geocodeProvider: 'geoapify',
+  });
+
+  try {
+    const response = await fastify.inject({
+      method: 'GET',
+      url: '/requests/request_unsure_preview_1',
+    });
+
+    assert.equal(response.statusCode, 200);
+    const body = response.json();
+    assert.equal(body.ok, true);
+    assert.equal(body.request.id, 'request_unsure_preview_1');
+    assert.equal(body.deliveryPreview.matchingModel, 'zip-radius-v2');
+    assert.equal(body.deliveryPreview.totalDelivered, 1);
+    assert.equal(body.deliveryPreview.totalMatches, 3);
+    assert.deepEqual(
+      body.deliveryPreview.deliveredExperts.map((expert) => expert.id),
+      ['expert_delivered_1'],
+    );
+    assert.deepEqual(
+      body.deliveryPreview.justOutsideExperts.map((expert) => expert.id),
+      ['expert_nearby_2'],
+    );
+    assert.deepEqual(
+      body.deliveryPreview.strongFitFartherAwayExperts.map((expert) => expert.id),
+      ['expert_strong_fit_1'],
+    );
   } finally {
     sessionModule.getUserFromRequest = originalGetUserFromRequest;
     prismaModule.prisma.customerRequest = originalCustomerRequest;
@@ -1286,6 +1535,140 @@ test('GET /provider/requests only includes unsure requests when the signed-in pr
   }
 });
 
+test('GET /provider/requests reuses cached matched results when the expert and active requests are unchanged', async () => {
+  const fastify = await buildFastify();
+
+  const originalGetUserFromRequest = sessionModule.getUserFromRequest;
+  const originalExpert = prismaModule.prisma.expert;
+  const originalCustomerRequest = prismaModule.prisma.customerRequest;
+  const originalProposal = prismaModule.prisma.proposal;
+  const originalLookupZipLocation = geocodingModule.lookupZipLocation;
+
+  let requestFindManyCalls = 0;
+  let lookupZipCalls = 0;
+
+  sessionModule.getUserFromRequest = async () => ({
+    id: 'provider_user_cache_1',
+    email: 'provider@example.com',
+    role: 'provider',
+  });
+
+  prismaModule.prisma.expert = {
+    findFirst: async ({ where }) => {
+      assert.equal(where.userId, 'provider_user_cache_1');
+      return {
+        id: 'expert_provider_cache_1',
+        slug: 'cache-growth',
+        businessName: 'Cache Growth',
+        city: 'Westmont',
+        state: 'IL',
+        zip: '60559',
+        latitude: 41.79,
+        longitude: -87.98,
+        remoteFriendly: true,
+        servesNationwide: true,
+        services: ['google-ads', 'paid-search'],
+        verified: true,
+        rating: 4.9,
+        updatedAt: new Date('2026-07-03T10:00:00.000Z'),
+      };
+    },
+    aggregate: async ({ where }) => {
+      assert.equal(where.status, 'active');
+      return {
+        _count: {
+          _all: 1,
+        },
+        _max: {
+          updatedAt: new Date('2026-07-03T09:00:00.000Z'),
+        },
+      };
+    },
+  };
+
+  prismaModule.prisma.customerRequest = {
+    aggregate: async ({ where }) => {
+      assert.equal(where.status, 'ACTIVE');
+      return {
+        _count: {
+          _all: 1,
+        },
+        _max: {
+          updatedAt: new Date('2026-07-03T09:00:00.000Z'),
+        },
+      };
+    },
+    findMany: async ({ where }) => {
+      requestFindManyCalls += 1;
+      assert.equal(where.status, 'ACTIVE');
+      return [
+        {
+          id: 'request_provider_cache_1',
+          title: 'Need Google Ads help',
+          description: 'Looking for a local paid search specialist.',
+          intakeMode: 'SPECIFIC',
+          marketingSubjectId: 'paid-ads-lead-generation',
+          serviceTokens: ['google-ads', 'paid-search'],
+          zip: '60559',
+          radiusMiles: null,
+          budgetLabel: '$2k-$5k',
+          timelineLabel: 'This month',
+          status: 'ACTIVE',
+          requesterName: 'Jamie Rivera',
+          requesterBusinessName: 'Westmont Dental',
+          createdAt: new Date('2026-07-03T09:00:00.000Z'),
+          updatedAt: new Date('2026-07-03T09:00:00.000Z'),
+        },
+      ];
+    },
+  };
+  prismaModule.prisma.proposal = {
+    findMany: async ({ where }) => {
+      assert.equal(where.expertId, 'expert_provider_cache_1');
+      assert.deepEqual(where.requestId.in, ['request_provider_cache_1']);
+      return [];
+    },
+  };
+
+  geocodingModule.lookupZipLocation = async ({ zip }) => {
+    lookupZipCalls += 1;
+    assert.equal(zip, '60559');
+    return {
+      ok: true,
+      city: 'Westmont',
+      state: 'IL',
+      zip: '60559',
+      latitude: 41.79,
+      longitude: -87.98,
+      geocodedAt: new Date('2026-07-03T09:00:00.000Z'),
+      geocodeProvider: 'geoapify',
+    };
+  };
+
+  try {
+    const first = await fastify.inject({
+      method: 'GET',
+      url: '/provider/requests',
+    });
+    const second = await fastify.inject({
+      method: 'GET',
+      url: '/provider/requests',
+    });
+
+    assert.equal(first.statusCode, 200);
+    assert.equal(second.statusCode, 200);
+    assert.equal(requestFindManyCalls, 1);
+    assert.equal(lookupZipCalls, 1);
+  } finally {
+    sessionModule.getUserFromRequest = originalGetUserFromRequest;
+    prismaModule.prisma.expert = originalExpert;
+    prismaModule.prisma.customerRequest = originalCustomerRequest;
+    prismaModule.prisma.proposal = originalProposal;
+    geocodingModule.lookupZipLocation = originalLookupZipLocation;
+    await fastify.close();
+  }
+});
+
 test('GET /provider/requests/:id only returns a matched active request for the signed-in provider expert', async () => {
   const fastify = await buildFastify();
 
@@ -1324,24 +1707,34 @@ test('GET /provider/requests/:id only returns a matched active request for the s
   };
 
   prismaModule.prisma.customerRequest = {
-    findFirst: async ({ where }) => {
-      assert.equal(where.id, 'request_provider_detail_1');
+    aggregate: async ({ where }) => {
       assert.equal(where.status, 'ACTIVE');
       return {
-        id: 'request_provider_detail_1',
-        title: 'Need Google Ads support for a local dental office',
-        description: 'Looking for an expert to audit and relaunch paid search campaigns.',
-        marketingSubjectId: 'paid-ads-lead-generation',
-        serviceTokens: ['google-ads', 'paid-search'],
-        zip: '60601',
-        budgetLabel: '$5k-$10k',
-        timelineLabel: 'This month',
-        status: 'ACTIVE',
-        requesterName: 'Jamie Rivera',
-        requesterBusinessName: 'Westmont Dental',
-        createdAt: new Date('2026-05-29T17:00:00.000Z'),
-        updatedAt: new Date('2026-05-29T17:00:00.000Z'),
+        _count: { _all: 1 },
+        _max: { updatedAt: new Date('2026-05-29T17:00:00.000Z') },
       };
+    },
+    findMany: async ({ where }) => {
+      assert.equal(where.status, 'ACTIVE');
+      return [
+        {
+          id: 'request_provider_detail_1',
+          title: 'Need Google Ads support for a local dental office',
+          description: 'Looking for an expert to audit and relaunch paid search campaigns.',
+          intakeMode: 'SPECIFIC',
+          marketingSubjectId: 'paid-ads-lead-generation',
+          serviceTokens: ['google-ads', 'paid-search'],
+          zip: '60601',
+          radiusMiles: null,
+          budgetLabel: '$5k-$10k',
+          timelineLabel: 'This month',
+          status: 'ACTIVE',
+          requesterName: 'Jamie Rivera',
+          requesterBusinessName: 'Westmont Dental',
+          createdAt: new Date('2026-05-29T17:00:00.000Z'),
+          updatedAt: new Date('2026-05-29T17:00:00.000Z'),
+        },
+      ];
     },
   };
 
@@ -1393,6 +1786,119 @@ test('GET /provider/requests/:id only returns a matched active request for the s
     sessionModule.getUserFromRequest = originalGetUserFromRequest;
     prismaModule.prisma.expert = originalExpert;
     prismaModule.prisma.customerRequest = originalCustomerRequest;
+    prismaModule.prisma.proposal = originalProposal;
+    geocodingModule.lookupZipLocation = originalLookupZipLocation;
+    await fastify.close();
+  }
+});
+
+test('GET /requests/:id reuses the cached delivery preview when the request and active experts are unchanged', async () => {
+  const fastify = await buildFastify();
+
+  const originalGetUserFromRequest = sessionModule.getUserFromRequest;
+  const originalCustomerRequest = prismaModule.prisma.customerRequest;
+  const originalExpert = prismaModule.prisma.expert;
+  const originalProposal = prismaModule.prisma.proposal;
+  const originalLookupZipLocation = geocodingModule.lookupZipLocation;
+
+  let previewExpertFindManyCalls = 0;
+
+  sessionModule.getUserFromRequest = async () => ({
+    id: 'customer_user_preview_cache_1',
+    email: 'customer@example.com',
+    role: 'customer',
+  });
+
+  prismaModule.prisma.customerRequest = {
+    findFirst: async ({ where }) => {
+      assert.equal(where.id, 'request_preview_cache_1');
+      assert.equal(where.customerUserId, 'customer_user_preview_cache_1');
+      return {
+        id: 'request_preview_cache_1',
+        title: 'Need broad help',
+        description: 'Need more local leads.',
+        intakeMode: 'UNSURE',
+        marketingSubjectId: null,
+        subcategoryId: null,
+        serviceTokens: ['google-ads', 'lead-generation'],
+        zip: '60559',
+        radiusMiles: 10,
+        budgetLabel: '$2k-$5k',
+        timelineLabel: 'This month',
+        status: 'ACTIVE',
+        requesterName: 'Jamie Rivera',
+        requesterBusinessName: 'Westmont Dental',
+        createdAt: new Date('2026-07-03T09:00:00.000Z'),
+        updatedAt: new Date('2026-07-03T09:00:00.000Z'),
+      };
+    },
+  };
+  prismaModule.prisma.expert = {
+    aggregate: async ({ where }) => {
+      assert.equal(where.status, 'active');
+      return {
+        _count: {
+          _all: 1,
+        },
+        _max: {
+          updatedAt: new Date('2026-07-03T08:00:00.000Z'),
+        },
+      };
+    },
+    findMany: async () => {
+      previewExpertFindManyCalls += 1;
+      return [
+        {
+          id: 'expert_preview_cache_1',
+          slug: 'westmont-growth',
+          businessName: 'Westmont Growth',
+          city: 'Westmont',
+          state: 'IL',
+          zip: '60559',
+          latitude: 41.79,
+          longitude: -87.98,
+          remoteFriendly: false,
+          servesNationwide: false,
+          services: ['google-ads', 'lead-generation'],
+          verified: true,
+          rating: 4.9,
+          updatedAt: new Date('2026-07-03T08:00:00.000Z'),
+        },
+      ];
+    },
+  };
+  prismaModule.prisma.proposal = {
+    findMany: async () => [],
+  };
+
+  geocodingModule.lookupZipLocation = async () => ({
+    ok: true,
+    city: 'Westmont',
+    state: 'IL',
+    zip: '60559',
+    latitude: 41.79,
+    longitude: -87.98,
+    geocodedAt: new Date('2026-07-03T09:00:00.000Z'),
+    geocodeProvider: 'geoapify',
+  });
+
+  try {
+    const first = await fastify.inject({
+      method: 'GET',
+      url: '/requests/request_preview_cache_1',
+    });
+    const second = await fastify.inject({
+      method: 'GET',
+      url: '/requests/request_preview_cache_1',
+    });
+
+    assert.equal(first.statusCode, 200);
+    assert.equal(second.statusCode, 200);
+    assert.equal(previewExpertFindManyCalls, 1);
+  } finally {
+    sessionModule.getUserFromRequest = originalGetUserFromRequest;
+    prismaModule.prisma.customerRequest = originalCustomerRequest;
+    prismaModule.prisma.expert = originalExpert;
     prismaModule.prisma.proposal = originalProposal;
     geocodingModule.lookupZipLocation = originalLookupZipLocation;
     await fastify.close();
@@ -1488,24 +1994,34 @@ test('POST /provider/requests/:id/proposals rejects unmatched requests', async (
   };
 
   prismaModule.prisma.customerRequest = {
-    findFirst: async ({ where }) => {
-      assert.equal(where.id, 'request_proposal_unmatched');
+    aggregate: async ({ where }) => {
       assert.equal(where.status, 'ACTIVE');
       return {
-        id: 'request_proposal_unmatched',
-        title: 'Need paid ads help',
-        description: 'Looking for Google Ads support.',
-        marketingSubjectId: 'paid-ads-lead-generation',
-        serviceTokens: ['google-ads', 'paid-search'],
-        zip: '60559',
-        budgetLabel: '$2k-$5k',
-        timelineLabel: 'This month',
-        status: 'ACTIVE',
-        requesterName: 'Jamie Rivera',
-        requesterBusinessName: 'Westmont Dental',
-        createdAt: new Date('2026-06-05T15:00:00.000Z'),
-        updatedAt: new Date('2026-06-05T15:00:00.000Z'),
+        _count: { _all: 1 },
+        _max: { updatedAt: new Date('2026-06-05T15:00:00.000Z') },
       };
+    },
+    findMany: async ({ where }) => {
+      assert.equal(where.status, 'ACTIVE');
+      return [
+        {
+          id: 'request_proposal_unmatched',
+          title: 'Need paid ads help',
+          description: 'Looking for Google Ads support.',
+          intakeMode: 'SPECIFIC',
+          marketingSubjectId: 'paid-ads-lead-generation',
+          serviceTokens: ['google-ads', 'paid-search'],
+          zip: '60559',
+          radiusMiles: null,
+          budgetLabel: '$2k-$5k',
+          timelineLabel: 'This month',
+          status: 'ACTIVE',
+          requesterName: 'Jamie Rivera',
+          requesterBusinessName: 'Westmont Dental',
+          createdAt: new Date('2026-06-05T15:00:00.000Z'),
+          updatedAt: new Date('2026-06-05T15:00:00.000Z'),
+        },
+      ];
     },
   };
 
@@ -1577,21 +2093,35 @@ test('POST /provider/requests/:id/proposals rejects duplicate proposals', async 
   };
 
   prismaModule.prisma.customerRequest = {
-    findFirst: async () => ({
-      id: 'request_proposal_duplicate',
-      title: 'Need Google Ads support',
-      description: 'Looking for help with paid search.',
-      marketingSubjectId: 'paid-ads-lead-generation',
-      serviceTokens: ['google-ads', 'paid-search'],
-      zip: '60601',
-      budgetLabel: '$5k-$10k',
-      timelineLabel: 'This month',
-      status: 'ACTIVE',
-      requesterName: 'Jamie Rivera',
-      requesterBusinessName: 'Westmont Dental',
-      createdAt: new Date('2026-06-05T15:00:00.000Z'),
-      updatedAt: new Date('2026-06-05T15:00:00.000Z'),
-    }),
+    aggregate: async ({ where }) => {
+      assert.equal(where.status, 'ACTIVE');
+      return {
+        _count: { _all: 1 },
+        _max: { updatedAt: new Date('2026-06-05T15:00:00.000Z') },
+      };
+    },
+    findMany: async ({ where }) => {
+      assert.equal(where.status, 'ACTIVE');
+      return [
+        {
+          id: 'request_proposal_duplicate',
+          title: 'Need Google Ads support',
+          description: 'Looking for help with paid search.',
+          intakeMode: 'SPECIFIC',
+          marketingSubjectId: 'paid-ads-lead-generation',
+          serviceTokens: ['google-ads', 'paid-search'],
+          zip: '60601',
+          radiusMiles: null,
+          budgetLabel: '$5k-$10k',
+          timelineLabel: 'This month',
+          status: 'ACTIVE',
+          requesterName: 'Jamie Rivera',
+          requesterBusinessName: 'Westmont Dental',
+          createdAt: new Date('2026-06-05T15:00:00.000Z'),
+          updatedAt: new Date('2026-06-05T15:00:00.000Z'),
+        },
+      ];
+    },
   };
 
   prismaModule.prisma.proposal = {
@@ -1673,24 +2203,34 @@ test('POST /provider/requests/:id/proposals creates a proposal for a matched act
   };
 
   prismaModule.prisma.customerRequest = {
-    findFirst: async ({ where }) => {
-      assert.equal(where.id, 'request_proposal_create');
+    aggregate: async ({ where }) => {
       assert.equal(where.status, 'ACTIVE');
       return {
-        id: 'request_proposal_create',
-        title: 'Need Google Ads support',
-        description: 'Looking for help with paid search.',
-        marketingSubjectId: 'paid-ads-lead-generation',
-        serviceTokens: ['google-ads', 'paid-search'],
-        zip: '60601',
-        budgetLabel: '$5k-$10k',
-        timelineLabel: 'This month',
-        status: 'ACTIVE',
-        requesterName: 'Jamie Rivera',
-        requesterBusinessName: 'Westmont Dental',
-        createdAt: new Date('2026-06-05T15:00:00.000Z'),
-        updatedAt: new Date('2026-06-05T15:00:00.000Z'),
+        _count: { _all: 1 },
+        _max: { updatedAt: new Date('2026-06-05T15:00:00.000Z') },
       };
+    },
+    findMany: async ({ where }) => {
+      assert.equal(where.status, 'ACTIVE');
+      return [
+        {
+          id: 'request_proposal_create',
+          title: 'Need Google Ads support',
+          description: 'Looking for help with paid search.',
+          intakeMode: 'SPECIFIC',
+          marketingSubjectId: 'paid-ads-lead-generation',
+          serviceTokens: ['google-ads', 'paid-search'],
+          zip: '60601',
+          radiusMiles: null,
+          budgetLabel: '$5k-$10k',
+          timelineLabel: 'This month',
+          status: 'ACTIVE',
+          requesterName: 'Jamie Rivera',
+          requesterBusinessName: 'Westmont Dental',
+          createdAt: new Date('2026-06-05T15:00:00.000Z'),
+          updatedAt: new Date('2026-06-05T15:00:00.000Z'),
+        },
+      ];
     },
   };
 
@@ -1848,6 +2388,90 @@ test('PATCH /requests/:id rejects invalid lifecycle transitions', async () => {
 
     assert.equal(response.statusCode, 409);
     assert.equal(response.json().error, 'This request cannot move from CANCELLED to ACTIVE.');
+  } finally {
+    sessionModule.getUserFromRequest = originalGetUserFromRequest;
+    prismaModule.prisma.customerRequest = originalCustomerRequest;
+    await fastify.close();
+  }
+});
+
+test('DELETE /requests/:id lets a customer remove a closed request from history', async () => {
+  const fastify = await buildFastify();
+
+  const originalGetUserFromRequest = sessionModule.getUserFromRequest;
+  const originalCustomerRequest = prismaModule.prisma.customerRequest;
+
+  sessionModule.getUserFromRequest = async () => ({
+    id: 'customer_user_delete_1',
+    email: 'customer@example.com',
+    role: 'customer',
+  });
+
+  prismaModule.prisma.customerRequest = {
+    findFirst: async ({ where }) => {
+      assert.equal(where.id, 'request_delete_1');
+      assert.equal(where.customerUserId, 'customer_user_delete_1');
+      return {
+        id: 'request_delete_1',
+        status: 'CLOSED',
+      };
+    },
+    delete: async ({ where }) => {
+      assert.equal(where.id, 'request_delete_1');
+      return {
+        id: 'request_delete_1',
+      };
+    },
+  };
+
+  try {
+    const response = await fastify.inject({
+      method: 'DELETE',
+      url: '/requests/request_delete_1',
+    });
+
+    assert.equal(response.statusCode, 200);
+    const body = response.json();
+    assert.equal(body.ok, true);
+    assert.equal(body.requestId, 'request_delete_1');
+  } finally {
+    sessionModule.getUserFromRequest = originalGetUserFromRequest;
+    prismaModule.prisma.customerRequest = originalCustomerRequest;
+    await fastify.close();
+  }
+});
+
+test('DELETE /requests/:id rejects deleting an active request', async () => {
+  const fastify = await buildFastify();
+
+  const originalGetUserFromRequest = sessionModule.getUserFromRequest;
+  const originalCustomerRequest = prismaModule.prisma.customerRequest;
+
+  sessionModule.getUserFromRequest = async () => ({
+    id: 'customer_user_delete_active_1',
+    email: 'customer@example.com',
+    role: 'customer',
+  });
+
+  prismaModule.prisma.customerRequest = {
+    findFirst: async ({ where }) => {
+      assert.equal(where.id, 'request_delete_active_1');
+      assert.equal(where.customerUserId, 'customer_user_delete_active_1');
+      return {
+        id: 'request_delete_active_1',
+        status: 'ACTIVE',
+      };
+    },
+  };
+
+  try {
+    const response = await fastify.inject({
+      method: 'DELETE',
+      url: '/requests/request_delete_active_1',
+    });
+
+    assert.equal(response.statusCode, 409);
+    assert.equal(response.json().error, 'Active requests must be closed or cancelled before they can be deleted.');
   } finally {
     sessionModule.getUserFromRequest = originalGetUserFromRequest;
     prismaModule.prisma.customerRequest = originalCustomerRequest;

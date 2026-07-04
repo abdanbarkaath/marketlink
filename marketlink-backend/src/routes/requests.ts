@@ -3,11 +3,16 @@ import { CustomerRequestIntakeMode, CustomerRequestStatus, ExpertStatus, Proposa
 import { prisma } from '../lib/prisma';
 import { getUserFromRequest } from '../lib/session';
 import { lookupZipLocation } from '../lib/geocoding';
+import {
+  getCachedProviderMatchedRequestById,
+  getCachedProviderMatchedRequests,
+  type RequestMatchReason,
+} from '../lib/requestMatching';
 
 const ZIP_RE = /^\d{5}$/;
 const MAX_REQUEST_SERVICE_TOKENS = 24;
-
-type RequestMatchReason = 'within_radius' | 'same_zip' | 'same_city' | 'serves_nationwide' | 'remote_friendly';
+const PREVIEW_RADIUS_OVERFLOW_MILES = 3;
+const STRONG_FIT_TOKEN_THRESHOLD = 2;
 
 type DeliveryPreviewInput = {
   id: string;
@@ -15,40 +20,6 @@ type DeliveryPreviewInput = {
   serviceTokens: string[];
   zip: string | null;
   radiusMiles: number | null;
-};
-
-type ProviderExpertForMatching = {
-  id: string;
-  slug: string;
-  businessName: string;
-  city: string;
-  state: string;
-  zip: string | null;
-  latitude: number | null;
-  longitude: number | null;
-  remoteFriendly: boolean;
-  servesNationwide: boolean;
-  services: string[];
-  verified: boolean;
-  rating: number;
-};
-
-type RequestForProviderMatching = {
-  id: string;
-  title: string;
-  description: string;
-  intakeMode: CustomerRequestIntakeMode;
-  marketingSubjectId: string | null;
-  serviceTokens: string[];
-  zip: string | null;
-  radiusMiles: number | null;
-  budgetLabel: string | null;
-  timelineLabel: string | null;
-  status: CustomerRequestStatus;
-  requesterName: string;
-  requesterBusinessName: string | null;
-  createdAt: Date;
-  updatedAt: Date;
 };
 
 function asCleanString(input: unknown) {
@@ -77,6 +48,12 @@ function asRadiusMiles(input: unknown) {
   const value = Number(input);
   if (!Number.isInteger(value)) return null;
   return value;
+}
+
+function asPositivePage(input: unknown, fallback = 1) {
+  const value = Number(input);
+  if (!Number.isFinite(value)) return fallback;
+  return Math.max(1, Math.trunc(value));
 }
 
 function inferIntakeMode(marketingSubjectId: string | null, serviceTokens: string[]) {
@@ -126,69 +103,6 @@ function isCustomerProposalDecision(status: ProposalStatus) {
   return status === ProposalStatus.ACCEPTED || status === ProposalStatus.DECLINED;
 }
 
-async function buildProviderMatchForRequest(expert: ProviderExpertForMatching, request: RequestForProviderMatching) {
-  if (!request.zip) return null;
-
-  const locationLookup = await lookupZipLocation({ zip: request.zip });
-  const requestCity = locationLookup.ok ? locationLookup.city : null;
-  const requestState = locationLookup.ok ? locationLookup.state : null;
-  const requestZip = locationLookup.ok ? locationLookup.zip : request.zip;
-
-  if (request.intakeMode === CustomerRequestIntakeMode.UNSURE) {
-    if (!locationLookup.ok || request.radiusMiles === null) return null;
-    if (typeof expert.latitude !== 'number' || typeof expert.longitude !== 'number') return null;
-
-    const distanceMiles = Number(
-      haversineMiles(locationLookup.latitude, locationLookup.longitude, expert.latitude, expert.longitude).toFixed(1),
-    );
-    if (distanceMiles > request.radiusMiles) return null;
-
-    return {
-      primaryReason: 'within_radius' as const,
-      reasons: ['within_radius' as const],
-      matchedServiceTokens: [],
-      distanceMiles,
-      requestLocation: {
-        zip: requestZip,
-        city: requestCity,
-        state: requestState,
-        source: 'zip_lookup',
-      },
-    };
-  }
-
-  if (request.serviceTokens.length === 0) return null;
-
-  const matchedServiceTokens = expert.services.filter((token) => request.serviceTokens.includes(token));
-  if (!matchedServiceTokens.length) return null;
-
-  const sameZip = Boolean(expert.zip && expert.zip.trim() === requestZip);
-  const sameCity =
-    Boolean(requestCity && requestState) &&
-    normalizeCity(expert.city) === normalizeCity(requestCity) &&
-    normalizeState(expert.state) === normalizeState(requestState);
-
-  const reasons: RequestMatchReason[] = [];
-  if (sameZip) reasons.push('same_zip');
-  else if (sameCity) reasons.push('same_city');
-  else if (expert.servesNationwide) reasons.push('serves_nationwide');
-  else if (expert.remoteFriendly) reasons.push('remote_friendly');
-
-  if (!reasons.length) return null;
-
-  return {
-    primaryReason: reasons[0],
-    reasons,
-    matchedServiceTokens,
-    requestLocation: {
-      zip: requestZip,
-      city: requestCity,
-      state: requestState,
-      source: locationLookup.ok ? 'zip_lookup' : 'zip_only',
-    },
-  };
-}
-
 async function buildDeliveryPreview(input: DeliveryPreviewInput) {
   if (!input.zip) return null;
 
@@ -200,6 +114,8 @@ async function buildDeliveryPreview(input: DeliveryPreviewInput) {
   if (input.intakeMode === CustomerRequestIntakeMode.UNSURE) {
     if (!locationLookup.ok || input.radiusMiles === null) return null;
     const radiusMiles = input.radiusMiles;
+    const strongFitTokens = input.serviceTokens;
+    const overflowRadiusMiles = radiusMiles + PREVIEW_RADIUS_OVERFLOW_MILES;
 
     const experts = await prisma.expert.findMany({
       where: {
@@ -225,16 +141,16 @@ async function buildDeliveryPreview(input: DeliveryPreviewInput) {
       take: 200,
     });
 
-    const matches = experts
+    const bucketedMatches = experts
       .map((expert) => {
         if (typeof expert.latitude !== 'number' || typeof expert.longitude !== 'number') return null;
 
         const distanceMiles = Number(
           haversineMiles(locationLookup.latitude, locationLookup.longitude, expert.latitude, expert.longitude).toFixed(1),
         );
-        if (distanceMiles > radiusMiles) return null;
+        const matchedServiceTokens = expert.services.filter((token) => strongFitTokens.includes(token));
 
-        return {
+        const baseMatch = {
           id: expert.id,
           slug: expert.slug,
           businessName: expert.businessName,
@@ -245,27 +161,88 @@ async function buildDeliveryPreview(input: DeliveryPreviewInput) {
           rating: expert.rating,
           remoteFriendly: expert.remoteFriendly,
           servesNationwide: expert.servesNationwide,
-          matchedServiceTokens: [],
-          primaryReason: 'within_radius' as const,
-          reasons: ['within_radius' as const],
+          matchedServiceTokens,
           distanceMiles,
         };
+
+        if (distanceMiles <= radiusMiles) {
+          return {
+            bucket: 'delivered' as const,
+            match: {
+              ...baseMatch,
+              primaryReason: 'within_radius' as const,
+              reasons: ['within_radius' as const],
+            },
+          };
+        }
+
+        if (distanceMiles <= overflowRadiusMiles) {
+          return {
+            bucket: 'justOutside' as const,
+            match: {
+              ...baseMatch,
+              primaryReason: 'within_radius' as const,
+              reasons: ['within_radius' as const],
+            },
+          };
+        }
+
+        if (matchedServiceTokens.length >= STRONG_FIT_TOKEN_THRESHOLD) {
+          return {
+            bucket: 'strongFitFartherAway' as const,
+            match: {
+              ...baseMatch,
+              primaryReason: 'within_radius' as const,
+              reasons: ['within_radius' as const],
+            },
+          };
+        }
+
+        return null;
       })
-      .filter((match): match is NonNullable<typeof match> => Boolean(match))
+      .filter((match): match is NonNullable<typeof match> => Boolean(match));
+
+    const deliveredExperts = bucketedMatches
+      .filter((entry) => entry.bucket === 'delivered')
+      .map((entry) => entry.match)
       .sort((a, b) => a.distanceMiles - b.distanceMiles || b.rating - a.rating || a.businessName.localeCompare(b.businessName));
+
+    const justOutsideExperts = bucketedMatches
+      .filter((entry) => entry.bucket === 'justOutside')
+      .map((entry) => entry.match)
+      .sort((a, b) => a.distanceMiles - b.distanceMiles || b.rating - a.rating || a.businessName.localeCompare(b.businessName));
+
+    const strongFitFartherAwayExperts = bucketedMatches
+      .filter((entry) => entry.bucket === 'strongFitFartherAway')
+      .map((entry) => entry.match)
+      .sort(
+        (a, b) =>
+          b.matchedServiceTokens.length - a.matchedServiceTokens.length ||
+          a.distanceMiles - b.distanceMiles ||
+          b.rating - a.rating ||
+          a.businessName.localeCompare(b.businessName),
+      );
 
     return {
       requestId: input.id,
-      matchingModel: 'zip-radius-v1',
+      matchingModel: 'zip-radius-v2',
       requestLocation: {
         zip: requestZip,
         city: requestCity,
         state: requestState,
         source: 'zip_lookup',
       },
-      notes: ['Unsure requests are delivered only to experts with saved coordinates inside the selected ZIP-centered radius.'],
-      totalMatches: matches.length,
-      matchedExperts: matches,
+      notes: [
+        'Experts inside your selected radius actually received this request.',
+        `Experts up to ${PREVIEW_RADIUS_OVERFLOW_MILES} miles outside your radius are shown only to you as nearby alternatives.`,
+        'Farther-away strong-fit suggestions are customer-only and are not notified automatically.',
+      ],
+      totalDelivered: deliveredExperts.length,
+      totalMatches: deliveredExperts.length + justOutsideExperts.length + strongFitFartherAwayExperts.length,
+      matchedExperts: deliveredExperts,
+      deliveredExperts,
+      justOutsideExperts,
+      strongFitFartherAwayExperts,
     };
   }
 
@@ -350,6 +327,58 @@ async function buildDeliveryPreview(input: DeliveryPreviewInput) {
     totalMatches: matches.length,
     matchedExperts: matches.map(({ score, ...match }) => match),
   };
+}
+
+const customerDeliveryPreviewCache = new Map<string, Awaited<ReturnType<typeof buildDeliveryPreview>>>();
+
+async function getActiveExpertFingerprint() {
+  if (typeof prisma.expert.aggregate !== 'function') {
+    return `fallback:${Date.now()}`;
+  }
+
+  const aggregate = await prisma.expert.aggregate({
+    where: {
+      status: ExpertStatus.active,
+    },
+    _count: {
+      _all: true,
+    },
+    _max: {
+      updatedAt: true,
+    },
+  });
+
+  const total = aggregate?._count?._all || 0;
+  const maxUpdatedAt = aggregate?._max?.updatedAt instanceof Date ? aggregate._max.updatedAt.getTime() : 0;
+  return `${total}:${maxUpdatedAt}`;
+}
+
+async function getCachedDeliveryPreviewForRequest(request: {
+  id: string;
+  intakeMode: CustomerRequestIntakeMode;
+  serviceTokens: string[];
+  zip: string | null;
+  radiusMiles: number | null;
+  updatedAt: Date;
+}) {
+  if (!request.zip) return null;
+
+  const activeExpertFingerprint = await getActiveExpertFingerprint();
+  const cacheKey = `${request.id}:${request.updatedAt.getTime()}:${activeExpertFingerprint}`;
+  const cached = customerDeliveryPreviewCache.get(cacheKey);
+  if (typeof cached !== 'undefined') {
+    return cached;
+  }
+
+  const preview = await buildDeliveryPreview({
+    id: request.id,
+    intakeMode: request.intakeMode,
+    serviceTokens: request.serviceTokens,
+    zip: request.zip,
+    radiusMiles: request.radiusMiles,
+  });
+  customerDeliveryPreviewCache.set(cacheKey, preview);
+  return preview;
 }
 
 const requestsRoutes: FastifyPluginAsync = async (fastify) => {
@@ -503,29 +532,40 @@ const requestsRoutes: FastifyPluginAsync = async (fastify) => {
     if (!user) return reply.code(401).send({ error: 'Not authenticated' });
     if (user.role !== 'customer') return reply.code(403).send({ error: 'Only customers can view requests.' });
 
-    const rows = await prisma.customerRequest.findMany({
-      where: { customerUserId: user.id },
-      orderBy: { createdAt: 'desc' },
-      select: {
-        id: true,
-        title: true,
-        intakeMode: true,
-        marketingSubjectId: true,
-        subcategoryId: true,
-        serviceTokens: true,
-        zip: true,
-        radiusMiles: true,
-        status: true,
-        createdAt: true,
-        updatedAt: true,
-        proposals: {
-          select: {
-            status: true,
+    const query = (req.query || {}) as { page?: unknown };
+    const page = asPositivePage(query.page, 1);
+    const limit = 10;
+    const skip = (page - 1) * limit;
+
+    const [total, rows] = await Promise.all([
+      prisma.customerRequest.count({
+        where: { customerUserId: user.id },
+      }),
+      prisma.customerRequest.findMany({
+        where: { customerUserId: user.id },
+        orderBy: { createdAt: 'desc' },
+        skip,
+        take: limit,
+        select: {
+          id: true,
+          title: true,
+          intakeMode: true,
+          marketingSubjectId: true,
+          subcategoryId: true,
+          serviceTokens: true,
+          zip: true,
+          radiusMiles: true,
+          status: true,
+          createdAt: true,
+          updatedAt: true,
+          proposals: {
+            select: {
+              status: true,
+            },
           },
         },
-      },
-      take: 100,
-    });
+      }),
+    ]);
 
     const data = rows.map(({ proposals, ...request }) => ({
       ...request,
@@ -537,7 +577,16 @@ const requestsRoutes: FastifyPluginAsync = async (fastify) => {
       },
     }));
 
-    return reply.send({ ok: true, data });
+    return reply.send({
+      ok: true,
+      meta: {
+        total,
+        page,
+        limit,
+        totalPages: Math.max(1, Math.ceil(total / limit)),
+      },
+      data,
+    });
   });
 
   fastify.get('/requests/:id', async (req, reply) => {
@@ -575,44 +624,36 @@ const requestsRoutes: FastifyPluginAsync = async (fastify) => {
 
     if (!request) return reply.code(404).send({ ok: false, error: 'Request not found' });
 
-    const deliveryPreview =
-      request.zip
-        ? await buildDeliveryPreview({
-            id: request.id,
-            intakeMode: request.intakeMode,
-            serviceTokens: request.serviceTokens,
-            zip: request.zip,
-            radiusMiles: request.radiusMiles,
-          })
-        : null;
-
-    const proposals = await prisma.proposal.findMany({
-      where: { requestId: request.id },
-      orderBy: { createdAt: 'desc' },
-      select: {
-        id: true,
-        requestId: true,
-        expertId: true,
-        message: true,
-        priceLabel: true,
-        timelineLabel: true,
-        status: true,
-        createdAt: true,
-        updatedAt: true,
-        expert: {
-          select: {
-            id: true,
-            slug: true,
-            businessName: true,
-            expertType: true,
-            city: true,
-            state: true,
-            verified: true,
-            rating: true,
+    const [deliveryPreview, proposals] = await Promise.all([
+      getCachedDeliveryPreviewForRequest(request),
+      prisma.proposal.findMany({
+        where: { requestId: request.id },
+        orderBy: { createdAt: 'desc' },
+        select: {
+          id: true,
+          requestId: true,
+          expertId: true,
+          message: true,
+          priceLabel: true,
+          timelineLabel: true,
+          status: true,
+          createdAt: true,
+          updatedAt: true,
+          expert: {
+            select: {
+              id: true,
+              slug: true,
+              businessName: true,
+              expertType: true,
+              city: true,
+              state: true,
+              verified: true,
+              rating: true,
+            },
           },
         },
-      },
-    });
+      }),
+    ]);
 
     return reply.send({ ok: true, request, deliveryPreview, proposals });
   });
@@ -814,6 +855,42 @@ const requestsRoutes: FastifyPluginAsync = async (fastify) => {
     return reply.send({ ok: true, request: updated });
   });
 
+  fastify.delete('/requests/:id', async (req, reply) => {
+    const user = await getUserFromRequest(fastify, req);
+    if (!user) return reply.code(401).send({ error: 'Not authenticated' });
+    if (user.role !== 'customer') return reply.code(403).send({ error: 'Only customers can delete requests.' });
+
+    const { id } = (req.params || {}) as { id?: string };
+    if (!id) return reply.code(400).send({ ok: false, error: 'Missing request id' });
+
+    const existing = await prisma.customerRequest.findFirst({
+      where: {
+        id,
+        customerUserId: user.id,
+      },
+      select: {
+        id: true,
+        status: true,
+      },
+    });
+
+    if (!existing) return reply.code(404).send({ ok: false, error: 'Request not found' });
+
+    if (existing.status === CustomerRequestStatus.ACTIVE) {
+      return reply.code(409).send({
+        ok: false,
+        error: 'Active requests must be closed or cancelled before they can be deleted.',
+      });
+    }
+
+    await prisma.customerRequest.delete({
+      where: { id },
+    });
+
+    req.log.info({ requestId: id, status: existing.status, customerUserId: user.id }, 'customer-request.deleted');
+    return reply.send({ ok: true, requestId: id });
+  });
+
   fastify.get('/provider/requests', async (req, reply) => {
     const user = await getUserFromRequest(fastify, req);
     if (!user) return reply.code(401).send({ error: 'Not authenticated' });
@@ -833,42 +910,33 @@ const requestsRoutes: FastifyPluginAsync = async (fastify) => {
         remoteFriendly: true,
         servesNationwide: true,
         services: true,
-        verified: true,
-        rating: true,
+        updatedAt: true,
       },
     });
 
     if (!expert) return reply.code(404).send({ error: "You don't have an expert profile yet." });
 
-    const requests = await prisma.customerRequest.findMany({
-      where: { status: CustomerRequestStatus.ACTIVE },
-      orderBy: { createdAt: 'desc' },
-      select: {
-        id: true,
-        title: true,
-        description: true,
-        intakeMode: true,
-        marketingSubjectId: true,
-        serviceTokens: true,
-        zip: true,
-        radiusMiles: true,
-        budgetLabel: true,
-        timelineLabel: true,
-        status: true,
-        requesterName: true,
-        requesterBusinessName: true,
-        createdAt: true,
-        updatedAt: true,
-      },
-      take: 100,
-    });
+    const matches = await getCachedProviderMatchedRequests(expert);
 
-    const matches = [];
-    for (const request of requests) {
-      const match = await buildProviderMatchForRequest(expert, request);
-      if (!match) continue;
+    const proposals = matches.length
+      ? await prisma.proposal.findMany({
+          where: {
+            expertId: expert.id,
+            requestId: {
+              in: matches.map((row) => row.request.id),
+            },
+          },
+          select: {
+            requestId: true,
+            status: true,
+          },
+        })
+      : [];
+    const proposalStatusByRequestId = new Map(proposals.map((proposal) => [proposal.requestId, proposal.status]));
 
-      matches.push({
+    return reply.send({
+      ok: true,
+      data: matches.map(({ request, match }) => ({
         id: request.id,
         title: request.title,
         intakeMode: request.intakeMode,
@@ -883,29 +951,6 @@ const requestsRoutes: FastifyPluginAsync = async (fastify) => {
         primaryReason: match.primaryReason,
         reasons: match.reasons,
         matchedServiceTokens: match.matchedServiceTokens,
-      });
-    }
-
-    const proposals = matches.length
-      ? await prisma.proposal.findMany({
-          where: {
-            expertId: expert.id,
-            requestId: {
-              in: matches.map((request) => request.id),
-            },
-          },
-          select: {
-            requestId: true,
-            status: true,
-          },
-        })
-      : [];
-    const proposalStatusByRequestId = new Map(proposals.map((proposal) => [proposal.requestId, proposal.status]));
-
-    return reply.send({
-      ok: true,
-      data: matches.map((request) => ({
-        ...request,
         proposalStatus: proposalStatusByRequestId.get(request.id) || null,
       })),
     });
@@ -930,8 +975,7 @@ const requestsRoutes: FastifyPluginAsync = async (fastify) => {
         remoteFriendly: true,
         servesNationwide: true,
         services: true,
-        verified: true,
-        rating: true,
+        updatedAt: true,
       },
     });
 
@@ -940,34 +984,10 @@ const requestsRoutes: FastifyPluginAsync = async (fastify) => {
     const { id } = (req.params || {}) as { id?: string };
     if (!id) return reply.code(400).send({ ok: false, error: 'Missing request id' });
 
-    const request = await prisma.customerRequest.findFirst({
-      where: {
-        id,
-        status: CustomerRequestStatus.ACTIVE,
-      },
-      select: {
-        id: true,
-        title: true,
-        description: true,
-        intakeMode: true,
-        marketingSubjectId: true,
-        serviceTokens: true,
-        zip: true,
-        radiusMiles: true,
-        budgetLabel: true,
-        timelineLabel: true,
-        status: true,
-        requesterName: true,
-        requesterBusinessName: true,
-        createdAt: true,
-        updatedAt: true,
-      },
-    });
+    const matchedRow = await getCachedProviderMatchedRequestById(expert, id);
+    if (!matchedRow) return reply.code(404).send({ ok: false, error: 'Request not found' });
 
-    if (!request) return reply.code(404).send({ ok: false, error: 'Request not found' });
-
-    const match = await buildProviderMatchForRequest(expert, request);
-    if (!match) return reply.code(404).send({ ok: false, error: 'Request not found' });
+    const { request, match } = matchedRow;
 
     const proposal = await prisma.proposal.findUnique({
       where: {
@@ -1038,41 +1058,16 @@ const requestsRoutes: FastifyPluginAsync = async (fastify) => {
         remoteFriendly: true,
         servesNationwide: true,
         services: true,
-        verified: true,
-        rating: true,
+        updatedAt: true,
       },
     });
 
     if (!expert) return reply.code(404).send({ error: "You don't have an expert profile yet." });
 
-    const request = await prisma.customerRequest.findFirst({
-      where: {
-        id,
-        status: CustomerRequestStatus.ACTIVE,
-      },
-      select: {
-        id: true,
-        title: true,
-        description: true,
-        intakeMode: true,
-        marketingSubjectId: true,
-        serviceTokens: true,
-        zip: true,
-        radiusMiles: true,
-        budgetLabel: true,
-        timelineLabel: true,
-        status: true,
-        requesterName: true,
-        requesterBusinessName: true,
-        createdAt: true,
-        updatedAt: true,
-      },
-    });
+    const matchedRow = await getCachedProviderMatchedRequestById(expert, id);
+    if (!matchedRow) return reply.code(404).send({ ok: false, error: 'Request not found' });
 
-    if (!request) return reply.code(404).send({ ok: false, error: 'Request not found' });
-
-    const match = await buildProviderMatchForRequest(expert, request);
-    if (!match) return reply.code(404).send({ ok: false, error: 'Request not found' });
+    const { request } = matchedRow;
 
     const existingProposal = await prisma.proposal.findUnique({
       where: {

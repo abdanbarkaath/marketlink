@@ -1,7 +1,7 @@
 import Link from 'next/link';
-import { cookies } from 'next/headers';
 import { redirect } from 'next/navigation';
 import { formatServiceTokenLabel, getMarketingSubjectById } from '@/lib/marketingTaxonomy';
+import { getServerApiHeaders } from '@/lib/serverApi';
 import ProposalDecisionActions from '../../proposals/ProposalDecisionActions';
 import RequestLifecycleActions from '../RequestLifecycleActions';
 
@@ -12,27 +12,44 @@ type SummaryResponse = {
   customer?: { name?: string | null; businessName?: string | null } | null;
 };
 
-type DeliveryPreview = {
-  matchingModel: string;
+type MatchExpert = {
+  id: string;
+  slug: string;
+  businessName: string;
+  city: string;
+  state: string;
+  zip?: string | null;
+  verified: boolean;
+  rating: number;
+  remoteFriendly: boolean;
+  servesNationwide: boolean;
+  matchedServiceTokens: string[];
+  primaryReason: 'within_radius' | 'same_zip' | 'same_city' | 'serves_nationwide' | 'remote_friendly';
+  reasons: Array<'within_radius' | 'same_zip' | 'same_city' | 'serves_nationwide' | 'remote_friendly'>;
+  distanceMiles?: number;
+};
+
+type SpecificDeliveryPreview = {
+  matchingModel: 'city-zip-service-v1';
   requestLocation?: { zip?: string | null; city?: string | null; state?: string | null; source?: string | null } | null;
   notes?: string[];
   totalMatches: number;
-  matchedExperts: Array<{
-    id: string;
-    slug: string;
-    businessName: string;
-    city: string;
-    state: string;
-    zip?: string | null;
-    verified: boolean;
-    rating: number;
-    remoteFriendly: boolean;
-    servesNationwide: boolean;
-    matchedServiceTokens: string[];
-    primaryReason: 'same_zip' | 'same_city' | 'serves_nationwide' | 'remote_friendly';
-    reasons: Array<'same_zip' | 'same_city' | 'serves_nationwide' | 'remote_friendly'>;
-  }>;
+  matchedExperts: MatchExpert[];
 };
+
+type UnsureDeliveryPreview = {
+  matchingModel: 'zip-radius-v2';
+  requestLocation?: { zip?: string | null; city?: string | null; state?: string | null; source?: string | null } | null;
+  notes?: string[];
+  totalMatches: number;
+  totalDelivered: number;
+  matchedExperts: MatchExpert[];
+  deliveredExperts: MatchExpert[];
+  justOutsideExperts: MatchExpert[];
+  strongFitFartherAwayExperts: MatchExpert[];
+};
+
+type DeliveryPreview = SpecificDeliveryPreview | UnsureDeliveryPreview;
 
 type RequestDetail = {
   id: string;
@@ -88,7 +105,8 @@ function formatShortDate(value: string) {
   });
 }
 
-function formatReason(reason: DeliveryPreview['matchedExperts'][number]['primaryReason']) {
+function formatReason(reason: MatchExpert['primaryReason']) {
+  if (reason === 'within_radius') return 'Inside radius';
   switch (reason) {
     case 'same_zip':
       return 'Same ZIP';
@@ -150,6 +168,95 @@ function getPreviewEmptyMessage(request: RequestDetail) {
   return 'No matching preview is available for this request yet. Providers can still respond privately through the normal request flow.';
 }
 
+function isUnsureBucketedPreview(preview: DeliveryPreview | null | undefined): preview is UnsureDeliveryPreview {
+  return Boolean(preview && preview.matchingModel === 'zip-radius-v2');
+}
+
+function formatDistance(distanceMiles?: number) {
+  if (typeof distanceMiles !== 'number') return null;
+  return `${distanceMiles.toFixed(1)} miles away`;
+}
+
+function renderTokenPills(tokens: string[]) {
+  if (!tokens.length) return null;
+
+  return (
+    <div className="mt-4 flex flex-wrap gap-2">
+      {tokens.map((token) => (
+        <span
+          key={token}
+          className="inline-flex rounded-xl bg-slate-50 px-3 py-1 text-xs font-medium text-slate-600 ring-1 ring-slate-200"
+        >
+          {formatServiceTokenLabel(token)}
+        </span>
+      ))}
+    </div>
+  );
+}
+
+function MatchCardsSection({
+  title,
+  description,
+  experts,
+  emptyMessage,
+  showDistance = false,
+}: {
+  title: string;
+  description: string;
+  experts: MatchExpert[];
+  emptyMessage: string;
+  showDistance?: boolean;
+}) {
+  return (
+    <section className="mt-4">
+      <div>
+        <h3 className="text-lg font-semibold tracking-tight text-slate-950">{title}</h3>
+        <p className="mt-2 max-w-3xl text-sm leading-6 text-slate-600">{description}</p>
+      </div>
+
+      {experts.length ? (
+        <div className="mt-4 grid gap-4 md:grid-cols-2">
+          {experts.map((expert) => (
+            <Link
+              key={expert.id}
+              href={`/experts/${expert.slug}`}
+              className="ml-card rounded-[24px] p-5 shadow-[0_18px_44px_rgba(23,26,31,0.05)] transition hover:-translate-y-0.5 hover:shadow-[0_22px_48px_rgba(23,26,31,0.08)]"
+            >
+              <div className="flex flex-wrap gap-2">
+                {showDistance && formatDistance(expert.distanceMiles) ? (
+                  <span className="ml-pill inline-flex rounded-xl px-3 py-1 text-[11px] font-medium uppercase tracking-[0.16em] text-slate-500">
+                    {formatDistance(expert.distanceMiles)}
+                  </span>
+                ) : (
+                  <span className="ml-pill inline-flex rounded-xl px-3 py-1 text-[11px] font-medium uppercase tracking-[0.16em] text-slate-500">
+                    {formatReason(expert.primaryReason)}
+                  </span>
+                )}
+                {expert.verified ? (
+                  <span className="ml-pill inline-flex rounded-xl px-3 py-1 text-[11px] font-medium uppercase tracking-[0.16em] text-slate-500">
+                    Verified
+                  </span>
+                ) : null}
+              </div>
+
+              <h3 className="mt-3 text-xl font-semibold tracking-tight text-slate-950">{expert.businessName}</h3>
+              <p className="mt-1 text-sm text-slate-600">
+                {expert.city}, {expert.state}
+              </p>
+
+              {renderTokenPills(expert.matchedServiceTokens)}
+            </Link>
+          ))}
+        </div>
+      ) : (
+        <div className="ml-card mt-4 rounded-[24px] p-5 shadow-[0_18px_44px_rgba(23,26,31,0.05)]">
+          <p className="text-sm leading-6 text-slate-600">{emptyMessage}</p>
+        </div>
+      )}
+    </section>
+  );
+}
+
 export default async function CustomerRequestDetailPage({
   searchParams,
 }: {
@@ -160,12 +267,10 @@ export default async function CustomerRequestDetailPage({
     redirect('/dashboard/customer/requests');
   }
 
-  const cookieStore = await cookies();
-  const sessionCookie = cookieStore.get('session');
-  const cookieHeader = sessionCookie ? `${sessionCookie.name}=${sessionCookie.value}` : '';
+  const requestHeaders = await getServerApiHeaders();
 
   const summaryRes = await fetch(`${API_BASE}/me/summary`, {
-    headers: cookieHeader ? { cookie: cookieHeader } : {},
+    headers: requestHeaders,
     cache: 'no-store',
   });
 
@@ -184,7 +289,7 @@ export default async function CustomerRequestDetailPage({
   if (!(summary.customer?.name || '').trim()) redirect('/dashboard/customer/onboarding');
 
   const requestRes = await fetch(`${API_BASE}/requests/${id}`, {
-    headers: cookieHeader ? { cookie: cookieHeader } : {},
+    headers: requestHeaders,
     cache: 'no-store',
   });
 
@@ -205,6 +310,7 @@ export default async function CustomerRequestDetailPage({
 
   const areaDetails = getRequestAreaDetails(request);
   const preview = data.deliveryPreview;
+  const unsurePreview = isUnsureBucketedPreview(preview) ? preview : null;
   const proposals = data.proposals || [];
   const pendingProposalCount = proposals.filter((proposal) => proposal.status === 'PENDING').length;
 
@@ -292,11 +398,17 @@ export default async function CustomerRequestDetailPage({
           <aside className="ml-card rounded-[28px] p-6 shadow-[0_18px_50px_rgba(23,26,31,0.06)]">
             <div className="text-xs font-semibold uppercase tracking-[0.26em] text-slate-400">Matching preview</div>
             <h2 className="mt-3 text-2xl font-semibold tracking-tight text-slate-950">
-              {preview ? `${preview.totalMatches} plausible match${preview.totalMatches === 1 ? '' : 'es'}` : 'Preview not available yet'}
+              {preview
+                ? unsurePreview
+                  ? `${unsurePreview.totalDelivered} provider${unsurePreview.totalDelivered === 1 ? '' : 's'} received this request`
+                  : `${preview.totalMatches} plausible match${preview.totalMatches === 1 ? '' : 'es'}`
+                : 'Preview not available yet'}
             </h2>
             <p className="mt-2 text-sm leading-6 text-slate-600">
               {preview
-                ? 'This preview is private and based on the current MVP model: service tags plus ZIP, city, nationwide coverage, or remote-friendly service area.'
+                ? unsurePreview
+                  ? `${unsurePreview.totalMatches - unsurePreview.totalDelivered} additional option${unsurePreview.totalMatches - unsurePreview.totalDelivered === 1 ? '' : 's'} are shown only to you and were not notified automatically.`
+                  : 'This preview is private and based on the current MVP model: service tags plus ZIP, city, nationwide coverage, or remote-friendly service area.'
                 : getPreviewEmptyMessage(request)}
             </p>
 
@@ -424,48 +536,46 @@ export default async function CustomerRequestDetailPage({
         <section className="mt-5">
           <div className="flex items-end justify-between">
             <div>
-              <p className="text-xs font-semibold uppercase tracking-[0.26em] text-slate-400">Likely experts</p>
-              <h2 className="mt-2 text-2xl font-semibold tracking-tight text-slate-950">Who this request may reach</h2>
+              <p className="text-xs font-semibold uppercase tracking-[0.26em] text-slate-400">
+                {unsurePreview ? 'Private match buckets' : 'Likely experts'}
+              </p>
+              <h2 className="mt-2 text-2xl font-semibold tracking-tight text-slate-950">
+                {unsurePreview ? 'Who actually received this request and who else may still fit' : 'Who this request may reach'}
+              </h2>
             </div>
           </div>
 
-          {preview?.matchedExperts?.length ? (
-            <div className="mt-4 grid gap-4 md:grid-cols-2">
-              {preview.matchedExperts.map((expert) => (
-                <Link
-                  key={expert.id}
-                  href={`/experts/${expert.slug}`}
-                  className="ml-card rounded-[24px] p-5 shadow-[0_18px_44px_rgba(23,26,31,0.05)] transition hover:-translate-y-0.5 hover:shadow-[0_22px_48px_rgba(23,26,31,0.08)]"
-                >
-                  <div className="flex flex-wrap gap-2">
-                    <span className="ml-pill inline-flex rounded-xl px-3 py-1 text-[11px] font-medium uppercase tracking-[0.16em] text-slate-500">
-                      {formatReason(expert.primaryReason)}
-                    </span>
-                    {expert.verified ? (
-                      <span className="ml-pill inline-flex rounded-xl px-3 py-1 text-[11px] font-medium uppercase tracking-[0.16em] text-slate-500">
-                        Verified
-                      </span>
-                    ) : null}
-                  </div>
-
-                  <h3 className="mt-3 text-xl font-semibold tracking-tight text-slate-950">{expert.businessName}</h3>
-                  <p className="mt-1 text-sm text-slate-600">
-                    {expert.city}, {expert.state}
-                  </p>
-
-                  <div className="mt-4 flex flex-wrap gap-2">
-                    {expert.matchedServiceTokens.map((token) => (
-                      <span
-                        key={token}
-                        className="inline-flex rounded-xl bg-slate-50 px-3 py-1 text-xs font-medium text-slate-600 ring-1 ring-slate-200"
-                      >
-                        {formatServiceTokenLabel(token)}
-                      </span>
-                    ))}
-                  </div>
-                </Link>
-              ))}
-            </div>
+          {unsurePreview ? (
+            <>
+              <MatchCardsSection
+                title="Received your request"
+                description="These providers were inside your selected radius and were actually notified about this request."
+                experts={unsurePreview.deliveredExperts}
+                emptyMessage="No provider inside the selected radius has been identified yet."
+                showDistance
+              />
+              <MatchCardsSection
+                title="Just outside your radius"
+                description="These providers are nearby, but they were outside your selected radius and were not notified automatically."
+                experts={unsurePreview.justOutsideExperts}
+                emptyMessage="No nearby providers were found just outside your selected radius."
+                showDistance
+              />
+              <MatchCardsSection
+                title="Farther away, but may still fit"
+                description="These are customer-only suggestions with stronger token overlap, shown privately so you can still review them if you want broader options."
+                experts={unsurePreview.strongFitFartherAwayExperts}
+                emptyMessage="No farther-away strong-fit suggestions were available for this request."
+                showDistance
+              />
+            </>
+          ) : preview?.matchedExperts?.length ? (
+            <MatchCardsSection
+              title="Current preview"
+              description="This private preview reflects the current MVP matching logic for this request."
+              experts={preview.matchedExperts}
+              emptyMessage={getPreviewEmptyMessage(request)}
+            />
           ) : (
             <div className="ml-card mt-4 rounded-[24px] p-5 shadow-[0_18px_44px_rgba(23,26,31,0.05)]">
               <p className="text-sm leading-6 text-slate-600">{getPreviewEmptyMessage(request)}</p>

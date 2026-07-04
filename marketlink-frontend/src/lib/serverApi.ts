@@ -1,29 +1,32 @@
 // Server-only helper to call the backend API while forwarding the session cookie.
 import 'server-only';
-import { cookies } from 'next/headers';
+import { headers } from 'next/headers';
 
 const API_BASE = process.env.NEXT_PUBLIC_API_URL ?? 'http://localhost:4000';
 
+export async function getServerApiHeaders(init?: HeadersInit) {
+  const requestHeaders = await headers();
+  const forwardedHeaders = new Headers(init);
+  const cookieHeader = requestHeaders.get('cookie');
+
+  if (cookieHeader) {
+    forwardedHeaders.set('cookie', cookieHeader);
+  }
+
+  return forwardedHeaders;
+}
+
 /**
- * Server-side fetch to backend, forwarding the 'session' cookie.
+ * Server-side fetch to backend while forwarding the raw incoming cookie header.
  * Use only in Server Components / server actions.
  */
 export async function apiFetch(path: string, init?: RequestInit) {
-  // Some Next typings expose cookies() as Promise<...> — await to satisfy TS.
-  const cookieStore = await cookies();
-  const sess = cookieStore.get('session');
-
-  const headers = new Headers(init?.headers as HeadersInit);
-  headers.set('Accept', 'application/json');
-
-  // Forward session cookie if present
-  if (sess?.value) {
-    headers.append('cookie', `session=${sess.value}`);
-  }
+  const requestHeaders = await getServerApiHeaders(init?.headers as HeadersInit);
+  requestHeaders.set('Accept', 'application/json');
 
   return fetch(`${API_BASE}${path}`, {
     ...init,
-    headers,
+    headers: requestHeaders,
     cache: 'no-store',
   });
 }

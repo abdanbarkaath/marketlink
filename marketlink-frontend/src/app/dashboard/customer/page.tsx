@@ -1,24 +1,17 @@
 import Link from 'next/link';
-import { cookies } from 'next/headers';
 import { redirect } from 'next/navigation';
+import { getServerApiHeaders } from '@/lib/serverApi';
 
 const API_BASE = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:4000';
 
 type SummaryResponse = {
   user?: { email?: string; role?: 'provider' | 'customer' | 'admin' };
   customer?: { name?: string | null; businessName?: string | null } | null;
-};
-
-type CustomerRequestSummary = {
-  status: 'ACTIVE' | 'CLOSED' | 'CANCELLED';
-};
-
-type CustomerProposalSummary = {
-  status: 'PENDING' | 'ACCEPTED' | 'DECLINED' | 'WITHDRAWN';
-};
-
-type CustomerConversationSummary = {
-  id: string;
+  customerStats?: {
+    activeRequestCount?: number;
+    pendingProposalCount?: number;
+    conversationCount?: number;
+  } | null;
 };
 
 function DashboardRailCard({
@@ -68,12 +61,10 @@ function FutureStateCard({
 }
 
 export default async function CustomerDashboardPage() {
-  const cookieStore = await cookies();
-  const sessionCookie = cookieStore.get('session');
-  const cookieHeader = sessionCookie ? `${sessionCookie.name}=${sessionCookie.value}` : '';
+  const requestHeaders = await getServerApiHeaders();
 
   const res = await fetch(`${API_BASE}/me/summary`, {
-    headers: cookieHeader ? { cookie: cookieHeader } : {},
+    headers: requestHeaders,
     cache: 'no-store',
   });
 
@@ -103,30 +94,9 @@ export default async function CustomerDashboardPage() {
     redirect('/dashboard/customer/onboarding');
   }
 
-  const [requestsRes, proposalsRes, conversationsRes] = await Promise.all([
-    fetch(`${API_BASE}/requests`, {
-      headers: cookieHeader ? { cookie: cookieHeader } : {},
-      cache: 'no-store',
-    }),
-    fetch(`${API_BASE}/proposals`, {
-      headers: cookieHeader ? { cookie: cookieHeader } : {},
-      cache: 'no-store',
-    }),
-    fetch(`${API_BASE}/conversations`, {
-      headers: cookieHeader ? { cookie: cookieHeader } : {},
-      cache: 'no-store',
-    }),
-  ]);
-
-  const requestsData = requestsRes.ok ? ((await requestsRes.json()) as { data?: CustomerRequestSummary[] }) : {};
-  const proposalsData = proposalsRes.ok ? ((await proposalsRes.json()) as { data?: CustomerProposalSummary[] }) : {};
-  const conversationsData = conversationsRes.ok ? ((await conversationsRes.json()) as { data?: CustomerConversationSummary[] }) : {};
-  const requests = requestsData.data || [];
-  const proposals = proposalsData.data || [];
-  const conversations = conversationsData.data || [];
-  const activeRequestCount = requests.filter((request) => request.status === 'ACTIVE').length;
-  const pendingProposalCount = proposals.filter((proposal) => proposal.status === 'PENDING').length;
-  const conversationCount = conversations.length;
+  const activeRequestCount = Number(data.customerStats?.activeRequestCount || 0);
+  const pendingProposalCount = Number(data.customerStats?.pendingProposalCount || 0);
+  const conversationCount = Number(data.customerStats?.conversationCount || 0);
 
   return (
     <main className="ml-page-bg min-h-[calc(100vh-72px)]">

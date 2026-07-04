@@ -1,7 +1,7 @@
 import Link from 'next/link';
-import { cookies } from 'next/headers';
 import { redirect } from 'next/navigation';
 import { formatServiceTokenLabel, getMarketingSubjectById } from '@/lib/marketingTaxonomy';
+import { getServerApiHeaders } from '@/lib/serverApi';
 
 const API_BASE = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:4000';
 
@@ -32,7 +32,17 @@ type RequestHistoryItem = {
 
 type RequestsResponse = {
   ok?: boolean;
+  meta?: {
+    total: number;
+    page: number;
+    limit: number;
+    totalPages: number;
+  };
   data?: RequestHistoryItem[];
+};
+
+type CustomerRequestsPageProps = {
+  searchParams: Promise<Record<string, string | string[] | undefined>>;
 };
 
 function formatRequestStatus(status: RequestHistoryItem['status']) {
@@ -47,6 +57,13 @@ function formatShortDate(value: string) {
     day: 'numeric',
     year: 'numeric',
   });
+}
+
+function normalizePage(input: string | string[] | undefined) {
+  const value = Array.isArray(input) ? input[0] : input;
+  const parsed = Number.parseInt(String(value || '1'), 10);
+  if (!Number.isFinite(parsed)) return 1;
+  return Math.max(1, parsed);
 }
 
 function getRequestAreaLabel(request: RequestHistoryItem) {
@@ -66,13 +83,13 @@ function getRequestLocationLabel(request: RequestHistoryItem) {
   return 'Specific request';
 }
 
-export default async function CustomerRequestsPage() {
-  const cookieStore = await cookies();
-  const sessionCookie = cookieStore.get('session');
-  const cookieHeader = sessionCookie ? `${sessionCookie.name}=${sessionCookie.value}` : '';
+export default async function CustomerRequestsPage({ searchParams }: CustomerRequestsPageProps) {
+  const resolvedSearchParams = await searchParams;
+  const page = normalizePage(resolvedSearchParams.page);
+  const requestHeaders = await getServerApiHeaders();
 
   const summaryRes = await fetch(`${API_BASE}/me/summary`, {
-    headers: cookieHeader ? { cookie: cookieHeader } : {},
+    headers: requestHeaders,
     cache: 'no-store',
   });
 
@@ -90,8 +107,8 @@ export default async function CustomerRequestsPage() {
   if (summary.user?.role === 'provider') redirect('/dashboard');
   if (!(summary.customer?.name || '').trim()) redirect('/dashboard/customer/onboarding');
 
-  const requestsRes = await fetch(`${API_BASE}/requests`, {
-    headers: cookieHeader ? { cookie: cookieHeader } : {},
+  const requestsRes = await fetch(`${API_BASE}/requests?page=${page}`, {
+    headers: requestHeaders,
     cache: 'no-store',
   });
 
@@ -101,6 +118,16 @@ export default async function CustomerRequestsPage() {
 
   const requestsData = (await requestsRes.json()) as RequestsResponse;
   const requests = requestsData.data || [];
+  const meta = requestsData.meta || {
+    total: requests.length,
+    page,
+    limit: 10,
+    totalPages: Math.max(1, requests.length > 0 ? 1 : 0),
+  };
+  const start = meta.total === 0 ? 0 : (meta.page - 1) * meta.limit + 1;
+  const end = Math.min(meta.page * meta.limit, meta.total);
+  const prevPageHref = `/dashboard/customer/requests?page=${Math.max(1, meta.page - 1)}`;
+  const nextPageHref = `/dashboard/customer/requests?page=${Math.min(meta.totalPages, meta.page + 1)}`;
 
   return (
     <main className="ml-page-bg min-h-[calc(100vh-72px)]">
@@ -145,6 +172,42 @@ export default async function CustomerRequestsPage() {
           </section>
         ) : (
           <section className="mt-5 grid gap-4">
+            <div className="flex flex-col gap-3 rounded-[24px] border border-slate-200/80 bg-[linear-gradient(180deg,rgba(255,255,255,0.98),rgba(244,246,248,0.94))] px-5 py-4 shadow-[0_12px_32px_rgba(15,23,42,0.05)] sm:flex-row sm:items-center sm:justify-between">
+              <div className="text-sm text-slate-600">
+                Showing {start}-{end} of {meta.total}
+              </div>
+
+              <div className="flex items-center gap-2">
+                <Link
+                  aria-disabled={meta.page <= 1}
+                  className={`rounded-full border px-4 py-2 text-sm font-medium ${
+                    meta.page <= 1
+                      ? 'pointer-events-none border-slate-200/80 bg-slate-100 text-slate-400'
+                      : 'border-slate-200/80 bg-white text-slate-700 hover:border-slate-300 hover:bg-slate-50'
+                  }`}
+                  href={prevPageHref}
+                >
+                  Prev
+                </Link>
+
+                <span className="text-sm text-slate-600">
+                  Page {meta.page} / {meta.totalPages}
+                </span>
+
+                <Link
+                  aria-disabled={meta.page >= meta.totalPages}
+                  className={`rounded-full border px-4 py-2 text-sm font-medium ${
+                    meta.page >= meta.totalPages
+                      ? 'pointer-events-none border-slate-200/80 bg-slate-100 text-slate-400'
+                      : 'border-slate-200/80 bg-white text-slate-700 hover:border-slate-300 hover:bg-slate-50'
+                  }`}
+                  href={nextPageHref}
+                >
+                  Next
+                </Link>
+              </div>
+            </div>
+
             {requests.map((request) => (
               <Link
                 key={request.id}
@@ -201,6 +264,42 @@ export default async function CustomerRequestsPage() {
                 )}
               </Link>
             ))}
+
+            <div className="flex flex-col gap-3 rounded-[24px] border border-slate-200/80 bg-[linear-gradient(180deg,rgba(255,255,255,0.98),rgba(244,246,248,0.94))] px-5 py-4 shadow-[0_12px_32px_rgba(15,23,42,0.05)] sm:flex-row sm:items-center sm:justify-between">
+              <div className="text-sm text-slate-600">
+                Showing {start}-{end} of {meta.total}
+              </div>
+
+              <div className="flex items-center gap-2">
+                <Link
+                  aria-disabled={meta.page <= 1}
+                  className={`rounded-full border px-4 py-2 text-sm font-medium ${
+                    meta.page <= 1
+                      ? 'pointer-events-none border-slate-200/80 bg-slate-100 text-slate-400'
+                      : 'border-slate-200/80 bg-white text-slate-700 hover:border-slate-300 hover:bg-slate-50'
+                  }`}
+                  href={prevPageHref}
+                >
+                  Prev
+                </Link>
+
+                <span className="text-sm text-slate-600">
+                  Page {meta.page} / {meta.totalPages}
+                </span>
+
+                <Link
+                  aria-disabled={meta.page >= meta.totalPages}
+                  className={`rounded-full border px-4 py-2 text-sm font-medium ${
+                    meta.page >= meta.totalPages
+                      ? 'pointer-events-none border-slate-200/80 bg-slate-100 text-slate-400'
+                      : 'border-slate-200/80 bg-white text-slate-700 hover:border-slate-300 hover:bg-slate-50'
+                  }`}
+                  href={nextPageHref}
+                >
+                  Next
+                </Link>
+              </div>
+            </div>
           </section>
         )}
       </div>
