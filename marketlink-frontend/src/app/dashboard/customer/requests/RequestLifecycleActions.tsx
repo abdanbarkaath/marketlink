@@ -15,6 +15,7 @@ type RequestLifecycleActionsProps = {
 export default function RequestLifecycleActions({ requestId, status }: RequestLifecycleActionsProps) {
   const router = useRouter();
   const [busyStatus, setBusyStatus] = useState<RequestStatus | null>(null);
+  const [deleting, setDeleting] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
   async function updateStatus(nextStatus: RequestStatus) {
@@ -42,6 +43,33 @@ export default function RequestLifecycleActions({ requestId, status }: RequestLi
     }
   }
 
+  async function deleteRequest() {
+    const confirmed = window.confirm('Delete this request from your history? This cannot be undone.');
+    if (!confirmed) return;
+
+    setDeleting(true);
+    setError(null);
+
+    try {
+      const response = await fetch(`${API_BASE}/requests/${requestId}`, {
+        method: 'DELETE',
+        credentials: 'include',
+      });
+
+      const body = (await response.json().catch(() => ({}))) as { error?: string };
+      if (!response.ok) {
+        throw new Error(body.error || `Failed to delete request (${response.status})`);
+      }
+
+      router.push('/dashboard/customer/requests');
+      router.refresh();
+    } catch (err: unknown) {
+      setError(err instanceof Error ? err.message : 'Something went wrong.');
+    } finally {
+      setDeleting(false);
+    }
+  }
+
   return (
     <div className="mt-5 rounded-2xl border border-slate-200 bg-slate-50 px-4 py-4">
       <div className="text-[11px] font-semibold uppercase tracking-[0.2em] text-slate-400">Request controls</div>
@@ -54,7 +82,7 @@ export default function RequestLifecycleActions({ requestId, status }: RequestLi
           <>
             <button
               type="button"
-              disabled={Boolean(busyStatus)}
+              disabled={Boolean(busyStatus) || deleting}
               onClick={() => updateStatus('CLOSED')}
               className="ml-btn-secondary inline-flex min-h-11 items-center justify-center rounded-xl px-5 text-sm font-semibold text-slate-900 disabled:opacity-60"
             >
@@ -62,7 +90,7 @@ export default function RequestLifecycleActions({ requestId, status }: RequestLi
             </button>
             <button
               type="button"
-              disabled={Boolean(busyStatus)}
+              disabled={Boolean(busyStatus) || deleting}
               onClick={() => updateStatus('CANCELLED')}
               className="inline-flex min-h-11 items-center justify-center rounded-xl border border-slate-200 bg-white px-5 text-sm font-semibold text-slate-700 transition hover:border-slate-300 hover:bg-slate-50 disabled:opacity-60"
             >
@@ -74,11 +102,22 @@ export default function RequestLifecycleActions({ requestId, status }: RequestLi
         {status === 'CLOSED' ? (
           <button
             type="button"
-            disabled={Boolean(busyStatus)}
+            disabled={Boolean(busyStatus) || deleting}
             onClick={() => updateStatus('ACTIVE')}
             className="ml-btn-primary inline-flex min-h-11 items-center justify-center rounded-xl px-6 text-sm font-semibold text-white disabled:opacity-60"
           >
             {busyStatus === 'ACTIVE' ? 'Reopening...' : 'Reopen request'}
+          </button>
+        ) : null}
+
+        {status !== 'ACTIVE' ? (
+          <button
+            type="button"
+            disabled={Boolean(busyStatus) || deleting}
+            onClick={deleteRequest}
+            className="inline-flex min-h-11 items-center justify-center rounded-xl border border-red-200 bg-white px-5 text-sm font-semibold text-red-700 transition hover:border-red-300 hover:bg-red-50 disabled:opacity-60"
+          >
+            {deleting ? 'Deleting...' : 'Delete request'}
           </button>
         ) : null}
       </div>

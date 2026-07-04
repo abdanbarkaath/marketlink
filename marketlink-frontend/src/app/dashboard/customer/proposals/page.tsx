@@ -1,7 +1,7 @@
 import Link from 'next/link';
-import { cookies } from 'next/headers';
 import { redirect } from 'next/navigation';
 import { getMarketingSubjectById } from '@/lib/marketingTaxonomy';
+import { getServerApiHeaders } from '@/lib/serverApi';
 import ProposalDecisionActions from './ProposalDecisionActions';
 
 const API_BASE = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:4000';
@@ -70,12 +70,10 @@ function formatExpertType(value?: string | null) {
 }
 
 export default async function CustomerProposalsPage() {
-  const cookieStore = await cookies();
-  const sessionCookie = cookieStore.get('session');
-  const cookieHeader = sessionCookie ? `${sessionCookie.name}=${sessionCookie.value}` : '';
+  const requestHeaders = await getServerApiHeaders();
 
   const summaryRes = await fetch(`${API_BASE}/me/summary`, {
-    headers: cookieHeader ? { cookie: cookieHeader } : {},
+    headers: requestHeaders,
     cache: 'no-store',
   });
 
@@ -94,7 +92,7 @@ export default async function CustomerProposalsPage() {
   if (!(summary.customer?.name || '').trim()) redirect('/dashboard/customer/onboarding');
 
   const proposalsRes = await fetch(`${API_BASE}/proposals`, {
-    headers: cookieHeader ? { cookie: cookieHeader } : {},
+    headers: requestHeaders,
     cache: 'no-store',
   });
 

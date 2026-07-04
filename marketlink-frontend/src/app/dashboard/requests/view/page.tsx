@@ -97,7 +97,7 @@ function ProviderRequestDetailPageContent() {
       setPageError(null);
 
       try {
-        const summaryRes = await fetch(`${API_BASE}/me/summary`, {
+        const summaryRes = await fetch(`${API_BASE}/me`, {
           credentials: 'include',
           cache: 'no-store',
         });

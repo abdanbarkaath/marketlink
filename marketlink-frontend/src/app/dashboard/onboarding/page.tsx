@@ -1,6 +1,6 @@
-import { cookies } from 'next/headers';
 import { redirect } from 'next/navigation';
 import OnboardingForm from './OnboardingForm';
+import { getServerApiHeaders } from '@/lib/serverApi';
 
 const API_BASE = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:4000';
 
@@ -11,12 +11,10 @@ type SummaryResponse = {
 };
 
 export default async function OnboardingPage() {
-  const cookieStore = await cookies();
-  const sessionCookie = cookieStore.get('session');
-  const cookieHeader = sessionCookie ? `${sessionCookie.name}=${sessionCookie.value}` : '';
+  const requestHeaders = await getServerApiHeaders();
 
   const res = await fetch(`${API_BASE}/me/summary`, {
-    headers: cookieHeader ? { cookie: cookieHeader } : {},
+    headers: requestHeaders,
     cache: 'no-store',
   });
 

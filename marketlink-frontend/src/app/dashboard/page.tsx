@@ -23,17 +23,17 @@ type ExpertSummary = {
   disabledReason?: string;
 } | null;
 
-type InquiryRow = {
-  id: string;
-  status: 'NEW' | 'READ' | 'ARCHIVED';
-  createdAt: string;
-};
-
-type ProviderRequestRow = {
-  id: string;
-  status: 'ACTIVE' | 'CLOSED' | 'CANCELLED';
-  createdAt: string;
-  proposalStatus?: 'PENDING' | 'ACCEPTED' | 'DECLINED' | 'WITHDRAWN' | null;
+type ProviderStatsResponse = {
+  ok?: boolean;
+  stats?: {
+    inquiryCount?: number;
+    newInquiryCount?: number;
+    matchedRequestCount?: number;
+    needsProposalCount?: number;
+    pendingProposalCount?: number;
+    acceptedProposalCount?: number;
+    conversationCount?: number;
+  };
 };
 
 function formatExpertTypeLabel(expertType: ExpertSummary['expertType']) {
@@ -119,41 +119,20 @@ const [user, setUser] = useState<User | null>(null);
 
     (async () => {
       try {
-        const [inquiriesRes, requestsRes, conversationsRes] = await Promise.all([
-          fetch(`${API_BASE}/inquiries`, {
-            credentials: 'include',
-            cache: 'no-store',
-          }),
-          fetch(`${API_BASE}/provider/requests`, {
-            credentials: 'include',
-            cache: 'no-store',
-          }),
-          fetch(`${API_BASE}/conversations`, {
-            credentials: 'include',
-            cache: 'no-store',
-          }),
-        ]);
+        const statsRes = await fetch(`${API_BASE}/me/provider-stats`, {
+          credentials: 'include',
+          cache: 'no-store',
+        });
 
-        if (inquiriesRes.ok) {
-          const body = (await inquiriesRes.json()) as { ok?: true; data?: InquiryRow[] };
-          const rows = Array.isArray(body?.data) ? body.data : [];
-          setInquiryCount(rows.length);
-          setNewInquiryCount(rows.filter((r) => r.status === 'NEW').length);
-        }
-
-        if (requestsRes.ok) {
-          const body = (await requestsRes.json()) as { ok?: true; data?: ProviderRequestRow[] };
-          const rows = Array.isArray(body?.data) ? body.data : [];
-          setMatchedRequestCount(rows.filter((r) => r.status === 'ACTIVE').length);
-          setNeedsProposalCount(rows.filter((r) => !r.proposalStatus).length);
-          setPendingProposalCount(rows.filter((r) => r.proposalStatus === 'PENDING').length);
-          setAcceptedProposalCount(rows.filter((r) => r.proposalStatus === 'ACCEPTED').length);
-        }
-
-        if (conversationsRes?.ok) {
-          const body = (await conversationsRes.json()) as { ok?: true; data?: Array<{ id: string }> };
-          const rows = Array.isArray(body?.data) ? body.data : [];
-          setConversationCount(rows.length);
+        if (statsRes.ok) {
+          const body = (await statsRes.json()) as ProviderStatsResponse;
+          setInquiryCount(body.stats?.inquiryCount ?? null);
+          setNewInquiryCount(body.stats?.newInquiryCount ?? null);
+          setMatchedRequestCount(body.stats?.matchedRequestCount ?? null);
+          setNeedsProposalCount(body.stats?.needsProposalCount ?? null);
+          setPendingProposalCount(body.stats?.pendingProposalCount ?? null);
+          setAcceptedProposalCount(body.stats?.acceptedProposalCount ?? null);
+          setConversationCount(body.stats?.conversationCount ?? null);
         }
       } catch {
         // ignore dashboard sidebar count failures

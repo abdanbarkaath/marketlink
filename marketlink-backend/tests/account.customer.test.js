@@ -17,6 +17,9 @@ test('GET /me/summary returns customer profile for customer users', async () => 
   const originalGetUserFromRequest = sessionModule.getUserFromRequest;
   const originalFindFirstExpert = prismaModule.prisma.expert.findFirst;
   const originalCustomerProfile = prismaModule.prisma.customerProfile;
+  const originalCustomerRequest = prismaModule.prisma.customerRequest;
+  const originalProposal = prismaModule.prisma.proposal;
+  const originalConversation = prismaModule.prisma.conversation;
 
   sessionModule.getUserFromRequest = async () => ({
     id: 'user_customer_1',
@@ -31,6 +34,34 @@ test('GET /me/summary returns customer profile for customer users', async () => 
       name: 'Jamie Rivera',
       businessName: 'Westmont Dental',
     }),
+  };
+  prismaModule.prisma.customerRequest = {
+    count: async ({ where }) => {
+      assert.deepEqual(where, {
+        customerUserId: 'user_customer_1',
+        status: 'ACTIVE',
+      });
+      return 3;
+    },
+  };
+  prismaModule.prisma.proposal = {
+    count: async ({ where }) => {
+      assert.deepEqual(where, {
+        request: {
+          customerUserId: 'user_customer_1',
+        },
+        status: 'PENDING',
+      });
+      return 2;
+    },
+  };
+  prismaModule.prisma.conversation = {
+    count: async ({ where }) => {
+      assert.deepEqual(where, {
+        customerUserId: 'user_customer_1',
+      });
+      return 4;
+    },
   };
 
   try {
@@ -48,12 +79,20 @@ test('GET /me/summary returns customer profile for customer users', async () => 
       name: 'Jamie Rivera',
       businessName: 'Westmont Dental',
     });
+    assert.deepEqual(body.customerStats, {
+      activeRequestCount: 3,
+      pendingProposalCount: 2,
+      conversationCount: 4,
+    });
     assert.equal(body.expert, null);
     assert.equal(body.provider, null);
   } finally {
     sessionModule.getUserFromRequest = originalGetUserFromRequest;
     prismaModule.prisma.expert.findFirst = originalFindFirstExpert;
     prismaModule.prisma.customerProfile = originalCustomerProfile;
+    prismaModule.prisma.customerRequest = originalCustomerRequest;
+    prismaModule.prisma.proposal = originalProposal;
+    prismaModule.prisma.conversation = originalConversation;
     await fastify.close();
   }
 });

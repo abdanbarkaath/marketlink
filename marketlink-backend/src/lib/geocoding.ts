@@ -56,6 +56,9 @@ export type LocationAutocompleteResult =
 
 const GEOAPIFY_API_KEY = process.env.GEOAPIFY_API_KEY || '';
 const GEOAPIFY_BASE_URL = process.env.GEOAPIFY_BASE_URL || 'https://api.geoapify.com';
+const ZIP_LOOKUP_CACHE_TTL_MS = 1000 * 60 * 60 * 12;
+const zipLookupCache = new Map<string, { expiresAt: number; result: ZipLookupSuccess }>();
+const zipLookupInflight = new Map<string, Promise<ZipLookupResult>>();
 
 function buildExpertLocationText({ streetAddress, city, state, zip }: ExpertLocationInput) {
   const street = String(streetAddress || '').trim();
@@ -231,7 +234,42 @@ export async function geocodeSearchCenter(input: SearchCenterInput): Promise<Geo
 }
 
 export async function lookupZipLocation(input: SearchCenterInput): Promise<ZipLookupResult> {
-  return geocodeStructuredSearchText(buildSearchCenterText(input));
+  const zip = String(input.zip || '').trim();
+  if (!zip) {
+    return geocodeStructuredSearchText(buildSearchCenterText(input));
+  }
+
+  const cached = zipLookupCache.get(zip);
+  const now = Date.now();
+  if (cached && cached.expiresAt > now) {
+    return cached.result;
+  }
+
+  if (cached) {
+    zipLookupCache.delete(zip);
+  }
+
+  const inflight = zipLookupInflight.get(zip);
+  if (inflight) {
+    return inflight;
+  }
+
+  const lookupPromise = geocodeStructuredSearchText(buildSearchCenterText({ zip }))
+    .then((result) => {
+      if (result.ok) {
+        zipLookupCache.set(zip, {
+          expiresAt: now + ZIP_LOOKUP_CACHE_TTL_MS,
+          result,
+        });
+      }
+      return result;
+    })
+    .finally(() => {
+      zipLookupInflight.delete(zip);
+    });
+
+  zipLookupInflight.set(zip, lookupPromise);
+  return lookupPromise;
 }
 
 export async function autocompleteLocation(text: string, type: AutocompleteType): Promise<LocationAutocompleteResult> {
