@@ -1,5 +1,8 @@
 import { Fraunces, Manrope } from 'next/font/google';
 import './globals.css';
+import '@/components/HomeMarketplace.css';
+import '@/components/ExpertsDirectory.css';
+import '@/components/PublicDiscovery.css';
 import AppHeader from '@/components/AppHeader';
 
 const manrope = Manrope({

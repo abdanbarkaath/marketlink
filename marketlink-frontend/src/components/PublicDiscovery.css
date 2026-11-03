@@ -1,0 +1,23 @@
+/* Keep public discovery refinements out of auth and dashboard surfaces. */
+:is(.approved-home, .experts-directory) dialog {
+  position: fixed;
+  inset: 0;
+  margin: auto;
+  max-height: calc(100dvh - 32px);
+  overflow: auto;
+  overscroll-behavior: contain;
+}
+html:has(:is(.approved-home, .experts-directory) dialog:modal),
+body:has(:is(.approved-home, .experts-directory) dialog:modal) { overflow: hidden; }
+html:has(:is(.approved-home, .experts-directory) dialog:modal) { scrollbar-gutter: stable; }
+.experts-directory :is(input, select, textarea).ml-input {
+  border-radius: 8px;
+  min-height: 48px;
+  font-size: 16px;
+  background: #fff;
+  box-shadow: none;
+}
+.experts-directory .ml-select-panel { border: 1px solid #c5cedb; border-radius: 8px; box-shadow: 0 12px 28px rgba(25, 42, 72, .12); }
+.experts-directory .ml-select-label { font-weight: 700; }
+:is(.experts-directory, .agency-profile) .maplibregl-ctrl-attrib-inner a { color: #334155; text-decoration: underline; }
+.agency-profile .profile-contact-section button { box-shadow: none; }

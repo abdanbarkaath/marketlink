@@ -379,6 +379,21 @@ A task is done only when:
 
 ---
 
+## Product Resources
+
+For UI work, read the root `DESIGN.md` as the shared visual contract. Apply the approved public discovery and profile guidance to the landing page, Browse Experts, and agency details. Preserve semantic status colors and existing behavior; do not equate a clean design scan with completed visual or accessibility verification.
+
+Use the installed `ponytail` skill for coding, reviews, and dependency decisions by default, as requested by the user. Read its actual SKILL.md when available; if it is missing on another machine, say so. Prefer the smallest complete change, reuse existing code, and keep communication concise. Never sacrifice requested behavior, validation, security, accessibility, or necessary verification to reduce tokens. Token savings are not guaranteed.
+
+For every UI change, follow this order:
+
+1. **UI/UX Pro Max** (`ui-ux-pro-max`): review usability, layout, accessibility, typography, and responsive behavior.
+2. **Avoid AI Design** (`avoid-ai-design`): review and remove generic AI-looking patterns. "Make it less AI" means use this skill; the user need not recall its name.
+3. **Impeccable**: refine visual direction, critique, polish, and presentation. Installed in this project at `.agents/skills/impeccable/SKILL.md`; read it and the relevant command reference. Preserve the user's chosen design instead of inventing more alternatives.
+4. **Implement with Ponytail** (`ponytail`): make the smallest complete, maintainable change, reuse existing code, and avoid unnecessary dependencies or repeated work.
+
+Use the depth appropriate to the change; a small UI fix does not require a new design tournament or full-site audit. Preserve approved behavior and product positioning. Review actual desktop/mobile renders and interactions; a clean scanner is not design approval. Treat rejected designs as feedback, not a binding style. Automatic Impeccable hooks were not installed; run checks manually when required. Do not use its live copy-edit fallback with approval/sandbox bypass flags.
+
 ## Final Principle
 
 Ship fast. Keep it simple. Leave the code cleaner than you found it.
