@@ -93,6 +93,26 @@ export default function AppHeader() {
   const actionButtonClass = 'ml-btn-secondary inline-flex min-h-11 items-center justify-center rounded-full border px-4 text-sm font-semibold shadow-sm transition';
   const mobileMenuButtonClass = 'inline-flex h-11 w-11 items-center justify-center rounded-full border border-slate-200/80 bg-white text-slate-950 shadow-sm transition lg:hidden';
 
+  if (isHomePage || pathname === '/experts' || pathname?.startsWith('/experts/')) {
+    const publicNavItems = navItems.filter(item => !(isHomePage && item.href === '/'));
+    if (isHomePage && !canSeeDashboard) publicNavItems.push({ href: '/signup', label: 'For agencies', active: false });
+    return (
+      <header className="approved-home home-preview-header">
+        <div className="wrap nav">
+          <Link href="/" aria-label="MarketLink home" aria-current={isHomePage ? 'page' : undefined} className="brand">
+            <span className="mark" aria-hidden="true">ML</span>MarketLink
+          </Link>
+          <nav aria-label="Main navigation" className="home-preview-nav">
+            {publicNavItems.map(item => <Link key={item.href} href={item.href} aria-current={item.active ? 'page' : undefined}>{item.label}</Link>)}
+            <div className="home-preview-account">
+              {role === null ? <span className="inline-block h-11 w-16" aria-hidden="true" /> : canSeeDashboard ? <LogoutButton className="signin" /> : <Link href="/login" className="signin">Sign in</Link>}
+            </div>
+          </nav>
+        </div>
+      </header>
+    );
+  }
+
   return (
     <header className="sticky top-0 z-50 border-b border-slate-200/75 bg-white/78 backdrop-blur-xl">
       <div className="mx-auto flex max-w-7xl items-center justify-between gap-4 px-4 py-3 sm:px-6 sm:py-4 lg:hidden">

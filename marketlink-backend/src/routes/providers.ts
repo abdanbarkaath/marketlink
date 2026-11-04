@@ -4,19 +4,20 @@ import { prisma } from '../lib/prisma';
 import { getUserFromRequest } from '../lib/session';
 import { ExpertMediaType, ExpertStatus, ExpertType, LocationPrecision } from '@prisma/client';
 import { autocompleteLocation, geocodeExpertLocation, geocodeSearchCenter, lookupZipLocation } from '../lib/geocoding';
+import { groupedServiceFilter, parseServiceGroups } from '../lib/providerSearch';
 
-type SortKey = 'newest' | 'name' | 'rating' | 'verified';
+type SortKey = 'newest' | 'name' | 'rating' | 'verified' | 'distance';
 type OrderDir = 'asc' | 'desc';
 type MatchMode = 'any' | 'all';
 type RadiusMiles = 5 | 10 | 20 | 50 | 100;
 
 const asSortKey = (v?: string): SortKey => {
-  if (v === 'name' || v === 'rating' || v === 'verified') return v;
+  if (v === 'name' || v === 'rating' || v === 'verified' || v === 'distance') return v;
   return 'newest';
 };
 const asOrder = (v: string | undefined, sort: SortKey): OrderDir => {
   if (v === 'asc' || v === 'desc') return v;
-  return sort === 'name' ? 'asc' : 'desc';
+  return sort === 'name' || sort === 'distance' ? 'asc' : 'desc';
 };
 const asMatch = (v?: string): MatchMode => (v === 'all' ? 'all' : 'any');
 
@@ -259,6 +260,9 @@ const listQuerySchema = {
   additionalProperties: false,
   properties: {
     name: { type: 'string' },
+    q: { type: 'string', maxLength: 200 },
+    serviceGroups: { type: 'string', maxLength: 12000 },
+    expertType: { type: 'string', enum: ['agency', 'freelancer', 'creator', 'specialist'] },
     city: { type: 'string' },
     zip: { type: 'string' },
     radius: { type: 'string', enum: ['5', '10', '20', '50', '100'] },
@@ -267,7 +271,7 @@ const listQuerySchema = {
     verified: { type: 'string' }, // "1" | "true" | "0" | "false"
     match: { type: 'string', enum: ['any', 'all'] },
 
-    sort: { type: 'string', enum: ['newest', 'name', 'rating', 'verified'] },
+    sort: { type: 'string', enum: ['newest', 'name', 'rating', 'verified', 'distance'] },
     order: { type: 'string', enum: ['asc', 'desc'] },
     page: { type: 'string', pattern: '^[0-9]+$' },
     limit: { type: 'string', pattern: '^[0-9]+$' },
@@ -485,6 +489,9 @@ const expertsRoutes: FastifyPluginAsync = async (fastify) => {
       async (req, reply) => {
       const {
         name,
+        q,
+        serviceGroups,
+        expertType,
         city,
         zip,
         radius: radiusRaw,
@@ -500,6 +507,9 @@ const expertsRoutes: FastifyPluginAsync = async (fastify) => {
         limit: limitRaw,
       } = (req.query || {}) as {
         name?: string;
+        q?: string;
+        serviceGroups?: string;
+        expertType?: ExpertType;
         city?: string;
         zip?: string;
         radius?: string;
@@ -531,6 +541,28 @@ const expertsRoutes: FastifyPluginAsync = async (fastify) => {
       }
 
       const andFilters: Prisma.ExpertWhereInput[] = [];
+
+      if (sortRaw === 'distance' && !zipQuery) {
+        return reply.code(400).send({ error: 'Enter a ZIP code to sort by distance.' });
+      }
+      if (serviceGroups) {
+        try {
+          const groups = parseServiceGroups(serviceGroups);
+          if (groups.length) andFilters.push(groupedServiceFilter(groups, asMatch(matchRaw)));
+        } catch {
+          return reply.code(400).send({ error: 'Invalid service selection. Choose services again.' });
+        }
+      }
+      if (expertType) andFilters.push({ expertType });
+      if (q?.trim()) {
+        const text = q.trim();
+        andFilters.push({ OR: [
+          { businessName: { contains: text, mode: 'insensitive' } },
+          { tagline: { contains: text, mode: 'insensitive' } },
+          { shortDescription: { contains: text, mode: 'insensitive' } },
+          { services: { has: text.toLowerCase().replace(/\s+/g, '-') } },
+        ] });
+      }
 
       if (city && city.trim()) {
         andFilters.push({ city: { startsWith: city.trim(), mode: 'insensitive' } });
@@ -662,6 +694,8 @@ const expertsRoutes: FastifyPluginAsync = async (fastify) => {
         }
 
         total = nearby.length;
+        if (sortKey === 'distance') nearby.sort((a, b) =>
+          (primaryOrder === 'asc' ? 1 : -1) * (a.distanceMiles - b.distanceMiles) || a.businessName.localeCompare(b.businessName));
         rows = nearby.slice(skip, skip + take);
       } else {
         const result = await Promise.all([

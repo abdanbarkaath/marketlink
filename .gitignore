@@ -8,3 +8,11 @@ dist/
 .next/
 out/
 build/
+
+# Local design tooling, previews, and credentials
+.local-tools/
+.worktrees/
+.impeccable/
+.agents/skills/impeccable/scripts/bin/
+.env.local
+.env.*.local
