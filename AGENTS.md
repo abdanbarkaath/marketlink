@@ -394,6 +394,16 @@ For every UI change, follow this order:
 
 Use the depth appropriate to the change; a small UI fix does not require a new design tournament or full-site audit. Preserve approved behavior and product positioning. Review actual desktop/mobile renders and interactions; a clean scanner is not design approval. Treat rejected designs as feedback, not a binding style. Automatic Impeccable hooks were not installed; run checks manually when required. Do not use its live copy-edit fallback with approval/sandbox bypass flags.
 
+When `graphify-out/graph.json` exists, use Graphify for focused questions that span multiple files. Query from the repo root with `./.local-tools/graphify/Scripts/graphify.exe query "<question>" --budget 600`. Set `GRAPHIFY_QUERY_LOG_DISABLE=1` for local queries. Verify the relevant source before editing and use `rg` directly for exact lookups and files the graph does not cover, such as CSS. Refresh the graph on demand with `./.local-tools/graphify/Scripts/graphify.exe update .` and `GRAPHIFY_BACKEND=none`. Keep extraction code-only and the graph output local.
+
+Use `docs/product/resources.md` for the saved Founder's Playbook, MiroFish, and design-skill guidance when relevant to product planning or UI/UX work. These references support the MVP rules; they do not authorize installations, paid simulations, or broader scope.
+
+## Pull Requests and Local Changes
+
+- Keep each PR to the files the user requests. For public-page styling, include only the relevant landing page, Browse Experts, and agency detail styles. Include application logic, login, dashboards, agent files, or dotfiles only when the user includes them in scope.
+- If VS Code shows a large change count, check Git's modified and untracked counts and the actual PR diff. Check for previews, tool files, and other checkouts before deciding what belongs in the PR. Preserve unrelated local work while preparing a clean branch from `main`.
+- Use descriptive branch names such as `fix/...` or `feature/...`. Keep assistant branding out of PR titles, descriptions, and comments.
+
 ## Final Principle
 
 Ship fast. Keep it simple. Leave the code cleaner than you found it.
