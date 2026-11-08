@@ -707,3 +707,10 @@
 .agency-profile .profile-embed-hide { min-height: 44px; padding: 8px 18px; font-size: 13px; text-decoration: underline; text-underline-offset: 4px; cursor: pointer; }
 .agency-profile .profile-location-section .text-slate-400 { color: var(--profile-muted); }
 .agency-profile .profile-contact-section form>div:nth-child(2) { display: contents; }
+
+.agency-profile :is(input:not([type="checkbox"]):not([type="radio"]), select, textarea):focus {
+  outline: 2px solid #526075;
+  outline-offset: 2px;
+  border-color: #526075;
+  box-shadow: none;
+}
