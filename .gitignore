@@ -16,3 +16,6 @@ build/
 .agents/skills/impeccable/scripts/bin/
 .env.local
 .env.*.local
+
+# Local code index
+graphify-out/
