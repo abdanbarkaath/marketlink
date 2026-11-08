@@ -35,3 +35,10 @@
   }
 }
 @media(max-width:700px){.home-preview-header .nav{gap:12px}.home-preview-header .brand{font-size:21px}.home-preview-header nav{gap:10px;font-size:12px;white-space:nowrap}.home-preview-header nav a:first-child{display:inline-flex}.home-preview-header nav a[href="/signup"]{display:none}.home-preview-header .signin{padding:6px 10px}.approved-home .map .pin:last-of-type{top:65%!important}}
+
+.approved-home :is(input:not([type="checkbox"]):not([type="radio"]), select, textarea):focus {
+  outline: 2px solid #526075;
+  outline-offset: 2px;
+  border-color: #526075;
+  box-shadow: none;
+}

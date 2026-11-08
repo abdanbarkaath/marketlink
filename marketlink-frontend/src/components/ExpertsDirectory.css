@@ -35,3 +35,10 @@
   overflow-y: auto;
   overscroll-behavior: contain;
 }
+
+.experts-directory :is(input:not([type="checkbox"]):not([type="radio"]), select, textarea):focus {
+  outline: 2px solid #526075;
+  outline-offset: 2px;
+  border-color: #526075;
+  box-shadow: none;
+}
