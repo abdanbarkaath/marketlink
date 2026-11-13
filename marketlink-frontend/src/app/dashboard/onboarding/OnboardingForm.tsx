@@ -23,10 +23,11 @@ export default function OnboardingForm() {
   const [city, setCity] = useState('');
   const [state, setState] = useState('');
   const [zip, setZip] = useState('');
+  const [locationPrecision, setLocationPrecision] = useState('approximate');
   const [expertType, setExpertType] = useState('');
   const [services, setServices] = useState<string[]>([]);
 
-  const [status, setStatus] = useState<'idle' | 'submitting' | 'error'>('idle');
+  const [status, setStatus] = useState<'idle' | 'submitting'>('idle');
   const [error, setError] = useState<string | null>(null);
 
   function applyResolvedLocation(suggestion: LocationSuggestion) {
@@ -43,10 +44,9 @@ export default function OnboardingForm() {
 
     try {
       if (!businessName.trim()) throw new Error('Business name is required.');
-      if (!streetAddress.trim()) throw new Error('Address is required.');
+      if (locationPrecision === 'exact' && !streetAddress.trim()) throw new Error('Enter the business address you want to publish.');
       if (!city.trim()) throw new Error('City is required.');
       if (!state.trim()) throw new Error('State is required.');
-      if (!zip.trim()) throw new Error('ZIP is required.');
       if (!expertType) throw new Error('Expert type is required.');
       if (!services.length) throw new Error('Choose at least one help type.');
 
@@ -63,6 +63,7 @@ export default function OnboardingForm() {
           city: city.trim(),
           state: normalizedState,
           zip: zip.trim(),
+          locationPrecision,
           expertType,
           services,
         }),
@@ -73,79 +74,65 @@ export default function OnboardingForm() {
         throw new Error(body?.error || `Failed (${res.status})`);
       }
 
-      const data = await res.json();
-      const slug = (data?.expert?.slug || data?.provider?.slug) as string | undefined;
-
-      if (slug) {
-        router.replace(`/experts/${slug}`);
-        return;
-      }
-
-      router.replace('/dashboard');
+      router.replace('/dashboard/profile');
     } catch (err: unknown) {
-      setStatus('error');
       setError(err instanceof Error ? err.message : 'Something went wrong.');
     } finally {
       setStatus('idle');
     }
   }
 
-  const disabled = status === 'submitting' || !businessName.trim() || !streetAddress.trim() || !city.trim() || !state.trim() || !zip.trim() || !expertType || services.length === 0;
-  const sectionClass =
-    'rounded-[28px] border border-slate-200/80 bg-[linear-gradient(180deg,rgba(255,255,255,0.94),rgba(236,242,248,0.96))] p-5 shadow-[0_18px_50px_rgba(15,23,42,0.06)] sm:p-6';
+  const disabled = status === 'submitting';
   const fieldClass =
-    'w-full rounded-2xl border border-slate-200/80 bg-white px-4 py-3 text-sm text-slate-800 outline-none transition placeholder:text-slate-400 placeholder:opacity-55 focus:border-slate-400 focus:bg-white focus:ring-2 focus:ring-slate-200/70';
+    'w-full rounded-2xl border border-slate-200/80 bg-white px-4 py-3 text-sm text-slate-800 outline-none transition placeholder:text-slate-500 focus:border-slate-400 focus:bg-white focus:ring-2 focus:ring-slate-200/70';
   return (
-    <main className="mx-auto max-w-5xl px-4 py-6 sm:px-6 sm:py-8">
-      <div className="grid gap-5 lg:grid-cols-[minmax(0,1.05fr)_320px] lg:items-start">
-        <section className={`${sectionClass} order-1`}>
+    <main className="mx-auto max-w-2xl px-4 py-6 sm:px-6 sm:py-8">
+        <section className="rounded-xl border border-slate-200 bg-white p-5 sm:p-6">
           <div className="flex flex-col gap-1">
-            <p className="text-xs font-semibold uppercase tracking-[0.32em] text-slate-500">Expert onboarding</p>
             <h1 className="text-3xl font-semibold tracking-tight text-slate-950 sm:text-4xl">Create your expert profile</h1>
             <p className="text-sm leading-6 text-slate-600 sm:text-base">
-              Start with the essentials that power discovery. Choose your exact business address first, then add proof, pricing, and portfolio detail in your profile editor after this.
+              Create your public listing. You can add pricing and examples of your work later.
             </p>
           </div>
 
           <form className="mt-6 grid gap-5" onSubmit={handleSubmit}>
             <div>
-              <label className="mb-1 block text-sm font-medium text-slate-700">Business name *</label>
-              <input className={fieldClass} value={businessName} onChange={(e) => setBusinessName(e.target.value)} placeholder="Windy City Growth" required />
+              <label className="mb-1 block text-sm font-medium text-slate-700" htmlFor="setup-name">Business name *</label>
+              <input id="setup-name" className={fieldClass} value={businessName} onChange={(e) => setBusinessName(e.target.value)} placeholder="Windy City Growth" required />
             </div>
 
             <div className="grid gap-4">
               <LocationAutocompleteField
-                label="Business address *"
+                label="Business address (optional)"
                 value={streetAddress}
                 onChange={setStreetAddress}
                 onResolve={applyResolvedLocation}
                 type="address"
-                placeholder="Start typing your exact address or place name"
-                required
+                placeholder="Search for a business address"
                 fieldClass={fieldClass}
                 autoComplete="street-address"
-                helperText="Pick the exact business location from the dropdown. City, state, and ZIP will fill in automatically."
+                helperText="Choose a suggestion to fill in city, state, and ZIP, or enter them below."
               />
             </div>
 
             <div className="grid grid-cols-1 gap-4 sm:grid-cols-3">
               <div>
-                <label className="mb-1 block text-sm font-medium text-slate-700">City *</label>
-                <input className={`${fieldClass} bg-slate-50 text-slate-600`} value={city} readOnly />
+                <label className="mb-1 block text-sm font-medium text-slate-700" htmlFor="setup-city">City *</label>
+                <input id="setup-city" className={fieldClass} value={city} onChange={(e) => setCity(e.target.value)} required />
               </div>
               <div>
-                <label className="mb-1 block text-sm font-medium text-slate-700">State *</label>
-                <input className={`${fieldClass} bg-slate-50 text-slate-600`} value={state} readOnly />
+                <label className="mb-1 block text-sm font-medium text-slate-700" htmlFor="setup-state">State *</label>
+                <input id="setup-state" className={fieldClass} value={state} onChange={(e) => setState(e.target.value)} required />
               </div>
               <div>
-                <label className="mb-1 block text-sm font-medium text-slate-700">ZIP *</label>
-                <input className={`${fieldClass} bg-slate-50 text-slate-600`} value={zip} readOnly />
+                <label className="mb-1 block text-sm font-medium text-slate-700" htmlFor="setup-zip">ZIP (optional)</label>
+                <input id="setup-zip" className={fieldClass} value={zip} onChange={(e) => setZip(e.target.value)} autoComplete="postal-code" />
               </div>
             </div>
 
             <div>
-              <label className="mb-1 block text-sm font-medium text-slate-700">Expert type *</label>
-              <select className={fieldClass} value={expertType} onChange={(e) => setExpertType(e.target.value)} required>
+              <label className="mb-1 block text-sm font-medium text-slate-700" htmlFor="setup-type">Expert type *</label>
+              <select id="setup-type" className={fieldClass} value={expertType} onChange={(e) => setExpertType(e.target.value)} required>
                 <option value="">Select the best fit</option>
                 {EXPERT_TYPE_OPTIONS.map((opt) => (
                   <option key={opt.value} value={opt.value}>
@@ -161,17 +148,27 @@ export default function OnboardingForm() {
             </div>
 
             <div>
+              <label htmlFor="setup-location-display" className="mb-1 block text-sm font-medium">Public location</label>
+              <select id="setup-location-display" className={fieldClass} value={locationPrecision} onChange={(event) => setLocationPrecision(event.target.value)}>
+                <option value="approximate">City and state</option>
+                <option value="private">Hide my location</option>
+                <option value="exact">Show my exact business address</option>
+              </select>
+              <p className="mt-2 text-sm text-slate-600">A hidden location is excluded from nearby searches. Buyers can still find your listing by name or service.</p>
+            </div>
+
+            <div>
               <TaxonomyServicePicker services={services} onChange={setServices} required />
             </div>
 
-            {error ? <p className="rounded-2xl border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700">{error}</p> : null}
+            {error ? <p role="alert" tabIndex={-1} ref={(node) => { node?.focus(); }} className="rounded-2xl border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700">{error}</p> : null}
 
             <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
               <p className="text-xs text-slate-500">* required</p>
               <button
                 type="submit"
                 disabled={disabled}
-                className="rounded-full bg-slate-900 px-5 py-3 text-sm font-semibold text-white transition hover:bg-slate-800 disabled:cursor-not-allowed disabled:opacity-60"
+                className="rounded-lg bg-[#2455B5] px-5 py-3 text-sm font-semibold text-white transition hover:bg-[#1E489A] focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#2455B5] disabled:cursor-not-allowed disabled:opacity-60"
               >
                 {status === 'submitting' ? 'Creating...' : 'Create profile'}
               </button>
@@ -179,24 +176,6 @@ export default function OnboardingForm() {
           </form>
         </section>
 
-        <aside className={`${sectionClass} order-2 lg:sticky lg:top-6`}>
-          <div className="text-xs font-semibold uppercase tracking-[0.28em] text-slate-400">What happens next</div>
-          <div className="mt-4 grid gap-3">
-            <div className="rounded-2xl border border-slate-200/80 bg-[linear-gradient(180deg,rgba(248,250,252,0.98),rgba(226,232,240,0.72))] p-4 shadow-[0_10px_30px_rgba(15,23,42,0.04)]">
-              <div className="text-sm font-semibold text-slate-900">1. Create the listing</div>
-              <p className="mt-1 text-sm text-slate-600">Start with the fields buyers need first: business name, exact address, expert type, and the help you actually offer.</p>
-            </div>
-            <div className="rounded-2xl border border-slate-200/80 bg-[linear-gradient(180deg,rgba(248,250,252,0.98),rgba(226,232,240,0.72))] p-4 shadow-[0_10px_30px_rgba(15,23,42,0.04)]">
-              <div className="text-sm font-semibold text-slate-900">2. Add proof of work</div>
-              <p className="mt-1 text-sm text-slate-600">After setup, use the profile editor to add case studies, clients, media, pricing, and creator proof.</p>
-            </div>
-            <div className="rounded-2xl border border-slate-200/80 bg-[linear-gradient(180deg,rgba(248,250,252,0.98),rgba(226,232,240,0.72))] p-4 shadow-[0_10px_30px_rgba(15,23,42,0.04)]">
-              <div className="text-sm font-semibold text-slate-900">3. Keep it focused</div>
-              <p className="mt-1 text-sm text-slate-600">Pick only the areas and help types you want buyers to find you for first.</p>
-            </div>
-          </div>
-        </aside>
-      </div>
     </main>
   );
 }

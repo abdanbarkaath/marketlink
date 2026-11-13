@@ -15,9 +15,9 @@ type Provider = {
   id: string;
   slug: string;
   businessName: string;
-  email: string;
+  streetAddress?: string | null;
   expertType?: 'agency' | 'freelancer' | 'creator' | 'specialist' | null;
-  locationPrecision?: 'exact' | 'approximate' | null;
+  locationPrecision?: 'exact' | 'approximate' | 'private' | null;
   tagline: string | null;
   shortDescription?: string | null;
   overview?: string | null;
@@ -374,7 +374,7 @@ function ProviderPageContent({ provider: p }: { provider: Provider }) {
   const activePostMedia = activePost ? getMediaPresentation(activePost) : null;
   const hourlyRange = formatMoneyRange(p.hourlyRateMin, p.hourlyRateMax, p.currencyCode, ' / hour');
   const startingBudget = formatMoney(p.minProjectBudget, p.currencyCode);
-  const location = formatLocation(p.city, p.state, p.locationPrecision === 'approximate' ? null : p.zip);
+  const location = [p.locationPrecision === 'exact' ? p.streetAddress : null, formatLocation(p.city, p.state, p.zip)].filter(Boolean).join(', ');
   const groupedServices = getGroupedServicesForExpert(p.services) as GroupedExpertServiceSubject[];
   const unmatchedServices = getUnmatchedServiceTokensForExpert(p.services);
   const links = [
@@ -714,11 +714,11 @@ function ProviderPageContent({ provider: p }: { provider: Provider }) {
           <section className="profile-location-section">
             <h2>Location &amp; coverage</h2>
             <p>
-              {location || 'Location not provided'}
+              {location || (p.locationPrecision === 'private' ? 'Location hidden' : 'Location not provided')}
               {p.remoteFriendly ? ' · Remote-friendly' : ''}
               {p.servesNationwide ? ' · Serves nationwide' : ''}
             </p>
-            <ExpertProfileMap businessName={p.businessName} locationLabel={location} locationPrecision={p.locationPrecision} latitude={p.latitude} longitude={p.longitude} />
+            {location ? <ExpertProfileMap businessName={p.businessName} locationLabel={location} locationPrecision={p.locationPrecision} latitude={p.latitude} longitude={p.longitude} /> : null}
           </section>
         </aside>
       </div>
