@@ -78,6 +78,7 @@ export default function LocationAutocompleteField({
   helperText,
 }: Props) {
   const listId = useId();
+  const [activeIndex, setActiveIndex] = useState(-1);
   const [open, setOpen] = useState(false);
   const [loading, setLoading] = useState(false);
   const [selectionError, setSelectionError] = useState<string | null>(null);
@@ -119,6 +120,8 @@ export default function LocationAutocompleteField({
         }
 
         setSuggestions(Array.isArray(body?.suggestions) ? body!.suggestions! : []);
+      } catch {
+        if (currentFetchId === fetchIdRef.current) setSuggestions([]);
       } finally {
         if (currentFetchId === fetchIdRef.current) {
           setLoading(false);
@@ -126,7 +129,10 @@ export default function LocationAutocompleteField({
       }
     }, 220);
 
-    return () => window.clearTimeout(timeout);
+    return () => {
+      window.clearTimeout(timeout);
+      fetchIdRef.current += 1;
+    };
   }, [minCharacters, trimmedValue, type]);
 
   const handleSelect = (suggestion: LocationSuggestion) => {
@@ -135,6 +141,7 @@ export default function LocationAutocompleteField({
     onChange(getDisplayValue(type, suggestion));
     onResolve?.(suggestion);
     setOpen(false);
+    setActiveIndex(-1);
     setSuggestions([]);
   };
 
@@ -153,6 +160,7 @@ export default function LocationAutocompleteField({
         return;
       }
 
+      if (!required) return;
       onChange('');
       setSuggestions([]);
       setSelectionError('Choose a value from the dropdown.');
@@ -163,11 +171,13 @@ export default function LocationAutocompleteField({
 
   return (
     <div className="relative">
-      <label className="mb-1 block text-sm font-medium text-slate-700">{label}</label>
+      <label htmlFor={listId + '-input'} className="mb-1 block text-sm font-medium text-slate-700">{label}</label>
       <input
         className={fieldClass}
+        id={listId + '-input'}
         value={value}
         onChange={(e) => {
+          setActiveIndex(-1);
           confirmedSelectionRef.current = false;
           setSelectionError(null);
           onChange(e.target.value);
@@ -180,25 +190,46 @@ export default function LocationAutocompleteField({
         autoComplete={autoComplete}
         inputMode={inputMode}
         maxLength={maxLength}
+        role="combobox"
         aria-autocomplete="list"
-        aria-controls={listId}
+        aria-expanded={showSuggestions}
+        aria-controls={showSuggestions ? listId : undefined}
+        aria-describedby={helperText ? listId + '-help' : undefined}
+        aria-activedescendant={showSuggestions && suggestions[activeIndex] ? listId + '-' + activeIndex : undefined}
+        onKeyDown={(event) => {
+          if (event.key === 'Escape' && open) {
+            event.preventDefault();
+            setOpen(false);
+            setActiveIndex(-1);
+          } else if ((event.key === 'ArrowDown' || event.key === 'ArrowUp') && suggestions.length) {
+            event.preventDefault();
+            setOpen(true);
+            const last = suggestions.length - 1;
+            setActiveIndex((index) => event.key === 'ArrowDown' ? Math.min(index + 1, last) : index < 0 ? last : Math.max(0, index - 1));
+          } else if (event.key === 'Enter' && showSuggestions && suggestions[activeIndex]) {
+            event.preventDefault();
+            handleSelect(suggestions[activeIndex]);
+          }
+        }}
       />
 
-      {helperText ? <p className="mt-2 text-xs leading-6 text-slate-500">{helperText}</p> : null}
+      {helperText ? <p id={listId + '-help'} className="mt-2 text-xs leading-6 text-slate-500">{helperText}</p> : null}
       {selectionError ? <p className="mt-2 text-xs leading-6 text-red-600">{selectionError}</p> : null}
 
       {showSuggestions ? (
-        <div id={listId} className="absolute z-30 mt-2 w-full overflow-hidden rounded-2xl border border-slate-200/80 bg-white shadow-[0_18px_50px_rgba(15,23,42,0.12)]">
+        <div id={listId} role="listbox" className="absolute z-30 mt-2 w-full overflow-hidden rounded-2xl border border-slate-200/80 bg-white shadow-[0_18px_50px_rgba(15,23,42,0.12)]">
           <ul className="max-h-64 overflow-y-auto py-2">
             {suggestions.map((suggestion, index) => (
               <li key={`${getSuggestionLabel(type, suggestion)}-${index}`}>
                 <button
+                  id={listId + '-' + index}
+                  role="option"
+                  aria-selected={activeIndex === index}
+                  tabIndex={-1}
                   type="button"
-                  onMouseDown={(e) => {
-                    e.preventDefault();
-                    handleSelect(suggestion);
-                  }}
-                  className="w-full px-4 py-3 text-left text-sm text-slate-700 transition hover:bg-slate-50"
+                  onMouseDown={(event) => event.preventDefault()}
+                  onClick={() => handleSelect(suggestion)}
+                  className="w-full px-4 py-3 text-left text-sm text-slate-700 transition hover:bg-slate-50 aria-selected:bg-blue-50"
                 >
                   {getSuggestionLabel(type, suggestion)}
                 </button>

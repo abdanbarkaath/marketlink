@@ -30,6 +30,7 @@ export default function LogoutButton({ className = '' }: { className?: string })
   return (
     <button
       type="button"
+      data-sign-out
       onClick={handleLogout}
       className={`inline-flex items-center justify-center rounded-xl px-3 py-2 text-sm font-medium transition disabled:cursor-not-allowed disabled:opacity-60 ${className}`}
       disabled={loading}

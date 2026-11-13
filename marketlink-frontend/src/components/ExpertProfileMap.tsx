@@ -7,7 +7,7 @@ import maplibregl, { type StyleSpecification } from 'maplibre-gl';
 type Props = {
   businessName: string;
   locationLabel: string;
-  locationPrecision?: 'exact' | 'approximate' | null;
+  locationPrecision?: 'exact' | 'approximate' | 'private' | null;
   latitude?: number | null;
   longitude?: number | null;
 };

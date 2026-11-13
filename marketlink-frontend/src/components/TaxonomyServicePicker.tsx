@@ -1,9 +1,8 @@
 'use client';
 
-import { useEffect, useId, useMemo, useState } from 'react';
+import { useId, useMemo, useState } from 'react';
 import {
   formatServiceTokenLabel,
-  getServiceTokensForSubject,
   getServiceTokensForSubcategory,
   getUnmatchedServiceTokensForExpert,
   marketingSubjects,
@@ -24,15 +23,14 @@ type SubjectSuggestion = {
 
 type HelpSuggestion = {
   id: string;
-  subjectId: string;
   subjectLabel: string;
   label: string;
   description: string;
   keywords: readonly string[];
 };
 
-const MAX_SUBJECTS = 3;
-const MAX_HELP_TYPES = 8;
+const MAX_SUBJECTS = 5;
+const MAX_HELP_TYPES = 10;
 
 function normalizeSearchValue(value: string) {
   return value.trim().toLowerCase();
@@ -52,51 +50,32 @@ function parseHelpKey(helpKey: string) {
 }
 
 function deriveSelectionFromServices(services: readonly string[]) {
-  const serviceSet = new Set(services.map((service) => service.trim().toLowerCase()).filter(Boolean));
-  const selectedSubjectIds = marketingSubjects
-    .filter((subject) => getServiceTokensForSubject(subject.id).some((token) => serviceSet.has(token)))
-    .map((subject) => subject.id);
+  const remaining = new Set(services.map((service) => service.trim().toLowerCase()));
+  const options = marketingSubjects.flatMap((subject) =>
+    subject.subcategories.map((subcategory) => ({
+      subjectId: subject.id,
+      helpKey: buildHelpKey(subject.id, subcategory.id),
+      tokens: getServiceTokensForSubcategory(subject.id, subcategory.id),
+    })),
+  );
 
-  const selectedHelpKeys: string[] = [];
-
-  for (const subject of marketingSubjects) {
-    const matches = subject.subcategories
-      .map((subcategory) => {
-        const subcategoryTokens = uniqueStrings([
-          ...subcategory.serviceTokens,
-          ...subcategory.deliverables.flatMap((deliverable) => deliverable.serviceTokens),
-        ]);
-        const overlaps = subcategoryTokens.filter((token) => serviceSet.has(token));
-        return { subcategory, overlaps };
-      })
-      .filter((item) => item.overlaps.length > 0);
-
-    if (matches.length === 1) {
-      selectedHelpKeys.push(buildHelpKey(subject.id, matches[0].subcategory.id));
-      continue;
-    }
-
-    if (matches.length < 2) {
-      continue;
-    }
-
-    const overlapCounts = new Map<string, number>();
-    for (const match of matches) {
-      for (const token of uniqueStrings(match.overlaps)) {
-        overlapCounts.set(token, (overlapCounts.get(token) || 0) + 1);
-      }
-    }
-
-    for (const match of matches) {
-      if (match.overlaps.some((token) => overlapCounts.get(token) === 1)) {
-        selectedHelpKeys.push(buildHelpKey(subject.id, match.subcategory.id));
-      }
-    }
+  // Prefer saved bundles, then use distinctive tags to recover older profiles.
+  const selected = options
+    .filter(({ tokens }) => tokens.length && tokens.every((token) => remaining.has(token)))
+    .sort((left, right) => right.tokens.length - left.tokens.length)
+    .filter(({ tokens }) => {
+      if (!tokens.some((token) => remaining.has(token))) return false;
+      tokens.forEach((token) => remaining.delete(token));
+      return true;
+    });
+  for (const token of remaining) {
+    const matches = options.filter((option) => option.tokens.includes(token));
+    if (matches.length === 1 && !selected.includes(matches[0])) selected.push(matches[0]);
   }
 
   return {
-    selectedSubjectIds,
-    selectedHelpKeys: uniqueStrings(selectedHelpKeys),
+    selectedSubjectIds: uniqueStrings(selected.map(({ subjectId }) => subjectId)),
+    selectedHelpKeys: selected.map(({ helpKey }) => helpKey),
   };
 }
 
@@ -123,16 +102,14 @@ export default function TaxonomyServicePicker({ services, onChange, required = f
   const helpListId = useId();
   const [subjectQuery, setSubjectQuery] = useState('');
   const [helpQuery, setHelpQuery] = useState('');
+  const [subjectIndex, setSubjectIndex] = useState(-1);
   const [subjectOpen, setSubjectOpen] = useState(false);
+  const [helpIndex, setHelpIndex] = useState(-1);
   const [helpOpen, setHelpOpen] = useState(false);
-  const [selectedSubjectIds, setSelectedSubjectIds] = useState<string[]>([]);
-  const [selectedHelpKeys, setSelectedHelpKeys] = useState<string[]>([]);
-
-  useEffect(() => {
-    const nextSelection = deriveSelectionFromServices(services);
-    setSelectedSubjectIds(nextSelection.selectedSubjectIds);
-    setSelectedHelpKeys(nextSelection.selectedHelpKeys);
-  }, [services]);
+  // Both callers mount the picker once the initial services are available.
+  const [initialSelection] = useState(() => deriveSelectionFromServices(services));
+  const [selectedSubjectIds, setSelectedSubjectIds] = useState(initialSelection.selectedSubjectIds);
+  const [selectedHelpKeys, setSelectedHelpKeys] = useState(initialSelection.selectedHelpKeys);
 
   const subjectSuggestions = useMemo<SubjectSuggestion[]>(
     () =>
@@ -152,7 +129,6 @@ export default function TaxonomyServicePicker({ services, onChange, required = f
         .flatMap((subject) =>
           subject.subcategories.map((subcategory) => ({
             id: buildHelpKey(subject.id, subcategory.id),
-            subjectId: subject.id,
             subjectLabel: subject.label,
             label: subcategory.label,
             description: subcategory.shortDescription,
@@ -194,12 +170,17 @@ export default function TaxonomyServicePicker({ services, onChange, required = f
 
   function commitHelpSelection(nextHelpKeys: string[]) {
     setSelectedHelpKeys(nextHelpKeys);
-    const nextTokens = uniqueStrings(
-      nextHelpKeys.flatMap((helpKey) => {
-        const { subjectId, subcategoryId } = parseHelpKey(helpKey);
-        return getServiceTokensForSubcategory(subjectId, subcategoryId);
-      }),
-    );
+    const tokensFor = (helpKey: string) => {
+      const { subjectId, subcategoryId } = parseHelpKey(helpKey);
+      return getServiceTokensForSubcategory(subjectId, subcategoryId);
+    };
+    const removedTokens = new Set(selectedHelpKeys.filter((key) => !nextHelpKeys.includes(key)).flatMap(tokensFor));
+    const retainedTokens = new Set(nextHelpKeys.filter((key) => selectedHelpKeys.includes(key)).flatMap(tokensFor));
+    const addedTokens = nextHelpKeys.filter((key) => !selectedHelpKeys.includes(key)).flatMap(tokensFor);
+    const nextTokens = uniqueStrings([
+      ...services.filter((token) => !removedTokens.has(token) || retainedTokens.has(token)),
+      ...addedTokens,
+    ]);
     onChange(nextTokens);
   }
 
@@ -235,29 +216,49 @@ export default function TaxonomyServicePicker({ services, onChange, required = f
     <div className="grid gap-5">
       <div className="grid gap-2">
         <div className="flex items-center justify-between gap-3">
-          <label className="text-sm font-medium text-slate-700">
+          <label htmlFor={areaListId + '-input'} className="text-sm font-medium text-slate-700">
             Marketing areas {required ? '*' : null}
           </label>
-          <span className="text-xs text-slate-500">{selectedSubjectIds.length}/{MAX_SUBJECTS} selected</span>
+          <span className="text-xs text-slate-500">{selectedSubjectIds.length} selected · up to {MAX_SUBJECTS}</span>
         </div>
-        <p className="text-xs leading-6 text-slate-500">Pick the main areas buyers should find you under, like creator promotion or reels production.</p>
+        <p className="text-xs leading-6 text-slate-500">Choose the main areas you work in.</p>
         <div className="relative">
           <input
+            id={areaListId + '-input'}
             value={subjectQuery}
+            onKeyDown={(event) => {
+              if (event.key === 'Escape' && subjectOpen) {
+                event.preventDefault();
+                setSubjectOpen(false);
+                setSubjectIndex(-1);
+              } else if ((event.key === 'ArrowDown' || event.key === 'ArrowUp') && visibleSubjectSuggestions.length) {
+                event.preventDefault();
+                setSubjectOpen(true);
+                const last = visibleSubjectSuggestions.length - 1;
+                setSubjectIndex((index) => event.key === 'ArrowDown' ? Math.min(index + 1, last) : index < 0 ? last : Math.max(index - 1, 0));
+              } else if (event.key === 'Enter' && subjectOpen && visibleSubjectSuggestions[subjectIndex]) {
+                event.preventDefault();
+                addSubject(visibleSubjectSuggestions[subjectIndex].id);
+                setSubjectIndex(-1);
+              }
+            }}
             onChange={(event) => {
+              setSubjectIndex(-1);
               setSubjectQuery(event.target.value);
               setSubjectOpen(true);
             }}
             onFocus={() => setSubjectOpen(true)}
+            onClick={() => setSubjectOpen(true)}
             onBlur={() => {
               window.setTimeout(() => setSubjectOpen(false), 120);
             }}
-            placeholder={canAddMoreSubjects ? 'Search areas like creator promotion, reels, or reviews' : 'Remove one area to add another'}
+            placeholder={canAddMoreSubjects ? 'Search marketing areas' : 'Remove one area to add another'}
             disabled={!canAddMoreSubjects}
-            className="w-full rounded-2xl border border-slate-200/80 bg-white px-4 py-3 pr-10 text-sm text-slate-800 outline-none transition placeholder:text-slate-400 placeholder:opacity-55 focus:border-slate-400 focus:bg-white focus:ring-2 focus:ring-slate-200/70 disabled:cursor-not-allowed disabled:bg-slate-50 disabled:text-slate-400"
+            className="w-full rounded-2xl border border-slate-200/80 bg-white px-4 py-3 pr-10 text-sm text-slate-800 outline-none transition placeholder:text-slate-500 focus:border-slate-400 focus:bg-white focus:ring-2 focus:ring-slate-200/70 disabled:cursor-not-allowed disabled:bg-slate-50 disabled:text-slate-400"
             role="combobox"
             aria-autocomplete="list"
-            aria-controls={areaListId}
+            aria-controls={subjectOpen && visibleSubjectSuggestions.length ? areaListId : undefined}
+            aria-activedescendant={subjectOpen && visibleSubjectSuggestions[subjectIndex] ? areaListId + '-' + subjectIndex : undefined}
             aria-haspopup="listbox"
             aria-expanded={subjectOpen && visibleSubjectSuggestions.length > 0}
           />
@@ -270,15 +271,17 @@ export default function TaxonomyServicePicker({ services, onChange, required = f
           {subjectOpen && visibleSubjectSuggestions.length > 0 ? (
             <div id={areaListId} role="listbox" className="absolute z-30 mt-2 w-full overflow-hidden rounded-[1.35rem] border border-slate-200/80 bg-white shadow-[0_18px_50px_rgba(15,23,42,0.12)]">
               <ul className="max-h-72 overflow-y-auto py-2">
-                {visibleSubjectSuggestions.map((suggestion) => (
+                {visibleSubjectSuggestions.map((suggestion, index) => (
                   <li key={suggestion.id}>
                     <button
+                      id={areaListId + '-' + index}
+                      role="option"
+                      aria-selected={subjectIndex === index}
+                      tabIndex={-1}
                       type="button"
-                      onMouseDown={(event) => {
-                        event.preventDefault();
-                        addSubject(suggestion.id);
-                      }}
-                      className="w-full px-4 py-3 text-left transition hover:bg-slate-50"
+                      onMouseDown={(event) => event.preventDefault()}
+                      onClick={() => addSubject(suggestion.id)}
+                      className="w-full px-4 py-3 text-left transition hover:bg-slate-50 aria-selected:bg-blue-50"
                     >
                       <div className="text-sm font-semibold text-slate-900">{suggestion.label}</div>
                       <div className="mt-1 text-xs leading-5 text-slate-600">{suggestion.description}</div>
@@ -311,20 +314,39 @@ export default function TaxonomyServicePicker({ services, onChange, required = f
 
       <div className="grid gap-2">
         <div className="flex items-center justify-between gap-3">
-          <label className="text-sm font-medium text-slate-700">
+          <label htmlFor={helpListId + '-input'} className="text-sm font-medium text-slate-700">
             Specific help {required ? '*' : null}
           </label>
-          <span className="text-xs text-slate-500">{selectedHelpKeys.length}/{MAX_HELP_TYPES} selected</span>
+          <span className="text-xs text-slate-500">{selectedHelpKeys.length} selected · up to {MAX_HELP_TYPES}</span>
         </div>
-        <p className="text-xs leading-6 text-slate-500">Choose the exact help you offer inside those areas, like sponsored posts or reels editing.</p>
+        <p className="text-xs leading-6 text-slate-500">Choose services within your selected areas.</p>
         <div className="relative">
           <input
+            id={helpListId + '-input'}
             value={helpQuery}
+            onKeyDown={(event) => {
+              if (event.key === 'Escape' && helpOpen) {
+                event.preventDefault();
+                setHelpOpen(false);
+                setHelpIndex(-1);
+              } else if ((event.key === 'ArrowDown' || event.key === 'ArrowUp') && visibleHelpSuggestions.length) {
+                event.preventDefault();
+                setHelpOpen(true);
+                const last = visibleHelpSuggestions.length - 1;
+                setHelpIndex((index) => event.key === 'ArrowDown' ? Math.min(index + 1, last) : index < 0 ? last : Math.max(index - 1, 0));
+              } else if (event.key === 'Enter' && helpOpen && visibleHelpSuggestions[helpIndex]) {
+                event.preventDefault();
+                addHelp(visibleHelpSuggestions[helpIndex].id);
+                setHelpIndex(-1);
+              }
+            }}
             onChange={(event) => {
+              setHelpIndex(-1);
               setHelpQuery(event.target.value);
               setHelpOpen(true);
             }}
             onFocus={() => setHelpOpen(true)}
+            onClick={() => setHelpOpen(true)}
             onBlur={() => {
               window.setTimeout(() => setHelpOpen(false), 120);
             }}
@@ -332,14 +354,15 @@ export default function TaxonomyServicePicker({ services, onChange, required = f
               !selectedSubjectIds.length
                 ? 'Choose a marketing area first'
                 : canAddMoreHelp
-                  ? 'Search help like sponsored posts, UGC, or reels editing'
+                  ? 'Search services'
                   : 'Remove one help type to add another'
             }
             disabled={!selectedSubjectIds.length || !canAddMoreHelp}
-            className="w-full rounded-2xl border border-slate-200/80 bg-white px-4 py-3 pr-10 text-sm text-slate-800 outline-none transition placeholder:text-slate-400 placeholder:opacity-55 focus:border-slate-400 focus:bg-white focus:ring-2 focus:ring-slate-200/70 disabled:cursor-not-allowed disabled:bg-slate-50 disabled:text-slate-400"
+            className="w-full rounded-2xl border border-slate-200/80 bg-white px-4 py-3 pr-10 text-sm text-slate-800 outline-none transition placeholder:text-slate-500 focus:border-slate-400 focus:bg-white focus:ring-2 focus:ring-slate-200/70 disabled:cursor-not-allowed disabled:bg-slate-50 disabled:text-slate-400"
             role="combobox"
             aria-autocomplete="list"
-            aria-controls={helpListId}
+            aria-controls={helpOpen && visibleHelpSuggestions.length ? helpListId : undefined}
+            aria-activedescendant={helpOpen && visibleHelpSuggestions[helpIndex] ? helpListId + '-' + helpIndex : undefined}
             aria-haspopup="listbox"
             aria-expanded={helpOpen && visibleHelpSuggestions.length > 0}
           />
@@ -352,15 +375,17 @@ export default function TaxonomyServicePicker({ services, onChange, required = f
           {helpOpen && visibleHelpSuggestions.length > 0 ? (
             <div id={helpListId} role="listbox" className="absolute z-30 mt-2 w-full overflow-hidden rounded-[1.35rem] border border-slate-200/80 bg-white shadow-[0_18px_50px_rgba(15,23,42,0.12)]">
               <ul className="max-h-72 overflow-y-auto py-2">
-                {visibleHelpSuggestions.map((suggestion) => (
+                {visibleHelpSuggestions.map((suggestion, index) => (
                   <li key={suggestion.id}>
                     <button
+                      id={helpListId + '-' + index}
+                      role="option"
+                      aria-selected={helpIndex === index}
+                      tabIndex={-1}
                       type="button"
-                      onMouseDown={(event) => {
-                        event.preventDefault();
-                        addHelp(suggestion.id);
-                      }}
-                      className="w-full px-4 py-3 text-left transition hover:bg-slate-50"
+                      onMouseDown={(event) => event.preventDefault()}
+                      onClick={() => addHelp(suggestion.id)}
+                      className="w-full px-4 py-3 text-left transition hover:bg-slate-50 aria-selected:bg-blue-50"
                     >
                       <div className="text-sm font-semibold text-slate-900">{suggestion.label}</div>
                       <div className="mt-1 text-xs leading-5 text-slate-600">
@@ -393,19 +418,19 @@ export default function TaxonomyServicePicker({ services, onChange, required = f
         ) : null}
         {helpNeedsSelection ? <p className="text-xs leading-6 text-slate-500">Choose one help type from the dropdown.</p> : null}
         {hasSavedServicesWithoutSelectedHelp ? (
-          <p className="text-xs leading-6 text-slate-500">Your current saved tags stay as-is until you pick specific help here.</p>
+          <p className="text-xs leading-6 text-slate-500">Your saved tags are kept when you add specific help.</p>
         ) : null}
       </div>
 
       {legacyTokens.length ? (
         <div className="rounded-2xl border border-dashed border-slate-300 bg-white px-4 py-3">
           <div className="text-xs font-semibold uppercase tracking-[0.24em] text-slate-400">Saved legacy tags</div>
-          <p className="mt-2 text-xs leading-6 text-slate-500">These older tags stay until you replace them by updating your areas and help types.</p>
+          <p className="mt-2 text-xs leading-6 text-slate-500">Older tags stay searchable until you remove them.</p>
           <div className="mt-3 flex flex-wrap gap-2">
             {legacyTokens.map((token) => (
-              <span key={token} className="rounded-full border border-slate-200/80 bg-slate-50 px-3 py-1.5 text-xs text-slate-600">
-                {formatServiceTokenLabel(token)}
-              </span>
+              <button key={token} type="button" aria-label={`Remove ${formatServiceTokenLabel(token)}`} onClick={() => onChange(services.filter((service) => service !== token))} className="rounded-full border border-slate-200/80 bg-slate-50 px-3 py-1.5 text-xs text-slate-600">
+                {formatServiceTokenLabel(token)} <span aria-hidden="true">×</span>
+              </button>
             ))}
           </div>
         </div>

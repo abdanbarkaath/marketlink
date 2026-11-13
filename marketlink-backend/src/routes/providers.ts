@@ -1,3 +1,4 @@
+import { sanitizePublicExpertLocation } from '../lib/publicExpertLocation';
 import type { FastifyPluginAsync } from 'fastify';
 import type { Prisma } from '@prisma/client';
 import { prisma } from '../lib/prisma';
@@ -130,48 +131,6 @@ const haversineMiles = (fromLat: number, fromLng: number, toLat: number, toLng: 
   return earthRadiusMiles * (2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a)));
 };
 
-const roundCoordinate = (value: number, decimals = 1) => {
-  const factor = 10 ** decimals;
-  return Math.round(value * factor) / factor;
-};
-
-const sanitizePublicExpertLocation = <
-  T extends {
-    expertType?: ExpertType | null;
-    locationPrecision?: LocationPrecision | null;
-    streetAddress?: string | null;
-    zip?: string | null;
-    latitude?: number | null;
-    longitude?: number | null;
-  },
->(
-  expert: T,
-): T => {
-  if (expert.expertType !== ExpertType.creator || expert.locationPrecision !== LocationPrecision.approximate) {
-    return expert;
-  }
-
-  const next = { ...expert };
-
-  if ('streetAddress' in next) {
-    next.streetAddress = null;
-  }
-
-  if ('zip' in next) {
-    next.zip = null;
-  }
-
-  if (typeof next.latitude === 'number') {
-    next.latitude = roundCoordinate(next.latitude);
-  }
-
-  if (typeof next.longitude === 'number') {
-    next.longitude = roundCoordinate(next.longitude);
-  }
-
-  return next;
-};
-
 const expertProjectSelect = {
   id: true,
   title: true,
@@ -283,7 +242,6 @@ const expertDetailSelect = {
   id: true,
   slug: true,
   businessName: true,
-  email: true,
   expertType: true,
   tagline: true,
   shortDescription: true,
@@ -315,14 +273,13 @@ const expertDetailSelect = {
   latitude: true,
   longitude: true,
   locationPrecision: true,
-  geocodedAt: true,
-  geocodeProvider: true,
+  publicCityLatitude: true,
+  publicCityLongitude: true,
   services: true,
   rating: true,
   verified: true,
   logo: true,
   status: true,
-  disabledReason: true,
   projects: {
     select: expertProjectSelect,
     orderBy: [{ sortOrder: 'asc' }, { createdAt: 'asc' }],
@@ -565,6 +522,7 @@ const expertsRoutes: FastifyPluginAsync = async (fastify) => {
       }
 
       if (city && city.trim()) {
+        andFilters.push({ locationPrecision: { not: LocationPrecision.private } });
         andFilters.push({ city: { startsWith: city.trim(), mode: 'insensitive' } });
       }
 
@@ -614,8 +572,7 @@ const expertsRoutes: FastifyPluginAsync = async (fastify) => {
           return reply.code(400).send({ error: 'Could not resolve zip code for radius search.' });
         }
         searchCenter = { latitude: geocoded.latitude, longitude: geocoded.longitude };
-        andFilters.push({ latitude: { not: null } });
-        andFilters.push({ longitude: { not: null } });
+        andFilters.push({ locationPrecision: { not: LocationPrecision.private } });
       }
 
       const baseFilter: Prisma.ExpertWhereInput = { status: ExpertStatus.active };
@@ -648,6 +605,8 @@ const expertsRoutes: FastifyPluginAsync = async (fastify) => {
         latitude: true,
         longitude: true,
         locationPrecision: true,
+        publicCityLatitude: true,
+        publicCityLongitude: true,
         verified: true,
         logo: true,
         services: true,
@@ -678,11 +637,12 @@ const expertsRoutes: FastifyPluginAsync = async (fastify) => {
 
         const nearby: Array<ListRow & { distanceMiles: number }> = [];
         for (const row of allCandidates) {
-          if (typeof row.latitude !== 'number' || typeof row.longitude !== 'number') {
+          const { latitude, longitude } = sanitizePublicExpertLocation(row);
+          if (typeof latitude !== 'number' || typeof longitude !== 'number') {
             continue;
           }
           const distanceMiles = Number(
-            haversineMiles(searchCenter.latitude, searchCenter.longitude, row.latitude, row.longitude).toFixed(1),
+            haversineMiles(searchCenter.latitude, searchCenter.longitude, latitude, longitude).toFixed(1),
           );
           if (distanceMiles > radiusMiles) {
             continue;
@@ -744,6 +704,7 @@ const expertsRoutes: FastifyPluginAsync = async (fastify) => {
         where: { slug },
         select: {
           ...expertDetailSelect,
+          disabledReason: true,
           userId: true,
         } satisfies Prisma.ExpertSelect,
       });
@@ -839,6 +800,12 @@ const expertsRoutes: FastifyPluginAsync = async (fastify) => {
       }>;
     };
 
+    for (const key of ['businessName', 'city', 'state', 'zip', 'streetAddress'] as const) {
+      if (body[key] != null && typeof body[key] !== 'string') {
+        return reply.code(400).send({ error: key + ' must be text.' });
+      }
+    }
+
     const businessName = (body.businessName || '').trim();
     const city = (body.city || '').trim();
     const state = (body.state || '').trim();
@@ -852,7 +819,6 @@ const expertsRoutes: FastifyPluginAsync = async (fastify) => {
     const locationPrecision = parseOptionalLocationPrecision(body.locationPrecision);
     const geocodedAt = parseOptionalDate(body.geocodedAt);
     const geocodeProvider = typeof body.geocodeProvider === 'string' ? body.geocodeProvider.trim() || null : undefined;
-    const defaultLocationPrecision = expertType === ExpertType.creator ? LocationPrecision.approximate : LocationPrecision.exact;
 
     if (!businessName) return reply.code(400).send({ error: 'businessName is required' });
     if (!city) return reply.code(400).send({ error: 'city is required' });
@@ -866,6 +832,10 @@ const expertsRoutes: FastifyPluginAsync = async (fastify) => {
     }
     if (!expertType) {
       return reply.code(400).send({ error: 'expertType is required.' });
+    }
+    const precision = locationPrecision ?? LocationPrecision.approximate;
+    if (precision === LocationPrecision.exact && !streetAddress) {
+      return reply.code(400).send({ error: 'Enter the business address you want to publish.' });
     }
     if (Number.isNaN(latitude)) {
       return reply.code(400).send({ error: 'latitude must be a number.' });
@@ -942,8 +912,14 @@ const expertsRoutes: FastifyPluginAsync = async (fastify) => {
     let resolvedGeocodedAt = typeof geocodedAt === 'undefined' ? undefined : geocodedAt;
     let resolvedGeocodeProvider = typeof geocodeProvider === 'undefined' ? undefined : geocodeProvider;
 
+    const publicCity = precision === LocationPrecision.approximate
+      ? await geocodeExpertLocation({ city, state })
+      : null;
+
     if (typeof resolvedLatitude === 'undefined' && typeof resolvedLongitude === 'undefined') {
-      const geocoded = await geocodeExpertLocation({ streetAddress, city, state, zip });
+      const geocoded = !streetAddress && !zip && publicCity
+        ? publicCity
+        : await geocodeExpertLocation({ streetAddress, city, state, zip });
       if (geocoded.ok) {
         resolvedLatitude = geocoded.latitude;
         resolvedLongitude = geocoded.longitude;
@@ -967,7 +943,9 @@ const expertsRoutes: FastifyPluginAsync = async (fastify) => {
           zip: zip || undefined,
           latitude: resolvedLatitude,
           longitude: resolvedLongitude,
-          locationPrecision: locationPrecision ?? defaultLocationPrecision,
+          locationPrecision: precision,
+          publicCityLatitude: publicCity?.ok ? publicCity.latitude : null,
+          publicCityLongitude: publicCity?.ok ? publicCity.longitude : null,
           geocodedAt: resolvedGeocodedAt,
           geocodeProvider: resolvedGeocodeProvider,
           services,
@@ -1069,6 +1047,7 @@ const expertsRoutes: FastifyPluginAsync = async (fastify) => {
         coverImageUrl?: string;
         sortOrder?: number | string;
       }>;
+      confirmPublicWork?: boolean;
       clients?: Array<{
         name?: string;
         logoUrl?: string;
@@ -1190,6 +1169,16 @@ const expertsRoutes: FastifyPluginAsync = async (fastify) => {
     if (nextExpertType === ExpertType.creator && expert.expertType !== ExpertType.creator && typeof body.locationPrecision === 'undefined') {
       (data as any).locationPrecision = LocationPrecision.approximate;
     }
+    const nextPrecision = data.locationPrecision ?? expert.locationPrecision;
+    if (nextPrecision === LocationPrecision.exact && nextPrecision !== expert.locationPrecision && !nextStreetAddress) {
+      return reply.code(400).send({ error: 'Enter the business address you want to publish.' });
+    }
+    if (nextPrecision === LocationPrecision.approximate &&
+      (locationChanged || expert.locationPrecision !== nextPrecision || expert.publicCityLatitude === null)) {
+      const cityPoint = await geocodeExpertLocation({ city: nextCity, state: nextState });
+      data.publicCityLatitude = cityPoint.ok ? cityPoint.latitude : null;
+      data.publicCityLongitude = cityPoint.ok ? cityPoint.longitude : null;
+    }
     if (typeof body.tagline === 'string') {
       const v = body.tagline.trim();
       (data as any).tagline = v || null;
@@ -1299,7 +1288,10 @@ const expertsRoutes: FastifyPluginAsync = async (fastify) => {
       (data as any).responseTimeHours = responseTimeHours;
     }
 
-    if (typeof hourlyRateMin !== 'undefined' && typeof hourlyRateMax !== 'undefined' && hourlyRateMin !== null && hourlyRateMax !== null && hourlyRateMin > hourlyRateMax) {
+    const nextHourlyRateMin = hourlyRateMin === undefined ? expert.hourlyRateMin : hourlyRateMin;
+    const nextHourlyRateMax = hourlyRateMax === undefined ? expert.hourlyRateMax : hourlyRateMax;
+    if ((hourlyRateMin !== undefined || hourlyRateMax !== undefined) &&
+      nextHourlyRateMin !== null && nextHourlyRateMax !== null && nextHourlyRateMin > nextHourlyRateMax) {
       return reply.code(400).send({ error: 'hourlyRateMin must be less than or equal to hourlyRateMax.' });
     }
 
@@ -1420,6 +1412,12 @@ const expertsRoutes: FastifyPluginAsync = async (fastify) => {
       }
     }
 
+    // Free-form work can identify a client through text, URLs, or images.
+    const publishesWork = Boolean(projectCreates?.length || clientCreates?.length || mediaCreates?.length);
+    if (publishesWork && body.confirmPublicWork !== true) {
+      return reply.code(400).send({ error: 'Confirm you have permission to publish the client details or work you are saving.' });
+    }
+
     if (Object.keys(data).length === 0 && typeof projectCreates === 'undefined' && typeof clientCreates === 'undefined' && typeof mediaCreates === 'undefined') {
       return reply.code(400).send({ error: 'No fields to update' });
     }
@@ -1458,6 +1456,16 @@ const expertsRoutes: FastifyPluginAsync = async (fastify) => {
               data: mediaCreates.map((item) => ({ ...item, expertId: expert.id })),
             });
           }
+        }
+
+        if (publishesWork) {
+          await tx.expertPublicationConfirmation.create({
+            data: {
+              expertId: expert.id,
+              confirmedBy: user.id,
+              content: JSON.parse(JSON.stringify({ projects: projectCreates, clients: clientCreates, media: mediaCreates })),
+            },
+          });
         }
 
         return tx.expert.findUniqueOrThrow({

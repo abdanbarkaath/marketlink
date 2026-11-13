@@ -51,7 +51,7 @@ type Provider = {
   slug: string;
   businessName: string;
   expertType?: 'agency' | 'freelancer' | 'creator' | 'specialist' | null;
-  locationPrecision?: 'exact' | 'approximate' | null;
+  locationPrecision?: 'exact' | 'approximate' | 'private' | null;
   streetAddress?: string | null;
   shortDescription?: string | null;
   overview?: string | null;
@@ -143,6 +143,9 @@ export default function ProfileEditorPage() {
   const [dirty, setDirty] = useState(false);
 
   const [data, setData] = useState<Provider | null>(null);
+  const [saved, setSaved] = useState<Provider | null>(null);
+  const [confirmedWork, setConfirmedWork] = useState<string | null>(null);
+  const [savedMessage, setSavedMessage] = useState(false);
   const [pwCurrent, setPwCurrent] = useState('');
   const [pwNext, setPwNext] = useState('');
   const [pwConfirm, setPwConfirm] = useState('');
@@ -173,7 +176,7 @@ export default function ProfileEditorPage() {
         const p = me.expert ?? me.provider;
         if (!p) return router.replace('/dashboard/onboarding');
 
-        setData({
+        const initial: Provider = {
           slug: p.slug ?? '',
           businessName: p.businessName ?? '',
           expertType: p.expertType ?? null,
@@ -245,7 +248,9 @@ export default function ProfileEditorPage() {
             : [],
           status: p.status as ProviderStatus | undefined,
           disabledReason: p.disabledReason ?? '',
-        });
+        };
+        setData(initial);
+        setSaved(initial);
       } catch (e: unknown) {
         setError(e instanceof Error ? e.message : 'Failed to load profile');
       } finally {
@@ -257,13 +262,34 @@ export default function ProfileEditorPage() {
   // Warn on accidental navigation if there are unsaved edits
   useEffect(() => {
     const handler = (e: BeforeUnloadEvent) => {
-      if (!dirty || saving) return;
+      if (!dirty) return;
       e.preventDefault();
       e.returnValue = '';
     };
+    const guardLink = (event: MouseEvent) => {
+      if (!dirty || event.defaultPrevented || event.ctrlKey || event.metaKey || event.shiftKey || event.altKey) return;
+      const target = event.target instanceof Element ? event.target : null;
+      const link = target?.closest('a[href]');
+      const signingOut = Boolean(target?.closest('[data-sign-out]'));
+      if (!signingOut) {
+        if (!(link instanceof HTMLAnchorElement) || link.target === '_blank') return;
+        const destination = new URL(link.href);
+        if (destination.origin !== location.origin || destination.pathname === location.pathname) return;
+      }
+      if (!window.confirm('Discard your unsaved profile changes?')) {
+        event.preventDefault();
+        event.stopPropagation();
+      } else {
+        window.removeEventListener('beforeunload', handler);
+      }
+    };
     window.addEventListener('beforeunload', handler);
-    return () => window.removeEventListener('beforeunload', handler);
-  }, [dirty, saving]);
+    document.addEventListener('click', guardLink, true);
+    return () => {
+      window.removeEventListener('beforeunload', handler);
+      document.removeEventListener('click', guardLink, true);
+    };
+  }, [dirty]);
 
   function setField<K extends keyof Provider>(key: K, val: Provider[K]) {
     setDirty(true);
@@ -302,6 +328,7 @@ export default function ProfileEditorPage() {
 
   function addProject() {
     if (!data) return;
+    setProjectsOpen(true);
     setDirty(true);
     setData({
       ...data,
@@ -344,6 +371,7 @@ export default function ProfileEditorPage() {
 
   function addClient() {
     if (!data) return;
+    setClientsOpen(true);
     setDirty(true);
     setData({
       ...data,
@@ -379,6 +407,7 @@ export default function ProfileEditorPage() {
 
   function addMedia() {
     if (!data) return;
+    setMediaOpen(true);
     setDirty(true);
     setData({
       ...data,
@@ -403,15 +432,22 @@ export default function ProfileEditorPage() {
     });
   }
 
+  const confirmationError = 'Confirm permission before publishing the work you changed.';
+  const workCollections = ['projects', 'clients', 'media'] as const;
+  const changedWork = data && saved ? workCollections.filter((key) => JSON.stringify(data[key]) !== JSON.stringify(saved[key])) : [];
+  const workToPublish = data && changedWork.some((key) => data[key].length) ? JSON.stringify(changedWork.map((key) => data[key])) : null;
+
   async function handleSave(e: React.FormEvent) {
     e.preventDefault();
-    if (!data) return;
+    if (!data || !saved || saving) return;
     setSaving(true);
+    setSavedMessage(false);
     setError(null);
 
     try {
       if (!data.businessName.trim()) throw new Error('Business name is required.');
-      if (!(data.streetAddress || '').trim()) throw new Error('Address is required.');
+      if (data.locationPrecision === 'exact' && saved.locationPrecision !== 'exact' && !data.streetAddress?.trim()) throw new Error('Enter the business address you want to publish.');
+      if (workToPublish && confirmedWork !== workToPublish) throw new Error(confirmationError);
       if (!data.city.trim()) throw new Error('City is required.');
       if (!data.state.trim()) throw new Error('State is required.');
       if (!data.expertType) throw new Error('Expert type is required.');
@@ -489,6 +525,15 @@ export default function ProfileEditorPage() {
         basePayload.disabledReason = basePayload.status === 'disabled' ? String(data.disabledReason || '').trim() : null;
       }
 
+      for (const key of Object.keys(basePayload) as Array<keyof Provider>) {
+        if (JSON.stringify(data[key]) === JSON.stringify(saved[key])) delete basePayload[key];
+      }
+      if (Object.keys(basePayload).length === 0) {
+        setDirty(false);
+        return;
+      }
+      if (workToPublish) basePayload.confirmPublicWork = true;
+
       const res = await fetch(`${API_BASE}/experts`, {
         method: 'PUT',
         headers: { 'Content-Type': 'application/json' },
@@ -508,8 +553,9 @@ export default function ProfileEditorPage() {
       await res.json();
       setDirty(false);
 
-      // For pending/disabled, going to public page might 404, so go back to dashboard.
-      router.replace('/dashboard');
+      setSaved(data);
+      setConfirmedWork(null);
+      setSavedMessage(true);
     } catch (e: unknown) {
       setError(e instanceof Error ? e.message : 'Failed to save changes');
     } finally {
@@ -574,7 +620,7 @@ export default function ProfileEditorPage() {
     );
   }
 
-  if (error) {
+  if (error && !data) {
     return (
       <main className="mx-auto max-w-2xl px-4 py-10">
         <p className="text-red-600">Error: {error}</p>
@@ -585,64 +631,37 @@ export default function ProfileEditorPage() {
   if (!data) return null;
 
   const disableSave = saving || !data.businessName.trim() || !data.city.trim() || !data.state.trim();
-  const sectionClass = 'rounded-[28px] border border-slate-200/80 bg-[linear-gradient(180deg,rgba(255,255,255,0.98),rgba(241,245,249,0.92))] p-5 shadow-[0_18px_50px_rgba(15,23,42,0.06)] sm:p-6';
+  const sectionClass = 'rounded-xl border border-slate-200 bg-white p-5 sm:p-6';
   const fieldClass =
-    'w-full rounded-2xl border border-slate-200/80 bg-white px-4 py-3 text-sm text-slate-800 outline-none transition placeholder:text-slate-400 placeholder:opacity-55 focus:border-slate-400 focus:bg-white focus:ring-2 focus:ring-slate-200/70';
+    'w-full rounded-2xl border border-slate-200/80 bg-white px-4 py-3 text-sm text-slate-800 outline-none transition placeholder:text-slate-500 focus:border-slate-400 focus:bg-white focus:ring-2 focus:ring-slate-200/70';
   const checkboxClass = 'h-4 w-4 rounded border-slate-300 text-slate-900 focus:ring-slate-200';
   const subtleButtonClass =
     'rounded-full border border-slate-200/80 bg-white px-4 py-2.5 text-sm font-medium text-slate-700 transition hover:border-slate-300 hover:bg-slate-50';
   const primaryButtonClass =
-    'rounded-full bg-slate-900 px-5 py-3 text-sm font-semibold text-white transition hover:bg-slate-800 disabled:cursor-not-allowed disabled:opacity-60';
+    'rounded-lg bg-[#2455B5] px-5 py-3 text-sm font-semibold text-white transition hover:bg-[#1E489A] focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#2455B5] disabled:cursor-not-allowed disabled:opacity-60';
 
   return (
     <main className="mx-auto max-w-6xl px-4 py-6 sm:px-6 sm:py-8">
-      <section className="overflow-hidden rounded-[32px] border border-slate-200/80 bg-[linear-gradient(180deg,rgba(255,255,255,0.98),rgba(241,245,249,0.92))] shadow-[0_22px_60px_rgba(15,23,42,0.08)]">
-        <div className="px-5 py-6 sm:px-7 sm:py-8">
-        <div className="flex flex-col gap-5 lg:flex-row lg:items-end lg:justify-between">
-          <div className="max-w-2xl">
-            <p className="text-xs font-semibold uppercase tracking-[0.32em] text-slate-500">Expert workspace</p>
-            <h1 className="mt-3 text-3xl font-semibold tracking-tight text-slate-950 sm:text-4xl">Edit profile</h1>
-            <p className="mt-3 max-w-xl text-sm leading-6 text-slate-600 sm:text-base">
-              Update the parts buyers notice first: positioning, services, contact details, and proof of work.
-            </p>
-            <div className="mt-4 flex flex-wrap gap-2 text-xs font-medium">
-              <span className="rounded-full border border-slate-200/80 bg-white px-3 py-1.5 text-slate-700 shadow-sm">
-                {dirty ? 'Unsaved changes' : 'Up to date'}
-              </span>
-              <span className="rounded-full border border-slate-200/80 bg-white px-3 py-1.5 text-slate-700 shadow-sm">
-                Status: {role === 'admin' ? data.status || 'pending' : 'owner editor'}
-              </span>
-            </div>
+      <header className="rounded-xl border border-slate-200 bg-white p-5 sm:p-6">
+        <div className="flex flex-wrap items-start justify-between gap-4">
+          <div>
+            <h1 className="text-3xl font-semibold tracking-tight text-slate-950 sm:text-4xl">Edit profile</h1>
+            <p className="mt-2 text-sm leading-6 text-slate-600">Pricing, clients, and work samples are optional.</p>
+            {dirty ? <p className="mt-2 text-sm text-slate-700">Unsaved changes</p> : null}
           </div>
-
-          <div className="flex flex-col gap-3 sm:flex-row">
-            <button type="button" onClick={() => router.replace('/dashboard')} className="rounded-full bg-slate-900 px-4 py-2.5 text-sm font-medium text-white transition hover:bg-slate-800">
-              Back to dashboard
-            </button>
-          </div>
+          <button type="button" onClick={() => { if (!dirty || window.confirm('Discard your unsaved profile changes?')) router.replace('/dashboard'); }} className={subtleButtonClass}>
+            Back to dashboard
+          </button>
         </div>
-
-        <div className="mt-6 grid gap-3 sm:grid-cols-3">
-          <div className="rounded-[24px] border border-slate-200/80 bg-[linear-gradient(180deg,rgba(248,250,252,0.98),rgba(226,232,240,0.72))] p-4 shadow-[0_10px_30px_rgba(15,23,42,0.04)]">
-            <div className="text-xs font-semibold uppercase tracking-[0.28em] text-slate-400">Business</div>
-            <div className="mt-2 text-base font-semibold text-slate-900">{data.businessName || 'Your expert name'}</div>
-            <div className="mt-1 text-sm text-slate-600">
-              {[data.city, data.state].filter(Boolean).join(', ') || 'Location not set'}
-            </div>
-          </div>
-          <div className="rounded-[24px] border border-slate-200/80 bg-[linear-gradient(180deg,rgba(248,250,252,0.98),rgba(226,232,240,0.72))] p-4 shadow-[0_10px_30px_rgba(15,23,42,0.04)]">
-            <div className="text-xs font-semibold uppercase tracking-[0.28em] text-slate-400">Core profile</div>
-            <div className="mt-2 text-sm text-slate-600">{data.shortDescription?.trim() || 'Add a short description for cards and search results.'}</div>
-          </div>
-          <div className="rounded-[24px] border border-slate-200/80 bg-[linear-gradient(180deg,rgba(248,250,252,0.98),rgba(226,232,240,0.72))] p-4 shadow-[0_10px_30px_rgba(15,23,42,0.04)]">
-            <div className="text-xs font-semibold uppercase tracking-[0.28em] text-slate-400">Proof of work</div>
-            <div className="mt-2 text-sm text-slate-600">
-              {data.projects.length} case studies, {data.clients.length} clients, {data.media.length} media items
-            </div>
-          </div>
-        </div>
-        </div>
-      </section>
+        <nav aria-label="Profile sections" className="mt-4 flex flex-wrap gap-x-5 gap-y-2 text-sm font-medium text-[#2455B5]">
+          <a className="underline" href="#profile-basics">Basics and services</a>
+          <a className="underline" href="#profile-pricing">Pricing and fit</a>
+          <a className="underline" href="#profile-work">Work and clients</a>
+          {saved?.status === 'active' && saved.slug ? (
+            <a className="underline" target="_blank" rel="noreferrer" href={`/experts/${saved.slug}`}>View public profile</a>
+          ) : null}
+        </nav>
+      </header>
 
       {/* Admin-only moderation controls */}
       {role === 'admin' ? (
@@ -679,62 +698,63 @@ export default function ProfileEditorPage() {
         </section>
       ) : null}
 
-      <form id="profile-editor-form" onSubmit={handleSave} className="mt-5 grid gap-5 pb-24 md:pb-8">
-        <section className={sectionClass}>
+      {error && error !== confirmationError ? <p role="alert" tabIndex={-1} ref={(node) => { node?.focus(); }} className="mt-3 text-sm text-red-700">{error}</p> : null}
+      {savedMessage && !dirty ? <p role="status" className="mt-3 text-sm text-green-700">Profile saved.</p> : null}
+      <form id="profile-editor-form" inert={saving} onSubmit={handleSave} className="mt-5 grid gap-5 pb-24 md:pb-8">
+        <section id="profile-basics" className={`${sectionClass} scroll-mt-24`}>
           <div className="flex flex-col gap-1">
             <h2 className="text-lg font-semibold text-slate-900">Core info</h2>
-            <p className="text-sm text-slate-500">Keep the public-facing basics crisp. This is the part buyers scan before they read deeper proof.</p>
+            <p className="text-sm text-slate-500">This information appears on your public listing.</p>
           </div>
 
           <div className="mt-5 grid gap-4">
             <div>
-              <label className="mb-1 block text-sm font-medium text-slate-700">Business name *</label>
-              <input autoComplete="organization" className={fieldClass} value={data.businessName} onChange={(e) => setField('businessName', e.target.value)} />
+              <label className="mb-1 block text-sm font-medium text-slate-700" htmlFor="profile-business-name">Business name *</label>
+              <input id="profile-business-name" autoComplete="organization" className={fieldClass} value={data.businessName} onChange={(e) => setField('businessName', e.target.value)} />
             </div>
 
             <div className="grid grid-cols-1 gap-4 sm:grid-cols-3">
               <div className="sm:col-span-3">
                 <LocationAutocompleteField
-                  label="Business address *"
+                  label="Business address (optional)"
                   value={data.streetAddress ?? ''}
                   onChange={(value) => setField('streetAddress', value)}
                   onResolve={applyResolvedLocation}
                   type="address"
-                  placeholder="Start typing your exact address or place name"
-                  required
+                  placeholder="Search for a business address"
                   fieldClass={fieldClass}
                   autoComplete="street-address"
-                  helperText="Pick the exact business location from the dropdown. City, state, and ZIP will fill in automatically."
+                  helperText="Choose a suggestion to fill in city, state, and ZIP, or enter them below."
                 />
               </div>
               <div>
-                <label className="mb-1 block text-sm font-medium text-slate-700">City *</label>
-                <input autoComplete="address-level2" className={`${fieldClass} bg-slate-50 text-slate-600`} value={data.city} readOnly />
+                <label className="mb-1 block text-sm font-medium text-slate-700" htmlFor="profile-city">City *</label>
+                <input id="profile-city" autoComplete="address-level2" className={fieldClass} value={data.city ?? ''} onChange={(event) => setField('city', event.target.value)} />
               </div>
               <div>
-                <label className="mb-1 block text-sm font-medium text-slate-700">State *</label>
-                <input autoComplete="address-level1" className={`${fieldClass} bg-slate-50 text-slate-600`} value={data.state} readOnly />
+                <label className="mb-1 block text-sm font-medium text-slate-700" htmlFor="profile-state">State *</label>
+                <input id="profile-state" autoComplete="address-level1" className={fieldClass} value={data.state ?? ''} onChange={(event) => setField('state', event.target.value)} />
               </div>
               <div>
-                <label className="mb-1 block text-sm font-medium text-slate-700">ZIP</label>
-                <input autoComplete="postal-code" className={`${fieldClass} bg-slate-50 text-slate-600`} value={data.zip ?? ''} readOnly />
+                <label className="mb-1 block text-sm font-medium text-slate-700" htmlFor="profile-zip">ZIP</label>
+                <input id="profile-zip" autoComplete="postal-code" className={fieldClass} value={data.zip ?? ''} onChange={(event) => setField('zip', event.target.value)} />
               </div>
             </div>
 
             <div>
-              <label className="mb-1 block text-sm font-medium text-slate-700">Location display</label>
+              <label className="mb-1 block text-sm font-medium text-slate-700" htmlFor="profile-location-display">Public location</label>
               <select
                 className={fieldClass}
+                id="profile-location-display"
                 value={data.locationPrecision ?? (data.expertType === 'creator' ? 'approximate' : 'exact')}
                 onChange={(e) => setField('locationPrecision', e.target.value as Provider['locationPrecision'])}
               >
-                <option value="exact">Exact area</option>
-                <option value="approximate">Approximate area</option>
+                <option value="approximate">City and state</option>
+                <option value="private">Hide my location</option>
+                <option value="exact">Show my exact business address</option>
               </select>
               <p className="mt-2 text-xs leading-6 text-slate-500">
-                {data.expertType === 'creator'
-                  ? 'Creators should usually stay approximate so the public map shows a broader city-level area.'
-                  : 'Choose how precisely your public location should appear in search and map views.'}
+                A hidden location is excluded from nearby searches. Buyers can still find your listing by name or service.
               </p>
             </div>
 
@@ -827,7 +847,7 @@ export default function ProfileEditorPage() {
           </div>
         </section>
 
-        <section className={sectionClass}>
+        <section id="profile-pricing" className={`${sectionClass} scroll-mt-24`}>
           <div className="flex flex-col gap-1">
             <h2 className="text-lg font-semibold text-slate-900">Pricing and fit</h2>
             <p className="text-sm text-slate-500">Give buyers enough structure to understand fit without overwhelming them.</p>
@@ -951,12 +971,12 @@ export default function ProfileEditorPage() {
           )}
         </section>
 
-        <section className={sectionClass}>
+        <section id="profile-work" className={`${sectionClass} scroll-mt-24`}>
           <div className="flex items-center justify-between gap-4">
             <button type="button" onClick={() => setProjectsOpen((open) => !open)} className="flex flex-1 items-center justify-between text-left md:pointer-events-none">
               <div>
                 <h2 className="text-lg font-semibold text-slate-900">Case studies</h2>
-                <p className="mt-1 text-sm text-slate-500">Show real projects with budget, services, and outcomes.</p>
+                <p className="mt-1 text-sm text-slate-500">Share work you can publish. Leave client details and results blank when they’re confidential or unavailable.</p>
               </div>
               <span className="ml-4 rounded-full border border-slate-200/80 bg-white px-3 py-1 text-xs font-medium text-slate-600 shadow-sm md:hidden">
                 {projectsOpen ? 'Hide' : 'Show'}
@@ -1047,7 +1067,7 @@ export default function ProfileEditorPage() {
             <button type="button" onClick={() => setClientsOpen((open) => !open)} className="flex flex-1 items-center justify-between text-left md:pointer-events-none">
               <div>
                 <h2 className="text-lg font-semibold text-slate-900">Featured clients</h2>
-                <p className="mt-1 text-sm text-slate-500">Add client logos or names to build trust quickly.</p>
+                <p className="mt-1 text-sm text-slate-500">Add only clients who have agreed to be named publicly.</p>
               </div>
               <span className="ml-4 rounded-full border border-slate-200/80 bg-white px-3 py-1 text-xs font-medium text-slate-600 shadow-sm md:hidden">
                 {clientsOpen ? 'Hide' : 'Show'}
@@ -1190,6 +1210,21 @@ export default function ProfileEditorPage() {
           </div>
         </section>
 
+        {workToPublish ? (
+          <div className="rounded-xl border border-slate-200 bg-white p-4 text-sm text-slate-800">
+            {error === confirmationError ? (
+              <p id="profile-confirmation-error" role="alert" tabIndex={-1} ref={(node) => { node?.focus(); }} className="mb-3 text-red-700">{error}</p>
+            ) : null}
+            <label className="flex items-start gap-3">
+              <input type="checkbox" className="mt-1 h-4 w-4 shrink-0" aria-describedby={error === confirmationError ? "profile-confirmation-error" : undefined} checked={confirmedWork === workToPublish} onChange={(event) => {
+                setConfirmedWork(event.target.checked ? workToPublish : null);
+                if (error === confirmationError) setError(null);
+              }} />
+              <span>I confirm this work is safe to share and I have permission to publish any identifiable client details. For anonymous work, remove identifying names, links, and images before saving.</span>
+            </label>
+          </div>
+        ) : null}
+
         <section className={sectionClass}>
           <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
             <div>
@@ -1217,7 +1252,7 @@ export default function ProfileEditorPage() {
             <div className="truncate text-sm text-slate-600">{data.businessName || 'Profile editor'}</div>
           </div>
           <button type="submit" form="profile-editor-form" disabled={disableSave} className={primaryButtonClass}>
-            {saving ? 'Saving...' : 'Save'}
+            {saving ? 'Saving...' : 'Save changes'}
           </button>
         </div>
       </div>

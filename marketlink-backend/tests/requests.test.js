@@ -833,8 +833,11 @@ test('GET /requests/:id returns private match buckets for an unsure customer req
         city: 'Downers Grove',
         state: 'IL',
         zip: '60515',
-        latitude: 41.96,
+        latitude: 42.4,
         longitude: -87.98,
+        locationPrecision: 'approximate',
+        publicCityLatitude: 41.96,
+        publicCityLongitude: -87.98,
         remoteFriendly: false,
         servesNationwide: false,
         services: ['seo'],
@@ -855,6 +858,11 @@ test('GET /requests/:id returns private match buckets for an unsure customer req
         services: ['google-ads', 'lead-generation', 'paid-search'],
         verified: true,
         rating: 4.7,
+      },
+      {
+        id: 'expert_hidden', slug: 'hidden-agency', businessName: 'Hidden Agency',
+        city: 'Westmont', state: 'IL', zip: '60559', locationPrecision: 'private',
+        latitude: 41.79, longitude: -87.98, services: ['google-ads', 'lead-generation'],
       },
       {
         id: 'expert_weak_fit_1',
@@ -905,6 +913,7 @@ test('GET /requests/:id returns private match buckets for an unsure customer req
     assert.equal(body.deliveryPreview.matchingModel, 'zip-radius-v2');
     assert.equal(body.deliveryPreview.totalDelivered, 1);
     assert.equal(body.deliveryPreview.totalMatches, 3);
+    assert.equal(body.deliveryPreview.justOutsideExperts[0].zip, null);
     assert.deepEqual(
       body.deliveryPreview.deliveredExperts.map((expert) => expert.id),
       ['expert_delivered_1'],

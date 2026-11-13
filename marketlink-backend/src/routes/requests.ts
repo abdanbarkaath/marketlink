@@ -1,3 +1,4 @@
+import { sanitizePublicExpertLocation } from '../lib/publicExpertLocation';
 import type { FastifyPluginAsync } from 'fastify';
 import { CustomerRequestIntakeMode, CustomerRequestStatus, ExpertStatus, ProposalStatus } from '@prisma/client';
 import { prisma } from '../lib/prisma';
@@ -8,6 +9,11 @@ import {
   getCachedProviderMatchedRequests,
   type RequestMatchReason,
 } from '../lib/requestMatching';
+
+function hideProposalLocation<T extends { expert: { locationPrecision?: string; city: string; state: string } }>(proposal: T) {
+  if (proposal.expert.locationPrecision !== 'private') return proposal;
+  return { ...proposal, expert: { ...proposal.expert, city: '', state: '' } };
+}
 
 const ZIP_RE = /^\d{5}$/;
 const MAX_REQUEST_SERVICE_TOKENS = 24;
@@ -120,8 +126,6 @@ async function buildDeliveryPreview(input: DeliveryPreviewInput) {
     const experts = await prisma.expert.findMany({
       where: {
         status: ExpertStatus.active,
-        latitude: { not: null },
-        longitude: { not: null },
       },
       select: {
         id: true,
@@ -132,6 +136,9 @@ async function buildDeliveryPreview(input: DeliveryPreviewInput) {
         zip: true,
         latitude: true,
         longitude: true,
+        locationPrecision: true,
+        publicCityLatitude: true,
+        publicCityLongitude: true,
         remoteFriendly: true,
         servesNationwide: true,
         services: true,
@@ -142,6 +149,7 @@ async function buildDeliveryPreview(input: DeliveryPreviewInput) {
     });
 
     const bucketedMatches = experts
+      .map(sanitizePublicExpertLocation)
       .map((expert) => {
         if (typeof expert.latitude !== 'number' || typeof expert.longitude !== 'number') return null;
 
@@ -262,6 +270,9 @@ async function buildDeliveryPreview(input: DeliveryPreviewInput) {
       zip: true,
       latitude: true,
       longitude: true,
+      locationPrecision: true,
+      publicCityLatitude: true,
+      publicCityLongitude: true,
       remoteFriendly: true,
       servesNationwide: true,
       services: true,
@@ -272,7 +283,8 @@ async function buildDeliveryPreview(input: DeliveryPreviewInput) {
   });
 
   const matches = experts
-    .map((expert) => {
+    .map(sanitizePublicExpertLocation)
+      .map((expert) => {
       const matchedServiceTokens = expert.services.filter((token) => input.serviceTokens.includes(token));
       if (!matchedServiceTokens.length) return null;
 
@@ -647,6 +659,7 @@ const requestsRoutes: FastifyPluginAsync = async (fastify) => {
               expertType: true,
               city: true,
               state: true,
+              locationPrecision: true,
               verified: true,
               rating: true,
             },
@@ -655,7 +668,7 @@ const requestsRoutes: FastifyPluginAsync = async (fastify) => {
       }),
     ]);
 
-    return reply.send({ ok: true, request, deliveryPreview, proposals });
+    return reply.send({ ok: true, request, deliveryPreview, proposals: proposals.map(hideProposalLocation) });
   });
 
   fastify.get('/proposals', async (req, reply) => {
@@ -696,6 +709,7 @@ const requestsRoutes: FastifyPluginAsync = async (fastify) => {
             expertType: true,
             city: true,
             state: true,
+            locationPrecision: true,
             verified: true,
             rating: true,
           },
@@ -704,7 +718,7 @@ const requestsRoutes: FastifyPluginAsync = async (fastify) => {
       take: 100,
     });
 
-    return reply.send({ ok: true, data: proposals });
+    return reply.send({ ok: true, data: proposals.map(hideProposalLocation) });
   });
 
   fastify.patch('/proposals/:id', async (req, reply) => {

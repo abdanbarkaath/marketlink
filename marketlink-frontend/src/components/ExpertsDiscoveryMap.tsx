@@ -11,7 +11,7 @@ type MapProvider = {
   slug: string;
   businessName: string;
   expertType?: 'agency' | 'freelancer' | 'creator' | 'specialist' | null;
-  locationPrecision?: 'exact' | 'approximate' | null;
+  locationPrecision?: 'exact' | 'approximate' | 'private' | null;
   city: string;
   state: string;
   verified: boolean;
@@ -132,7 +132,7 @@ export default function ExpertsDiscoveryMap({ providers, showDesktop = true, sho
     for (const mapInstance of mapRefs) {
       if (cameraProvider) {
         const targetZoom =
-          cameraProvider.expertType === 'creator' && cameraProvider.locationPrecision === 'approximate'
+          cameraProvider.locationPrecision === 'approximate'
             ? 9.5
             : Math.max(mapInstance.getZoom(), 11);
 
@@ -290,7 +290,7 @@ export default function ExpertsDiscoveryMap({ providers, showDesktop = true, sho
               {proximityLabel ? ` | ${proximityLabel}` : ''}
               {typeof focusedProvider.distanceMiles === 'number' ? ` | ${focusedProvider.distanceMiles} miles away` : ''}
             </div>
-            {focusedProvider.expertType === 'creator' && focusedProvider.locationPrecision === 'approximate' ? (
+            {focusedProvider.locationPrecision === 'approximate' ? (
               <div className="mt-1 text-xs font-medium text-slate-500">Approximate area shown for privacy.</div>
             ) : null}
           </div>

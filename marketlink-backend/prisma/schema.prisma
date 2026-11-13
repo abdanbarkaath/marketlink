@@ -73,7 +73,10 @@ model Expert {
   zip                 String?
   latitude            Float?
   longitude           Float?
-  locationPrecision   LocationPrecision     @default(exact)
+  locationPrecision   LocationPrecision     @default(approximate)
+  publicCityLatitude Float?
+  publicCityLongitude Float?
+  publicationConfirmations ExpertPublicationConfirmation[]
   geocodedAt          DateTime?
   geocodeProvider     String?
   rating              Float                 @default(0)
@@ -167,6 +170,7 @@ enum ExpertStatus {
 enum LocationPrecision {
   exact
   approximate
+  private
 }
 
 ///
@@ -425,4 +429,14 @@ model ExpertAward {
   expert        Expert   @relation(fields: [expertId], references: [id], onDelete: Cascade)
 
   @@index([expertId, sortOrder, createdAt])
+}
+
+model ExpertPublicationConfirmation {
+  id String @id @default(cuid())
+  expertId String
+  confirmedBy String
+  confirmedAt DateTime @default(now())
+  content Json
+  expert Expert @relation(fields: [expertId], references: [id], onDelete: Cascade)
+  @@index([expertId, confirmedAt])
 }

@@ -22,7 +22,7 @@ export function searchDirectoryServices(query: string) {
 }
 export type DirectoryProvider = {
   id: string; slug: string; businessName: string; expertType?: 'agency' | 'freelancer' | 'creator' | 'specialist' | null;
-  locationPrecision?: 'exact' | 'approximate' | null; tagline: string | null; shortDescription?: string | null;
+  locationPrecision?: 'exact' | 'approximate' | 'private' | null; tagline: string | null; shortDescription?: string | null;
   city: string; state: string; zip?: string | null; latitude?: number | null; longitude?: number | null;
   verified: boolean; logo: string | null; services: string[]; distanceMiles?: number;
   hourlyRateMin?: number | null; hourlyRateMax?: number | null; minProjectBudget?: number | null; currencyCode?: string | null;
