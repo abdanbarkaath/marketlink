@@ -101,6 +101,12 @@ Code should mostly explain itself through naming and structure.
 
 ---
 
+## Product Intent & Evidence-Driven Priorities
+
+Before an audit, implementation decision, or product-facing Jira task, read [docs/product/intent-and-audit-priorities.md](docs/product/intent-and-audit-priorities.md) along with the ticket and relevant code. Preserve intentional demos and owner-approved workflows; distinguish confirmed defects from unverified risk and optional UX opinion. Prioritize real buyer/provider outcomes and verifiable user benefit over cosmetic AI-generated preferences. An audit report is not permission to implement undecided business rules or rename existing terminology. Do not copy private immigration or petition strategy into public code, tickets, or agent guidance.
+
+---
+
 ## Scope Rules
 
 Before making changes:
