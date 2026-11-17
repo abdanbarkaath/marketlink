@@ -75,6 +75,7 @@ export default function AppHeader() {
   const isHomePage = pathname === '/';
   const isProvidersPage = pathname?.startsWith('/providers') || pathname?.startsWith('/experts');
   const isLoginPage = pathname === '/login';
+  const isAccountPage = isLoginPage || pathname === '/signup';
   const isDashboardPage = pathname?.startsWith('/dashboard');
   const showLoginAction = !canSeeDashboard && !isLoginPage;
   const navItems: NavItem[] = [
@@ -93,8 +94,8 @@ export default function AppHeader() {
   const actionButtonClass = 'ml-btn-secondary inline-flex min-h-11 items-center justify-center rounded-full border px-4 text-sm font-semibold shadow-sm transition';
   const mobileMenuButtonClass = 'inline-flex h-11 w-11 items-center justify-center rounded-full border border-slate-200/80 bg-white text-slate-950 shadow-sm transition lg:hidden';
 
-  if (isHomePage || pathname === '/experts' || pathname?.startsWith('/experts/')) {
-    const publicNavItems = navItems.filter(item => !(isHomePage && item.href === '/'));
+  if (isHomePage || isAccountPage || pathname === '/experts' || pathname?.startsWith('/experts/')) {
+    const publicNavItems = navItems.filter(item => !((isHomePage || isAccountPage) && item.href === '/'));
     if (isHomePage && !canSeeDashboard) publicNavItems.push({ href: '/signup', label: 'For agencies', active: false });
     return (
       <header className="approved-home home-preview-header">
@@ -105,7 +106,7 @@ export default function AppHeader() {
           <nav aria-label="Main navigation" className="home-preview-nav">
             {publicNavItems.map(item => <Link key={item.href} href={item.href} aria-current={item.active ? 'page' : undefined}>{item.label}</Link>)}
             <div className="home-preview-account">
-              {role === null ? <span className="inline-block h-11 w-16" aria-hidden="true" /> : canSeeDashboard ? <LogoutButton className="signin" /> : <Link href="/login" className="signin">Sign in</Link>}
+              {role === null ? <span className="inline-block h-11 w-16" aria-hidden="true" /> : canSeeDashboard ? <LogoutButton className="signin" /> : showLoginAction ? <Link href="/login" className="signin">Sign in</Link> : null}
             </div>
           </nav>
         </div>
