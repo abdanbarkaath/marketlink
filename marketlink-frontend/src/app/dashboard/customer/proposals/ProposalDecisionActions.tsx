@@ -52,19 +52,19 @@ export default function ProposalDecisionActions({ proposalId, status }: Proposal
 
   if (status !== 'PENDING') {
     return (
-      <div className="rounded-2xl border border-slate-200 bg-slate-50 px-4 py-3">
-        <div className="text-[11px] font-semibold uppercase tracking-[0.2em] text-slate-400">Decision</div>
+      <div className="border-t border-slate-200 pt-4">
+        <div className="text-sm font-semibold text-slate-700">Decision</div>
         <p className="mt-1 text-sm font-semibold text-slate-900">{formatProposalStatus(status)}</p>
       </div>
     );
   }
 
   return (
-    <div className="rounded-2xl border border-slate-200 bg-white px-4 py-4">
-      <div className="text-[11px] font-semibold uppercase tracking-[0.2em] text-slate-400">Decision</div>
-      <p className="mt-2 text-sm leading-6 text-slate-600">Accept the proposal when you want to move forward, or decline it to keep your list clear.</p>
+    <div className="border-t border-slate-200 pt-4">
+      <div className="text-sm font-semibold text-slate-700">Decision</div>
+      <p className="mt-2 text-sm leading-6 text-slate-600">Accept to continue with this provider or decline to pass on the proposal.</p>
 
-      <div className="mt-4 grid gap-3 sm:grid-cols-2">
+      <div className="mt-4 flex flex-wrap gap-3">
         <button
           type="button"
           disabled={Boolean(busyStatus)}
@@ -77,14 +77,14 @@ export default function ProposalDecisionActions({ proposalId, status }: Proposal
           type="button"
           disabled={Boolean(busyStatus)}
           onClick={() => updateProposal('DECLINED')}
-          className="inline-flex min-h-11 items-center justify-center rounded-xl border border-slate-200 bg-white px-5 text-sm font-semibold text-slate-700 transition hover:border-slate-300 hover:bg-slate-50 disabled:opacity-60"
+          className="ml-btn-secondary inline-flex min-h-11 items-center justify-center px-4 py-2.5 text-sm font-semibold disabled:opacity-60"
         >
           {busyStatus === 'DECLINED' ? 'Declining...' : 'Decline'}
         </button>
       </div>
 
       {error ? (
-        <div role="alert" className="mt-4 rounded-2xl border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700">
+        <div role="alert" className="mt-4 rounded-xl border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700">
           {error}
         </div>
       ) : null}

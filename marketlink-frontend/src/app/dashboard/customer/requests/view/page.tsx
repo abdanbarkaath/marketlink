@@ -220,20 +220,20 @@ function MatchCardsSection({
             <Link
               key={expert.id}
               href={`/experts/${expert.slug}`}
-              className="ml-card rounded-[24px] p-5 shadow-[0_18px_44px_rgba(23,26,31,0.05)] transition hover:-translate-y-0.5 hover:shadow-[0_22px_48px_rgba(23,26,31,0.08)]"
+              className="ml-card ml-card-hover rounded-xl p-5"
             >
               <div className="flex flex-wrap gap-2">
                 {showDistance && formatDistance(expert.distanceMiles) ? (
-                  <span className="ml-pill inline-flex rounded-xl px-3 py-1 text-[11px] font-medium uppercase tracking-[0.16em] text-slate-500">
+                  <span className="ml-pill inline-flex rounded-xl px-3 py-1 text-xs font-medium text-slate-500">
                     {formatDistance(expert.distanceMiles)}
                   </span>
                 ) : (
-                  <span className="ml-pill inline-flex rounded-xl px-3 py-1 text-[11px] font-medium uppercase tracking-[0.16em] text-slate-500">
+                  <span className="ml-pill inline-flex rounded-xl px-3 py-1 text-xs font-medium text-slate-500">
                     {formatReason(expert.primaryReason)}
                   </span>
                 )}
                 {expert.verified ? (
-                  <span className="ml-pill inline-flex rounded-xl px-3 py-1 text-[11px] font-medium uppercase tracking-[0.16em] text-slate-500">
+                  <span className="ml-pill inline-flex rounded-xl px-3 py-1 text-xs font-medium text-slate-500">
                     Verified
                   </span>
                 ) : null}
@@ -249,7 +249,7 @@ function MatchCardsSection({
           ))}
         </div>
       ) : (
-        <div className="ml-card mt-4 rounded-[24px] p-5 shadow-[0_18px_44px_rgba(23,26,31,0.05)]">
+        <div className="ml-card mt-4 rounded-xl p-5">
           <p className="text-sm leading-6 text-slate-600">{emptyMessage}</p>
         </div>
       )}
@@ -316,17 +316,16 @@ export default async function CustomerRequestDetailPage({
 
   return (
     <main className="ml-page-bg min-h-[calc(100vh-72px)]">
-      <div className="mx-auto max-w-6xl px-4 py-6 sm:px-6 sm:py-8">
-        <div className="flex flex-col gap-3 sm:flex-row sm:items-end sm:justify-between">
+      <div className="dashboard-page-content mx-auto max-w-6xl px-4 py-6 sm:px-6 sm:py-8">
+        <div className="dashboard-intro flex flex-col gap-3 p-5 sm:p-6 lg:flex-row lg:items-end lg:justify-between">
           <div>
-            <p className="text-xs font-semibold uppercase tracking-[0.32em] text-slate-500">Customer requests</p>
-            <h1 className="mt-2 text-3xl font-semibold tracking-tight text-slate-950 sm:text-4xl">{request.title}</h1>
-            <p className="mt-3 text-sm leading-6 text-slate-600">
+            <h1 className="text-3xl font-extrabold tracking-tight text-white sm:text-4xl">{request.title}</h1>
+            <p className="dashboard-intro-copy mt-3 text-sm leading-6">
               Created {formatShortDate(request.createdAt)} • {formatStatus(request.status)} • {getLocationSummary(request)}
             </p>
           </div>
 
-          <div className="flex flex-col gap-3 sm:flex-row">
+          <div className="flex shrink-0 flex-wrap gap-3">
             <Link href="/dashboard/customer/requests" className="ml-btn-secondary inline-flex min-h-11 items-center justify-center rounded-xl px-5 text-sm font-semibold text-slate-900">
               Back to history
             </Link>
@@ -337,47 +336,47 @@ export default async function CustomerRequestDetailPage({
         </div>
 
         <div className="mt-5 grid gap-5 lg:grid-cols-[minmax(0,1.05fr)_340px]">
-          <section className="ml-card rounded-[28px] p-6 shadow-[0_18px_50px_rgba(23,26,31,0.06)]">
+          <section className="ml-card rounded-xl p-6">
             <div className="flex flex-wrap gap-2">
-              <span className="ml-pill inline-flex rounded-xl px-3 py-1 text-[11px] font-medium uppercase tracking-[0.16em] text-slate-500">
+              <span className="ml-pill inline-flex rounded-xl px-3 py-1 text-xs font-medium text-slate-500">
                 {formatStatus(request.status)}
               </span>
-              <span className="ml-pill inline-flex rounded-xl px-3 py-1 text-[11px] font-medium uppercase tracking-[0.16em] text-slate-500">
+              <span className="ml-pill inline-flex rounded-xl px-3 py-1 text-xs font-medium text-slate-500">
                 {areaDetails.label}
               </span>
-              <span className="ml-pill inline-flex rounded-xl px-3 py-1 text-[11px] font-medium uppercase tracking-[0.16em] text-slate-500">
+              <span className="ml-pill inline-flex rounded-xl px-3 py-1 text-xs font-medium text-slate-500">
                 {request.intakeMode === 'UNSURE' ? 'Unsure path' : 'Specific path'}
               </span>
             </div>
 
             <div className="mt-5 grid gap-5 md:grid-cols-2">
               <div>
-                <div className="text-[11px] font-semibold uppercase tracking-[0.2em] text-slate-400">Description</div>
-                <p className="mt-2 whitespace-pre-wrap text-sm leading-6 text-slate-700">{request.description}</p>
+                <div className="text-sm font-semibold text-slate-700">Description</div>
+                <p className="mt-2 whitespace-pre-wrap break-words text-sm leading-6 text-slate-700">{request.description}</p>
               </div>
 
               <div className="space-y-4">
                 <div>
-                  <div className="text-[11px] font-semibold uppercase tracking-[0.2em] text-slate-400">Request path</div>
+                  <div className="text-sm font-semibold text-slate-700">Request path</div>
                   <div className="mt-1 text-sm font-medium text-slate-900">{request.intakeMode === 'UNSURE' ? 'Not sure yet' : 'Specific marketing area selected'}</div>
                 </div>
                 <div>
-                  <div className="text-[11px] font-semibold uppercase tracking-[0.2em] text-slate-400">Business location</div>
+                  <div className="text-sm font-semibold text-slate-700">Business location</div>
                   <div className="mt-1 text-sm font-medium text-slate-900">{getLocationSummary(request)}</div>
                 </div>
                 <div>
-                  <div className="text-[11px] font-semibold uppercase tracking-[0.2em] text-slate-400">Budget</div>
+                  <div className="text-sm font-semibold text-slate-700">Budget</div>
                   <div className="mt-1 text-sm font-medium text-slate-900">{request.budgetLabel || 'Not specified'}</div>
                 </div>
                 <div>
-                  <div className="text-[11px] font-semibold uppercase tracking-[0.2em] text-slate-400">Timeline</div>
+                  <div className="text-sm font-semibold text-slate-700">Timeline</div>
                   <div className="mt-1 text-sm font-medium text-slate-900">{request.timelineLabel || 'Not specified'}</div>
                 </div>
               </div>
             </div>
 
             <div className="mt-5">
-              <div className="text-[11px] font-semibold uppercase tracking-[0.2em] text-slate-400">Matching tags</div>
+              <div className="text-sm font-semibold text-slate-700">Matching tags</div>
               {request.serviceTokens.length ? (
                 <div className="mt-2 flex flex-wrap gap-2">
                   {request.serviceTokens.map((token) => (
@@ -395,8 +394,8 @@ export default async function CustomerRequestDetailPage({
             </div>
           </section>
 
-          <aside className="ml-card rounded-[28px] p-6 shadow-[0_18px_50px_rgba(23,26,31,0.06)]">
-            <div className="text-xs font-semibold uppercase tracking-[0.26em] text-slate-400">Matching preview</div>
+          <aside className="ml-card rounded-xl p-6">
+            <div className="text-sm font-semibold text-slate-700">Matching preview</div>
             <h2 className="mt-3 text-2xl font-semibold tracking-tight text-slate-950">
               {preview
                 ? unsurePreview
@@ -414,7 +413,7 @@ export default async function CustomerRequestDetailPage({
 
             {preview?.requestLocation ? (
               <div className="mt-4 rounded-2xl bg-slate-50 px-4 py-4">
-                <div className="text-[11px] font-semibold uppercase tracking-[0.2em] text-slate-400">Request location</div>
+                <div className="text-sm font-semibold text-slate-700">Request location</div>
                 <div className="mt-2 text-sm font-medium text-slate-900">
                   {[preview.requestLocation.city, preview.requestLocation.state].filter(Boolean).join(', ') || getLocationSummary(request)}
                 </div>
@@ -436,7 +435,6 @@ export default async function CustomerRequestDetailPage({
         <section className="mt-5">
           <div className="flex flex-col gap-3 sm:flex-row sm:items-end sm:justify-between">
             <div>
-              <p className="text-xs font-semibold uppercase tracking-[0.26em] text-slate-400">Provider proposals</p>
               <h2 className="mt-2 text-2xl font-semibold tracking-tight text-slate-950">
                 {proposals.length
                   ? pendingProposalCount
@@ -456,15 +454,15 @@ export default async function CustomerRequestDetailPage({
           {proposals.length ? (
             <div className="mt-4 grid gap-4">
               {proposals.map((proposal) => (
-                <article key={proposal.id} className="ml-card rounded-[28px] p-5 shadow-[0_18px_44px_rgba(23,26,31,0.05)]">
+                <article key={proposal.id} className="ml-card rounded-xl p-5">
                   <div className="flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between">
                     <div>
                       <div className="flex flex-wrap gap-2">
-                        <span className="ml-pill inline-flex rounded-xl px-3 py-1 text-[11px] font-medium uppercase tracking-[0.16em] text-slate-500">
+                        <span className="ml-pill inline-flex rounded-xl px-3 py-1 text-xs font-medium text-slate-500">
                           {formatProposalStatus(proposal.status)}
                         </span>
                         {proposal.expert.verified ? (
-                          <span className="ml-pill inline-flex rounded-xl px-3 py-1 text-[11px] font-medium uppercase tracking-[0.16em] text-slate-500">
+                          <span className="ml-pill inline-flex rounded-xl px-3 py-1 text-xs font-medium text-slate-500">
                             Verified
                           </span>
                         ) : null}
@@ -486,13 +484,13 @@ export default async function CustomerRequestDetailPage({
 
                   <div className="mt-5 grid gap-4 md:grid-cols-[minmax(0,1fr)_260px]">
                     <div>
-                      <div className="text-[11px] font-semibold uppercase tracking-[0.2em] text-slate-400">Provider note</div>
-                      <p className="mt-2 whitespace-pre-wrap text-sm leading-6 text-slate-700">{proposal.message}</p>
+                      <div className="text-sm font-semibold text-slate-700">Provider note</div>
+                      <p className="mt-2 whitespace-pre-wrap break-words text-sm leading-6 text-slate-700">{proposal.message}</p>
                     </div>
 
                     <div className="grid gap-4">
-                      <div className="rounded-2xl bg-slate-50 p-4">
-                        <div className="text-[11px] font-semibold uppercase tracking-[0.2em] text-slate-400">Estimate</div>
+                      <div className="ml-surface-muted rounded-xl p-4">
+                        <div className="text-sm font-semibold text-slate-700">Estimate</div>
                         <dl className="mt-3 space-y-3 text-sm">
                           <div>
                             <dt className="text-slate-500">Budget</dt>
@@ -517,15 +515,16 @@ export default async function CustomerRequestDetailPage({
                           Open private chat
                         </Link>
                       ) : null}
-
-                      <ProposalDecisionActions proposalId={proposal.id} status={proposal.status} />
                     </div>
+                  </div>
+                  <div className="mt-5">
+                    <ProposalDecisionActions proposalId={proposal.id} status={proposal.status} />
                   </div>
                 </article>
               ))}
             </div>
           ) : (
-            <div className="ml-card mt-4 rounded-[24px] p-5 shadow-[0_18px_44px_rgba(23,26,31,0.05)]">
+            <div className="ml-card mt-4 rounded-xl p-5">
               <p className="text-sm leading-6 text-slate-600">
                 Providers have not sent proposals yet. This page will update once matched experts respond to the request.
               </p>
@@ -536,7 +535,7 @@ export default async function CustomerRequestDetailPage({
         <section className="mt-5">
           <div className="flex items-end justify-between">
             <div>
-              <p className="text-xs font-semibold uppercase tracking-[0.26em] text-slate-400">
+              <p className="text-sm font-semibold text-slate-700">
                 {unsurePreview ? 'Private match buckets' : 'Likely experts'}
               </p>
               <h2 className="mt-2 text-2xl font-semibold tracking-tight text-slate-950">
@@ -577,7 +576,7 @@ export default async function CustomerRequestDetailPage({
               emptyMessage={getPreviewEmptyMessage(request)}
             />
           ) : (
-            <div className="ml-card mt-4 rounded-[24px] p-5 shadow-[0_18px_44px_rgba(23,26,31,0.05)]">
+            <div className="ml-card mt-4 rounded-xl p-5">
               <p className="text-sm leading-6 text-slate-600">{getPreviewEmptyMessage(request)}</p>
             </div>
           )}

@@ -28,20 +28,14 @@ test('browse local experts link is visible', async ({ page }) => {
   await expect(link).toHaveAttribute('href', '/experts');
 });
 
-test('mobile navigation opens as a readable menu sheet', async ({ page }) => {
-  await page.setViewportSize({ width: 390, height: 844 });
+test('mobile navigation keeps Browse experts and Sign in visible', async ({ page }) => {
+  await page.route('**/me/summary', route => route.fulfill({ status: 401, json: {} }));
+  await page.setViewportSize({ width: 320, height: 844 });
   await page.goto(BASE_URL);
 
-  await page.getByRole('button', { name: 'Open navigation menu' }).click();
-
-  const menu = page.getByTestId('mobile-navigation-menu');
-  await expect(menu).toBeVisible();
-  await expect(menu.getByText('MarketLink')).not.toBeVisible();
-  await expect(menu.getByRole('link', { name: /Home/i })).toBeVisible();
-  await expect(menu.getByRole('link', { name: /Browse experts/i })).toBeVisible();
-
-  await page.getByRole('button', { name: 'Close navigation menu' }).click();
-  await expect(menu).not.toBeVisible();
+  const nav = page.getByRole('navigation', { name: 'Main navigation' });
+  await expect(nav.getByRole('link', { name: 'Browse experts', exact: true })).toBeInViewport();
+  await expect(nav.getByRole('link', { name: 'Sign in', exact: true })).toBeInViewport();
 });
 
 test('desktop hero shows problem-first discovery choices', async ({ page }) => {

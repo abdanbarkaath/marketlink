@@ -106,60 +106,50 @@ export default async function CustomerProposalsPage() {
 
   return (
     <main className="ml-page-bg min-h-[calc(100vh-72px)]">
-      <div className="mx-auto max-w-6xl px-4 py-6 sm:px-6 sm:py-8">
-        <div className="flex flex-col gap-4 sm:flex-row sm:items-end sm:justify-between">
+      <div className="dashboard-page-content mx-auto max-w-6xl px-4 py-6 sm:px-6 sm:py-8">
+        <div className="dashboard-intro flex flex-col gap-4 p-5 sm:p-6 lg:flex-row lg:items-end lg:justify-between">
           <div>
-            <p className="text-xs font-semibold uppercase tracking-[0.32em] text-slate-500">Customer proposals</p>
-            <h1 className="mt-2 text-3xl font-semibold tracking-tight text-slate-950 sm:text-4xl">Proposal inbox</h1>
-            <p className="mt-3 max-w-2xl text-sm leading-6 text-slate-600">
+            <h1 className="text-3xl font-extrabold tracking-tight text-white sm:text-4xl">Proposal inbox</h1>
+            <p className="dashboard-intro-copy mt-3 max-w-2xl text-sm leading-6">
               Compare incoming proposals across your requests. Accept the provider you want to move forward with or decline proposals that are not a fit.
             </p>
           </div>
 
-          <div className="flex flex-col gap-3 sm:flex-row">
-            <Link href="/dashboard/customer" className="ml-btn-secondary inline-flex min-h-11 items-center justify-center rounded-xl px-5 text-sm font-semibold text-slate-900">
-              Back to dashboard
-            </Link>
+          <div className="flex shrink-0 flex-wrap gap-3">
             <Link href="/dashboard/customer/requests" className="ml-btn-primary inline-flex min-h-11 items-center justify-center rounded-xl px-6 text-sm font-semibold text-white">
               Request history
             </Link>
           </div>
         </div>
 
-        <section className="ml-card mt-5 rounded-[28px] p-5 shadow-[0_18px_50px_rgba(23,26,31,0.06)]">
-          <div className="grid gap-3 sm:grid-cols-3">
-            <div className="rounded-2xl bg-slate-50 p-4">
-              <div className="text-[11px] font-semibold uppercase tracking-[0.2em] text-slate-400">Total proposals</div>
-              <div className="mt-2 text-2xl font-semibold text-slate-950">{proposals.length}</div>
-            </div>
-            <div className="rounded-2xl bg-slate-50 p-4">
-              <div className="text-[11px] font-semibold uppercase tracking-[0.2em] text-slate-400">Needs decision</div>
-              <div className="mt-2 text-2xl font-semibold text-slate-950">{pendingCount}</div>
-            </div>
-            <div className="rounded-2xl bg-slate-50 p-4">
-              <div className="text-[11px] font-semibold uppercase tracking-[0.2em] text-slate-400">Flow</div>
-              <div className="mt-2 text-sm font-semibold text-slate-950">Review, accept, or decline</div>
-            </div>
+        <dl className="ml-card mt-5 flex flex-wrap gap-x-8 gap-y-2 rounded-xl px-5 py-4 text-sm">
+          <div className="flex items-baseline gap-2">
+            <dt className="text-slate-600">Total proposals</dt>
+            <dd className="font-bold tabular-nums text-slate-950">{proposals.length}</dd>
           </div>
-        </section>
+          <div className="flex items-baseline gap-2">
+            <dt className="text-slate-600">Needs decision</dt>
+            <dd className="font-bold tabular-nums text-slate-950">{pendingCount}</dd>
+          </div>
+        </dl>
 
         {proposals.length ? (
           <section className="mt-5 grid gap-4">
             {proposals.map((proposal) => {
               const subject = getMarketingSubjectById(proposal.request.marketingSubjectId || '');
               return (
-                <article key={proposal.id} className="ml-card rounded-[28px] p-5 shadow-[0_18px_44px_rgba(23,26,31,0.05)]">
+                <article key={proposal.id} className="ml-card rounded-xl p-5">
                   <div className="flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between">
                     <div>
                       <div className="flex flex-wrap gap-2">
-                        <span className="ml-pill inline-flex rounded-xl px-3 py-1 text-[11px] font-medium uppercase tracking-[0.16em] text-slate-500">
+                        <span className="ml-pill inline-flex rounded-xl px-3 py-1 text-xs font-medium text-slate-500">
                           {formatProposalStatus(proposal.status)}
                         </span>
-                        <span className="ml-pill inline-flex rounded-xl px-3 py-1 text-[11px] font-medium uppercase tracking-[0.16em] text-slate-500">
+                        <span className="ml-pill inline-flex rounded-xl px-3 py-1 text-xs font-medium text-slate-500">
                           {subject?.label || 'Not sure yet'}
                         </span>
                         {proposal.expert.verified ? (
-                          <span className="ml-pill inline-flex rounded-xl px-3 py-1 text-[11px] font-medium uppercase tracking-[0.16em] text-slate-500">
+                          <span className="ml-pill inline-flex rounded-xl px-3 py-1 text-xs font-medium text-slate-500">
                             Verified
                           </span>
                         ) : null}
@@ -198,13 +188,13 @@ export default async function CustomerProposalsPage() {
 
                   <div className="mt-5 grid gap-4 md:grid-cols-[minmax(0,1fr)_280px]">
                     <div>
-                      <div className="text-[11px] font-semibold uppercase tracking-[0.2em] text-slate-400">Provider note</div>
-                      <p className="mt-2 whitespace-pre-wrap text-sm leading-6 text-slate-700">{proposal.message}</p>
+                      <div className="text-sm font-semibold text-slate-700">Provider note</div>
+                      <p className="mt-2 whitespace-pre-wrap break-words text-sm leading-6 text-slate-700">{proposal.message}</p>
                     </div>
 
                     <div className="grid gap-4">
-                      <div className="rounded-2xl bg-slate-50 p-4">
-                        <div className="text-[11px] font-semibold uppercase tracking-[0.2em] text-slate-400">Estimate</div>
+                      <div className="ml-surface-muted rounded-xl p-4">
+                        <div className="text-sm font-semibold text-slate-700">Estimate</div>
                         <dl className="mt-3 space-y-3 text-sm">
                           <div>
                             <dt className="text-slate-500">Budget</dt>
@@ -220,18 +210,18 @@ export default async function CustomerProposalsPage() {
                           </div>
                         </dl>
                       </div>
-
-                      <ProposalDecisionActions proposalId={proposal.id} status={proposal.status} />
                     </div>
+                  </div>
+                  <div className="mt-5">
+                    <ProposalDecisionActions proposalId={proposal.id} status={proposal.status} />
                   </div>
                 </article>
               );
             })}
           </section>
         ) : (
-          <section className="ml-card mt-5 rounded-[28px] p-6 shadow-[0_18px_50px_rgba(23,26,31,0.06)]">
-            <p className="text-xs font-semibold uppercase tracking-[0.26em] text-slate-400">No proposals yet</p>
-            <h2 className="mt-3 text-2xl font-semibold tracking-tight text-slate-950">Your inbox will fill in once providers respond.</h2>
+          <section className="ml-card mt-5 rounded-xl p-6">
+            <h2 className="mt-3 text-2xl font-semibold tracking-tight text-slate-950">No proposals yet</h2>
             <p className="mt-2 max-w-2xl text-sm leading-6 text-slate-600">
               Create or keep an active request open so matched providers can send proposals.
             </p>

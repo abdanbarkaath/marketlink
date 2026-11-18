@@ -77,21 +77,21 @@ export default function ProposalForm({ requestId, initialProposal = null }: Prop
 
   if (proposal) {
     return (
-      <section className="mt-5 rounded-2xl border border-emerald-200 bg-emerald-50 px-4 py-4">
+      <section className="rounded-xl border border-emerald-200 bg-emerald-50 p-5 sm:p-6">
         <div className="flex items-center justify-between gap-3">
-          <div className="text-[11px] font-semibold uppercase tracking-[0.2em] text-emerald-700">Proposal submitted</div>
+          <div className="text-sm font-semibold text-emerald-700">Proposal submitted</div>
           <span className="rounded-full bg-white px-3 py-1 text-xs font-semibold text-emerald-700 ring-1 ring-emerald-200">
             {formatProposalStatus(proposal.status)}
           </span>
         </div>
-        <p className="mt-3 whitespace-pre-wrap text-sm leading-6 text-slate-700">{proposal.message}</p>
+        <p className="mt-3 whitespace-pre-wrap break-words text-sm leading-6 text-slate-700">{proposal.message}</p>
         <div className="mt-4 grid gap-3 text-sm sm:grid-cols-2">
           <div>
-            <div className="text-[11px] font-semibold uppercase tracking-[0.18em] text-emerald-700">Price</div>
+            <div className="text-sm font-semibold text-emerald-700">Price</div>
             <div className="mt-1 font-medium text-slate-900">{proposal.priceLabel || 'Not specified'}</div>
           </div>
           <div>
-            <div className="text-[11px] font-semibold uppercase tracking-[0.18em] text-emerald-700">Timeline</div>
+            <div className="text-sm font-semibold text-emerald-700">Timeline</div>
             <div className="mt-1 font-medium text-slate-900">{proposal.timelineLabel || 'Not specified'}</div>
           </div>
         </div>
@@ -108,8 +108,8 @@ export default function ProposalForm({ requestId, initialProposal = null }: Prop
   }
 
   return (
-    <form onSubmit={submitProposal} className="mt-5 rounded-2xl border border-slate-200 bg-white/80 px-4 py-4">
-      <div className="text-[11px] font-semibold uppercase tracking-[0.2em] text-slate-400">Send proposal</div>
+    <form onSubmit={submitProposal} className="ml-card rounded-xl p-5 sm:p-6">
+      <h2 className="text-lg font-bold text-slate-950">Send proposal</h2>
       <div className="mt-4 grid gap-4">
         <div className="grid gap-2">
           <label htmlFor="proposal-message" className="text-sm font-medium text-slate-700">
@@ -120,7 +120,7 @@ export default function ProposalForm({ requestId, initialProposal = null }: Prop
             value={message}
             onChange={(event) => setMessage(event.target.value)}
             maxLength={4000}
-            className="ml-input min-h-32 w-full rounded-2xl px-4 py-3 text-sm text-slate-900"
+            className="ml-input min-h-32 w-full rounded-2xl px-4 py-3 text-base text-slate-900"
           />
         </div>
 
@@ -134,7 +134,7 @@ export default function ProposalForm({ requestId, initialProposal = null }: Prop
               value={priceLabel}
               onChange={(event) => setPriceLabel(event.target.value)}
               maxLength={80}
-              className="ml-input w-full rounded-2xl px-4 py-3 text-sm text-slate-900"
+              className="ml-input w-full rounded-2xl px-4 py-3 text-base text-slate-900"
             />
           </div>
 
@@ -147,7 +147,7 @@ export default function ProposalForm({ requestId, initialProposal = null }: Prop
               value={timelineLabel}
               onChange={(event) => setTimelineLabel(event.target.value)}
               maxLength={80}
-              className="ml-input w-full rounded-2xl px-4 py-3 text-sm text-slate-900"
+              className="ml-input w-full rounded-2xl px-4 py-3 text-base text-slate-900"
             />
           </div>
         </div>
@@ -162,7 +162,7 @@ export default function ProposalForm({ requestId, initialProposal = null }: Prop
       <button
         type="submit"
         disabled={saving}
-        className="ml-btn-primary mt-4 inline-flex min-h-11 w-full items-center justify-center rounded-xl px-6 text-sm font-semibold text-white disabled:opacity-60"
+        className="ml-btn-primary mt-4 inline-flex min-h-11 w-full items-center sm:w-auto justify-center rounded-xl px-6 text-sm font-semibold text-white disabled:opacity-60"
       >
         {saving ? 'Submitting proposal...' : 'Submit proposal'}
       </button>

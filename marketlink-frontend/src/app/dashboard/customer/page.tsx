@@ -1,6 +1,7 @@
 import Link from 'next/link';
 import { redirect } from 'next/navigation';
 import { getServerApiHeaders } from '@/lib/serverApi';
+import DashboardMetric from '../DashboardMetric';
 
 const API_BASE = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:4000';
 
@@ -13,52 +14,6 @@ type SummaryResponse = {
     conversationCount?: number;
   } | null;
 };
-
-function DashboardRailCard({
-  eyebrow,
-  title,
-  body,
-}: Readonly<{ eyebrow: string; title: string; body: string }>) {
-  return (
-    <div className="ml-surface-muted rounded-2xl p-4">
-      <div className="text-[11px] font-semibold uppercase tracking-[0.22em] text-slate-400">{eyebrow}</div>
-      <div className="mt-2 text-sm font-semibold text-slate-900">{title}</div>
-      <p className="mt-1 text-sm leading-6 text-slate-600">{body}</p>
-    </div>
-  );
-}
-
-function FutureStateCard({
-  title,
-  body,
-  href,
-  eyebrow = 'Reserved',
-}: Readonly<{ title: string; body: string; href?: string; eyebrow?: string }>) {
-  const content = (
-    <>
-      <span className="ml-pill inline-flex rounded-xl px-3 py-1 text-[11px] font-medium uppercase tracking-[0.16em] text-slate-500">
-        {eyebrow}
-      </span>
-      <h2 className="mt-4 text-xl font-semibold tracking-tight text-slate-950">{title}</h2>
-      <p className="mt-2 text-sm leading-6 text-slate-600">{body}</p>
-      {href ? <span className="mt-4 inline-flex text-sm font-semibold text-slate-900">Open</span> : null}
-    </>
-  );
-
-  if (href) {
-    return (
-      <Link href={href} className="ml-card rounded-[24px] p-5 shadow-[0_18px_44px_rgba(23,26,31,0.05)] transition hover:-translate-y-0.5 hover:shadow-[0_22px_48px_rgba(23,26,31,0.08)]">
-        {content}
-      </Link>
-    );
-  }
-
-  return (
-    <div className="ml-card rounded-[24px] p-5 shadow-[0_18px_44px_rgba(23,26,31,0.05)]">
-      {content}
-    </div>
-  );
-}
 
 export default async function CustomerDashboardPage() {
   const requestHeaders = await getServerApiHeaders();
@@ -94,115 +49,72 @@ export default async function CustomerDashboardPage() {
     redirect('/dashboard/customer/onboarding');
   }
 
-  const activeRequestCount = Number(data.customerStats?.activeRequestCount || 0);
-  const pendingProposalCount = Number(data.customerStats?.pendingProposalCount || 0);
-  const conversationCount = Number(data.customerStats?.conversationCount || 0);
+  const activeRequestCount = data.customerStats?.activeRequestCount ?? null;
+  const pendingProposalCount = data.customerStats?.pendingProposalCount ?? null;
+  const conversationCount = data.customerStats?.conversationCount ?? null;
 
   return (
     <main className="ml-page-bg min-h-[calc(100vh-72px)]">
-      <div className="mx-auto max-w-6xl px-4 py-6 sm:px-6 sm:py-8">
-        <div className="grid gap-5 lg:grid-cols-[minmax(0,1.08fr)_320px]">
-          <section className="ml-card overflow-hidden rounded-[28px] p-5 shadow-[0_18px_50px_rgba(23,26,31,0.06)] sm:p-6">
-            <div className="h-1.5 bg-[linear-gradient(90deg,#0f172a,#25324a,#b6bdc8)] -mx-5 -mt-5 mb-5 sm:-mx-6 sm:-mt-6 sm:mb-6" />
-            <div className="flex flex-col gap-4">
-              <div>
-                <p className="text-xs font-semibold uppercase tracking-[0.32em] text-slate-500">Customer dashboard</p>
-                <h1 className="mt-2 text-3xl font-semibold tracking-tight text-slate-950 sm:text-4xl">Good to see you, {name}.</h1>
-                <p className="mt-3 max-w-2xl text-sm leading-6 text-slate-600">
-                  This is your lightweight home base. Keep the basics current, browse experts, track requests, and review provider proposals from one place.
-                </p>
-              </div>
+      <div className="dashboard-page-content mx-auto max-w-6xl px-4 py-6 sm:px-6 sm:py-8">
+        <section className="dashboard-intro flex flex-col gap-5 p-5 sm:p-6 lg:flex-row lg:items-center lg:justify-between">
+          <div>
+            <h1 className="text-3xl font-extrabold tracking-tight sm:text-4xl">Good to see you, {name}.</h1>
+            <p className="dashboard-intro-copy mt-2 max-w-2xl text-sm leading-6">
+              Find local experts, track your requests, and review proposals.
+            </p>
+          </div>
+          <div className="flex flex-wrap gap-3">
+            <Link href="/dashboard/customer/requests/new" className="ml-btn-primary inline-flex items-center justify-center px-5 py-3 text-sm font-semibold">
+              Create request
+            </Link>
+            <Link href="/experts" className="ml-btn-secondary inline-flex items-center justify-center px-5 py-3 text-sm font-semibold">
+              Browse experts
+            </Link>
+          </div>
+        </section>
 
-              <div className="flex flex-wrap gap-2">
-                <span className="ml-pill inline-flex rounded-xl px-4 py-2 text-sm font-medium normal-case tracking-normal text-slate-700">{email}</span>
-                <span className="ml-pill inline-flex rounded-xl px-4 py-2 text-sm font-medium normal-case tracking-normal text-slate-700">
-                  {businessName || 'No business name added yet'}
-                </span>
-              </div>
-
-              <div className="flex flex-col gap-3 border-t border-slate-200/80 pt-4 sm:flex-row sm:flex-wrap">
-                <Link
-                  href="/dashboard/customer/profile"
-                  className="ml-btn-primary inline-flex min-h-11 items-center justify-center rounded-xl px-6 text-sm font-semibold text-white"
-                >
-                  Edit profile
-                </Link>
-                <Link
-                  href="/dashboard/customer/requests/new"
-                  className="ml-btn-secondary inline-flex min-h-11 items-center justify-center rounded-xl px-5 text-sm font-semibold text-slate-900"
-                >
-                  Create request
-                </Link>
-                <Link
-                  href="/experts"
-                  className="ml-btn-secondary inline-flex min-h-11 items-center justify-center rounded-xl px-5 text-sm font-semibold text-slate-900"
-                >
-                  Browse experts
-                </Link>
-              </div>
+        <div className="mt-5 grid items-start gap-5 lg:grid-cols-[minmax(0,1fr)_20rem]">
+          <section className="ml-card rounded-xl p-5 sm:p-6">
+            <h2 className="text-xl font-bold text-[#192a48]">Your activity</h2>
+            <div className="mt-3 grid divide-y divide-slate-200 border-t border-slate-200 sm:grid-cols-3 sm:divide-x sm:divide-y-0">
+              <DashboardMetric
+                title="Active requests"
+                value={activeRequestCount}
+                detail="View request history"
+                href="/dashboard/customer/requests"
+              />
+              <DashboardMetric
+                title="Proposals to review"
+                value={pendingProposalCount}
+                detail="Review provider responses"
+                href="/dashboard/customer/proposals"
+              />
+              <DashboardMetric
+                title="Conversations"
+                value={conversationCount}
+                detail="Open messages"
+                href="/dashboard/customer/messages"
+              />
             </div>
           </section>
 
-          <aside className="ml-card rounded-[28px] p-5 shadow-[0_18px_50px_rgba(23,26,31,0.06)] sm:p-6 lg:sticky lg:top-6 lg:self-start">
-            <div className="text-xs font-semibold uppercase tracking-[0.26em] text-slate-400">Account snapshot</div>
-            <div className="mt-4 space-y-4">
+          <aside className="ml-card rounded-xl p-5 sm:p-6">
+            <h2 className="text-lg font-bold text-[#192a48]">Account</h2>
+            <dl className="mt-3 space-y-3 text-sm">
               <div>
-                <div className="text-[11px] font-semibold uppercase tracking-[0.2em] text-slate-400">Name</div>
-                <div className="mt-1 text-sm font-medium text-slate-900">{name}</div>
+                <dt className="font-semibold text-slate-600">Email</dt>
+                <dd className="mt-1 break-all text-slate-900">{email}</dd>
               </div>
               <div>
-                <div className="text-[11px] font-semibold uppercase tracking-[0.2em] text-slate-400">Business</div>
-                <div className="mt-1 text-sm font-medium text-slate-900">{businessName || 'Optional for now'}</div>
+                <dt className="font-semibold text-slate-600">Business</dt>
+                <dd className="mt-1 text-slate-900">{businessName || 'Optional for now'}</dd>
               </div>
-            </div>
-
-            <div className="mt-5 grid gap-3">
-              <DashboardRailCard
-                eyebrow="Right now"
-                title="Keep it simple"
-                body="The customer side stays intentionally light until you actually need to request help or start a conversation."
-              />
-              <DashboardRailCard
-                eyebrow="Next"
-                title="Messages now stay in flow"
-                body="Accepted proposals open into private chat, so your dashboard, proposals, and messages all stay connected."
-              />
-            </div>
+            </dl>
+            <Link href="/dashboard/customer/profile" className="ml-btn-secondary mt-4 inline-flex items-center justify-center px-4 py-2 text-sm font-semibold">
+              Edit profile
+            </Link>
           </aside>
         </div>
-
-        <section className="mt-5 grid gap-4 md:grid-cols-3">
-          <FutureStateCard
-            title="Requests"
-            body={
-              activeRequestCount
-                ? `${activeRequestCount} active request${activeRequestCount === 1 ? '' : 's'}. Open history to review status and incoming proposals.`
-                : 'Create requests privately, revisit your history, and review the matching preview from one place.'
-            }
-            href="/dashboard/customer/requests"
-            eyebrow={activeRequestCount ? `${activeRequestCount} active` : 'Live'}
-          />
-          <FutureStateCard
-            title="Proposals"
-            body={
-              pendingProposalCount
-                ? `${pendingProposalCount} proposal${pendingProposalCount === 1 ? '' : 's'} waiting for your decision.`
-                : 'Compare provider responses, review estimates, and accept or decline proposals.'
-            }
-            href="/dashboard/customer/proposals"
-            eyebrow={pendingProposalCount ? `${pendingProposalCount} needs action` : 'Live'}
-          />
-          <FutureStateCard
-            title="Messages"
-            body={
-              conversationCount
-                ? `${conversationCount} private conversation${conversationCount === 1 ? '' : 's'} ready for follow-up.`
-                : 'Accepted proposals open a private live chat here so you can keep each request and provider thread organized.'
-            }
-            href="/dashboard/customer/messages"
-            eyebrow={conversationCount ? `${conversationCount} live` : 'Live'}
-          />
-        </section>
       </div>
     </main>
   );

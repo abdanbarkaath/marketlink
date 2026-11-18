@@ -128,23 +128,60 @@ export default async function CustomerRequestsPage({ searchParams }: CustomerReq
   const end = Math.min(meta.page * meta.limit, meta.total);
   const prevPageHref = `/dashboard/customer/requests?page=${Math.max(1, meta.page - 1)}`;
   const nextPageHref = `/dashboard/customer/requests?page=${Math.min(meta.totalPages, meta.page + 1)}`;
+  const pagination = (
+    <div className="flex flex-col gap-3 rounded-xl border border-slate-200/80 bg-white px-5 py-4 sm:flex-row sm:items-center sm:justify-between">
+      <div className="text-sm text-slate-600">
+        Showing {start}-{end} of {meta.total}
+      </div>
+
+      {meta.totalPages > 1 ? (
+        <div className="flex flex-wrap items-center gap-2">
+          <Link
+            aria-disabled={meta.page <= 1}
+            tabIndex={meta.page <= 1 ? -1 : undefined}
+            className={`inline-flex min-h-11 items-center rounded-lg border px-4 text-sm font-medium ${
+              meta.page <= 1
+                ? 'pointer-events-none border-slate-200/80 bg-slate-100 text-slate-400'
+                : 'border-slate-200/80 bg-white text-slate-700 hover:border-slate-300 hover:bg-slate-50'
+            }`}
+            href={prevPageHref}
+          >
+            Previous
+          </Link>
+
+          <span className="text-sm text-slate-600">
+            Page {meta.page} / {meta.totalPages}
+          </span>
+
+          <Link
+            aria-disabled={meta.page >= meta.totalPages}
+            tabIndex={meta.page >= meta.totalPages ? -1 : undefined}
+            className={`inline-flex min-h-11 items-center rounded-lg border px-4 text-sm font-medium ${
+              meta.page >= meta.totalPages
+                ? 'pointer-events-none border-slate-200/80 bg-slate-100 text-slate-400'
+                : 'border-slate-200/80 bg-white text-slate-700 hover:border-slate-300 hover:bg-slate-50'
+            }`}
+            href={nextPageHref}
+          >
+            Next
+          </Link>
+        </div>
+      ) : null}
+    </div>
+  );
 
   return (
     <main className="ml-page-bg min-h-[calc(100vh-72px)]">
-      <div className="mx-auto max-w-6xl px-4 py-6 sm:px-6 sm:py-8">
-        <div className="flex flex-col gap-4 sm:flex-row sm:items-end sm:justify-between">
+      <div className="dashboard-page-content mx-auto max-w-6xl px-4 py-6 sm:px-6 sm:py-8">
+        <div className="dashboard-intro flex flex-col gap-4 p-5 sm:p-6 lg:flex-row lg:items-end lg:justify-between">
           <div>
-            <p className="text-xs font-semibold uppercase tracking-[0.32em] text-slate-500">Customer requests</p>
-            <h1 className="mt-2 text-3xl font-semibold tracking-tight text-slate-950 sm:text-4xl">Request history</h1>
-            <p className="mt-3 max-w-2xl text-sm leading-6 text-slate-600">
-              Create requests privately, then revisit the matching preview and request details here. Active requests can keep matching, while closed and cancelled requests stay visible in your history.
+            <h1 className="text-3xl font-extrabold tracking-tight text-white sm:text-4xl">Request history</h1>
+            <p className="dashboard-intro-copy mt-3 max-w-2xl text-sm leading-6">
+              Track your requests, review matches and proposals, and revisit closed or cancelled requests.
             </p>
           </div>
 
-          <div className="flex flex-col gap-3 sm:flex-row">
-            <Link href="/dashboard/customer" className="ml-btn-secondary inline-flex min-h-11 items-center justify-center rounded-xl px-5 text-sm font-semibold text-slate-900">
-              Back to dashboard
-            </Link>
+          <div className="flex shrink-0 flex-wrap gap-3">
             <Link href="/dashboard/customer/requests/new" className="ml-btn-primary inline-flex min-h-11 items-center justify-center rounded-xl px-6 text-sm font-semibold text-white">
               Create request
             </Link>
@@ -152,9 +189,8 @@ export default async function CustomerRequestsPage({ searchParams }: CustomerReq
         </div>
 
         {requests.length === 0 ? (
-          <section className="ml-card mt-5 rounded-[28px] p-6 shadow-[0_18px_50px_rgba(23,26,31,0.06)]">
+          <section className="ml-card mt-5 rounded-xl p-6">
             <div className="max-w-2xl">
-              <p className="text-xs font-semibold uppercase tracking-[0.26em] text-slate-400">No requests yet</p>
               <h2 className="mt-3 text-2xl font-semibold tracking-tight text-slate-950">Start with your first request</h2>
               <p className="mt-2 text-sm leading-6 text-slate-600">
                 Once you describe what you need, MarketLink will show a private matching preview based on service tags and the MVP locality rules.
@@ -172,67 +208,33 @@ export default async function CustomerRequestsPage({ searchParams }: CustomerReq
           </section>
         ) : (
           <section className="mt-5 grid gap-4">
-            <div className="flex flex-col gap-3 rounded-[24px] border border-slate-200/80 bg-[linear-gradient(180deg,rgba(255,255,255,0.98),rgba(244,246,248,0.94))] px-5 py-4 shadow-[0_12px_32px_rgba(15,23,42,0.05)] sm:flex-row sm:items-center sm:justify-between">
-              <div className="text-sm text-slate-600">
-                Showing {start}-{end} of {meta.total}
-              </div>
-
-              <div className="flex items-center gap-2">
-                <Link
-                  aria-disabled={meta.page <= 1}
-                  className={`rounded-full border px-4 py-2 text-sm font-medium ${
-                    meta.page <= 1
-                      ? 'pointer-events-none border-slate-200/80 bg-slate-100 text-slate-400'
-                      : 'border-slate-200/80 bg-white text-slate-700 hover:border-slate-300 hover:bg-slate-50'
-                  }`}
-                  href={prevPageHref}
-                >
-                  Prev
-                </Link>
-
-                <span className="text-sm text-slate-600">
-                  Page {meta.page} / {meta.totalPages}
-                </span>
-
-                <Link
-                  aria-disabled={meta.page >= meta.totalPages}
-                  className={`rounded-full border px-4 py-2 text-sm font-medium ${
-                    meta.page >= meta.totalPages
-                      ? 'pointer-events-none border-slate-200/80 bg-slate-100 text-slate-400'
-                      : 'border-slate-200/80 bg-white text-slate-700 hover:border-slate-300 hover:bg-slate-50'
-                  }`}
-                  href={nextPageHref}
-                >
-                  Next
-                </Link>
-              </div>
-            </div>
+            {pagination}
 
             {requests.map((request) => (
               <Link
                 key={request.id}
                 href={`/dashboard/customer/requests/view?id=${encodeURIComponent(request.id)}`}
-                className="ml-card rounded-[24px] p-5 shadow-[0_18px_44px_rgba(23,26,31,0.05)] transition hover:-translate-y-0.5 hover:shadow-[0_22px_48px_rgba(23,26,31,0.08)]"
+                className="ml-card ml-card-hover block min-w-0 rounded-xl p-5"
               >
                 <div className="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
                   <div>
                     <div className="flex flex-wrap gap-2">
-                      <span className="ml-pill inline-flex rounded-xl px-3 py-1 text-[11px] font-medium uppercase tracking-[0.16em] text-slate-500">
+                      <span className="ml-pill inline-flex rounded-xl px-3 py-1 text-xs font-medium text-slate-500">
                         {formatRequestStatus(request.status)}
                       </span>
-                      <span className="ml-pill inline-flex rounded-xl px-3 py-1 text-[11px] font-medium uppercase tracking-[0.16em] text-slate-500">
+                      <span className="ml-pill inline-flex rounded-xl px-3 py-1 text-xs font-medium text-slate-500">
                         {getRequestAreaLabel(request)}
                       </span>
                       {request.proposalSummary.pending > 0 ? (
-                        <span className="inline-flex rounded-xl bg-amber-50 px-3 py-1 text-[11px] font-semibold uppercase tracking-[0.16em] text-amber-700 ring-1 ring-amber-200">
+                        <span className="inline-flex rounded-xl bg-amber-50 px-3 py-1 text-xs font-semibold text-amber-700 ring-1 ring-amber-200">
                           {request.proposalSummary.pending} needs decision
                         </span>
                       ) : request.proposalSummary.accepted > 0 ? (
-                        <span className="inline-flex rounded-xl bg-emerald-50 px-3 py-1 text-[11px] font-semibold uppercase tracking-[0.16em] text-emerald-700 ring-1 ring-emerald-200">
+                        <span className="inline-flex rounded-xl bg-emerald-50 px-3 py-1 text-sm font-semibold text-emerald-700 ring-1 ring-emerald-200">
                           Proposal accepted
                         </span>
                       ) : request.proposalSummary.total > 0 ? (
-                        <span className="ml-pill inline-flex rounded-xl px-3 py-1 text-[11px] font-medium uppercase tracking-[0.16em] text-slate-500">
+                        <span className="ml-pill inline-flex rounded-xl px-3 py-1 text-xs font-medium text-slate-500">
                           {request.proposalSummary.total} proposal{request.proposalSummary.total === 1 ? '' : 's'}
                         </span>
                       ) : null}
@@ -243,7 +245,7 @@ export default async function CustomerRequestsPage({ searchParams }: CustomerReq
                     </p>
                   </div>
 
-                  <span className="text-sm font-semibold text-slate-900">
+                  <span className="text-sm font-semibold text-[#2455b5]">
                     {request.proposalSummary.pending > 0 ? 'Review proposals' : 'Open'}
                   </span>
                 </div>
@@ -265,41 +267,7 @@ export default async function CustomerRequestsPage({ searchParams }: CustomerReq
               </Link>
             ))}
 
-            <div className="flex flex-col gap-3 rounded-[24px] border border-slate-200/80 bg-[linear-gradient(180deg,rgba(255,255,255,0.98),rgba(244,246,248,0.94))] px-5 py-4 shadow-[0_12px_32px_rgba(15,23,42,0.05)] sm:flex-row sm:items-center sm:justify-between">
-              <div className="text-sm text-slate-600">
-                Showing {start}-{end} of {meta.total}
-              </div>
-
-              <div className="flex items-center gap-2">
-                <Link
-                  aria-disabled={meta.page <= 1}
-                  className={`rounded-full border px-4 py-2 text-sm font-medium ${
-                    meta.page <= 1
-                      ? 'pointer-events-none border-slate-200/80 bg-slate-100 text-slate-400'
-                      : 'border-slate-200/80 bg-white text-slate-700 hover:border-slate-300 hover:bg-slate-50'
-                  }`}
-                  href={prevPageHref}
-                >
-                  Prev
-                </Link>
-
-                <span className="text-sm text-slate-600">
-                  Page {meta.page} / {meta.totalPages}
-                </span>
-
-                <Link
-                  aria-disabled={meta.page >= meta.totalPages}
-                  className={`rounded-full border px-4 py-2 text-sm font-medium ${
-                    meta.page >= meta.totalPages
-                      ? 'pointer-events-none border-slate-200/80 bg-slate-100 text-slate-400'
-                      : 'border-slate-200/80 bg-white text-slate-700 hover:border-slate-300 hover:bg-slate-50'
-                  }`}
-                  href={nextPageHref}
-                >
-                  Next
-                </Link>
-              </div>
-            </div>
+            {meta.totalPages > 1 ? pagination : null}
           </section>
         )}
       </div>
