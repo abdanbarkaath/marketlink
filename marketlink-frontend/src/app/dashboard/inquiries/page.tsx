@@ -1,5 +1,6 @@
 'use client';
 
+
 import { useEffect, useMemo, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { useMarketLinkTheme } from '@/components/ThemeToggle';
@@ -108,18 +109,18 @@ export default function DashboardInquiriesPage() {
   const total = rows.length;
   const newCount = rows.filter((r) => r.status === 'NEW').length;
   const shellClass =
-    'rounded-[28px] border border-slate-200/80 bg-[linear-gradient(180deg,rgba(255,255,255,0.94),rgba(247,244,239,0.96))] p-5 shadow-[0_18px_50px_rgba(15,23,42,0.06)] sm:p-6';
-  const mutedCardClass =
-    'rounded-[24px] border border-slate-200/80 bg-[linear-gradient(180deg,rgba(251,250,248,0.98),rgba(243,239,234,0.72))] p-4 shadow-[0_10px_30px_rgba(15,23,42,0.04)]';
+    'ml-card rounded-xl p-5 sm:p-6';
+  const mutedCardClass = 'ml-surface-muted rounded-xl p-4';
 
   const filterButton = (value: 'all' | 'new' | 'read' | 'archived', label: string) => (
     <button
       type="button"
+      aria-pressed={filter === value}
       onClick={() => setFilter(value)}
       className={
         filter === value
-          ? 'rounded-full bg-slate-900 px-4 py-2.5 text-sm font-semibold text-white transition hover:bg-slate-800'
-          : 'rounded-full border border-slate-200/80 bg-white px-4 py-2.5 text-sm font-semibold text-slate-700 transition hover:border-slate-300 hover:bg-slate-50'
+          ? 'ml-btn-primary inline-flex min-h-11 items-center justify-center px-4 py-2.5 text-sm font-semibold'
+          : 'ml-btn-secondary inline-flex min-h-11 items-center justify-center px-4 py-2.5 text-sm font-semibold'
       }
     >
       {label}
@@ -128,44 +129,33 @@ export default function DashboardInquiriesPage() {
 
   return (
     <main className={`${t.pageBg} min-h-[calc(100vh-72px)]`}>
-      <div className="mx-auto max-w-6xl px-4 py-6 sm:px-6 sm:py-8">
-        <section className={`${shellClass} overflow-hidden`}>
-          <div className="grid gap-4 lg:grid-cols-[minmax(0,1.45fr)_320px] lg:items-stretch">
-            <div>
-              <p className="text-xs font-semibold uppercase tracking-[0.32em] text-slate-500">Buyer inquiries</p>
-              <h1 className="mt-2 text-3xl font-semibold tracking-tight text-slate-950 sm:text-4xl">Inbox</h1>
-              <p className={`mt-3 text-sm ${t.mutedText}`}>Review buyer messages, move them through the inbox, and keep the active conversations easy to spot.</p>
-              <div className="mt-5 flex flex-wrap gap-2">
-                <span className="rounded-full border border-slate-200/80 bg-white px-3 py-1 text-xs font-medium text-slate-600 shadow-sm">New → Read → Archived</span>
-                <span className="rounded-full border border-slate-200/80 bg-white px-3 py-1 text-xs font-medium text-slate-600 shadow-sm">Mobile-first actions</span>
-                <span className="rounded-full border border-slate-200/80 bg-white px-3 py-1 text-xs font-medium text-slate-600 shadow-sm">Buyer follow-up</span>
-              </div>
+      <div className="dashboard-page-content mx-auto max-w-6xl px-4 py-6 sm:px-6 sm:py-8">
+        <header className="dashboard-intro p-5 sm:p-6">
+          <div className="flex flex-col gap-5 lg:flex-row lg:items-center lg:justify-between">
+            <div className="min-w-0 max-w-xl">
+              <h1 className="text-3xl font-extrabold tracking-tight text-white sm:text-4xl">Buyer inquiries</h1>
+              <p className="dashboard-intro-copy mt-3 text-sm leading-6">
+                Review new buyer messages and keep track of the inquiries you’ve read or archived.
+              </p>
             </div>
-
-            <div className={mutedCardClass}>
-              <div className="grid grid-cols-2 gap-3 sm:grid-cols-3">
-                <div className="rounded-2xl bg-slate-900 px-4 py-3 text-white shadow-[0_18px_34px_rgba(15,23,42,0.18)]">
-                  <div className="text-[11px] font-semibold uppercase tracking-[0.22em] text-slate-300">Total</div>
-                  <div className="mt-2 text-lg font-semibold">{total}</div>
-                </div>
-                <div className="rounded-2xl border border-slate-200/80 bg-white/90 px-4 py-3">
-                  <div className="text-[11px] font-semibold uppercase tracking-[0.22em] text-slate-400">New</div>
-                  <div className="mt-2 text-lg font-semibold text-slate-950">{newCount}</div>
-                </div>
-                <div className="rounded-2xl border border-slate-200/80 bg-white/90 px-4 py-3 col-span-2 sm:col-span-1">
-                  <div className="text-[11px] font-semibold uppercase tracking-[0.22em] text-slate-400">View</div>
-                  <div className="mt-2 text-lg font-semibold text-slate-950 capitalize">{filter}</div>
-                </div>
+            <dl className="grid grid-cols-2 gap-x-6 gap-y-3 border-t border-white/25 pt-4 lg:shrink-0 lg:border-t-0 lg:pt-0">
+              <div>
+                <dt className="dashboard-intro-copy text-sm">Total inquiries</dt>
+                <dd className="mt-1 text-lg font-bold tabular-nums">{total}</dd>
               </div>
-            </div>
+              <div>
+                <dt className="dashboard-intro-copy text-sm">New</dt>
+                <dd className="mt-1 text-lg font-bold tabular-nums">{newCount}</dd>
+              </div>
+            </dl>
           </div>
-        </section>
+        </header>
 
         <section className={`${shellClass} mt-5`}>
           <div className="flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
             <div>
               <h2 className="text-lg font-semibold text-slate-900">Filter inbox</h2>
-              <p className={`mt-1 text-sm ${t.mutedText}`}>Switch views quickly as inquiries move from new to read to archived.</p>
+              <p className={`mt-1 text-sm ${t.mutedText}`}>View all inquiries or filter by status.</p>
             </div>
 
             <div className="flex flex-wrap gap-2">
@@ -177,7 +167,7 @@ export default function DashboardInquiriesPage() {
           </div>
         </section>
 
-        {pageError ? <div className="mt-5 rounded-2xl border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700">{pageError}</div> : null}
+        {pageError ? <div role="alert" className="mt-5 rounded-lg border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700">{pageError}</div> : null}
 
         {loading ? (
           <section className={`${shellClass} mt-5`}>
@@ -208,7 +198,7 @@ export default function DashboardInquiriesPage() {
                                 : 'border-slate-200 bg-slate-100 text-slate-700'
                             }`}
                           >
-                            {r.status}
+                            {r.status === 'NEW' ? 'New' : r.status === 'READ' ? 'Read' : 'Archived'}
                           </span>
                           <span className={`text-xs ${t.mutedText}`}>{formatDate(r.createdAt)}</span>
                         </div>
@@ -233,7 +223,7 @@ export default function DashboardInquiriesPage() {
                             type="button"
                             disabled={busy}
                             onClick={() => setStatus(r.id, 'READ')}
-                            className="rounded-full border border-slate-200/80 bg-white px-4 py-2.5 text-sm font-semibold text-slate-700 transition hover:border-slate-300 hover:bg-slate-50 disabled:cursor-not-allowed disabled:opacity-60"
+                            className="ml-btn-secondary inline-flex min-h-11 items-center justify-center px-4 py-2.5 text-sm font-semibold disabled:cursor-not-allowed disabled:opacity-60"
                           >
                             Mark read
                           </button>
@@ -244,7 +234,7 @@ export default function DashboardInquiriesPage() {
                             type="button"
                             disabled={busy}
                             onClick={() => setStatus(r.id, 'NEW')}
-                            className="rounded-full border border-slate-200/80 bg-white px-4 py-2.5 text-sm font-semibold text-slate-700 transition hover:border-slate-300 hover:bg-slate-50 disabled:cursor-not-allowed disabled:opacity-60"
+                            className="ml-btn-secondary inline-flex min-h-11 items-center justify-center px-4 py-2.5 text-sm font-semibold disabled:cursor-not-allowed disabled:opacity-60"
                           >
                             Mark new
                           </button>
@@ -255,7 +245,7 @@ export default function DashboardInquiriesPage() {
                             type="button"
                             disabled={busy}
                             onClick={() => setStatus(r.id, 'ARCHIVED')}
-                            className="rounded-full border border-slate-200/80 bg-white px-4 py-2.5 text-sm font-semibold text-slate-700 transition hover:border-slate-300 hover:bg-slate-50 disabled:cursor-not-allowed disabled:opacity-60"
+                            className="ml-btn-secondary inline-flex min-h-11 items-center justify-center px-4 py-2.5 text-sm font-semibold disabled:cursor-not-allowed disabled:opacity-60"
                           >
                             Archive
                           </button>
@@ -266,7 +256,7 @@ export default function DashboardInquiriesPage() {
                             type="button"
                             disabled={busy}
                             onClick={() => setStatus(r.id, 'READ')}
-                            className="rounded-full border border-slate-200/80 bg-white px-4 py-2.5 text-sm font-semibold text-slate-700 transition hover:border-slate-300 hover:bg-slate-50 disabled:cursor-not-allowed disabled:opacity-60"
+                            className="ml-btn-secondary inline-flex min-h-11 items-center justify-center px-4 py-2.5 text-sm font-semibold disabled:cursor-not-allowed disabled:opacity-60"
                           >
                             Restore
                           </button>

@@ -204,12 +204,12 @@ function MessageBubble({
       <div
         className={
           isOwnMessage
-            ? 'max-w-[85%] rounded-[22px] rounded-br-md bg-[#1f314d] px-4 py-3 text-sm leading-6 text-white shadow-[0_16px_32px_rgba(31,49,77,0.18)]'
-            : 'max-w-[85%] rounded-[22px] rounded-bl-md border border-slate-200/90 bg-white px-4 py-3 text-sm leading-6 text-slate-800 shadow-[0_12px_26px_rgba(15,23,42,0.05)]'
+            ? 'max-w-[85%] rounded-xl rounded-br-sm bg-[#192a48] px-4 py-3 text-sm leading-6 text-white'
+            : 'max-w-[85%] rounded-xl rounded-bl-sm border border-slate-200 bg-white px-4 py-3 text-sm leading-6 text-slate-800'
         }
       >
-        <p className="whitespace-pre-wrap">{message.body}</p>
-        <div className={`mt-2 text-[11px] ${isOwnMessage ? 'text-white/70' : 'text-slate-400'}`}>{formatThreadTimestamp(message.createdAt)}</div>
+        <p className="whitespace-pre-wrap [overflow-wrap:anywhere]">{message.body}</p>
+        <div className={`mt-2 text-[11px] ${isOwnMessage ? 'text-[#d9e3f1]' : 'text-slate-600'}`}>{formatThreadTimestamp(message.createdAt)}</div>
       </div>
     </div>
   );
@@ -247,7 +247,7 @@ export default function ConversationWorkspace({
   const [sendPending, setSendPending] = useState(false);
   const [sendError, setSendError] = useState<string | null>(null);
   const [liveStatus, setLiveStatus] = useState<'connecting' | 'live' | 'offline'>('offline');
-  const messagesEndRef = useRef<HTMLDivElement | null>(null);
+  const messageListRef = useRef<HTMLDivElement | null>(null);
   const unreadCount = useMemo(() => conversations.filter((conversation) => conversation.hasUnread).length, [conversations]);
 
   const markConversationRead = useCallback(async (conversationId: string) => {
@@ -450,8 +450,9 @@ export default function ConversationWorkspace({
   }, [currentUserId, markConversationRead, selectedConversationId]);
 
   useEffect(() => {
-    messagesEndRef.current?.scrollIntoView({ behavior: 'smooth', block: 'end' });
-  }, [selectedConversation?.messages.length]);
+    const messageList = messageListRef.current;
+    if (messageList) messageList.scrollTop = messageList.scrollHeight;
+  }, [selectedConversation?.messages.length, selectedConversationId, showInboxOnMobile]);
 
   const selectedSummary = useMemo(
     () => conversations.find((conversation) => conversation.id === selectedConversationId) || null,
@@ -529,15 +530,12 @@ export default function ConversationWorkspace({
 
   if (!conversations.length) {
     return (
-      <section className="ml-card rounded-[28px] p-6 shadow-[0_18px_50px_rgba(23,26,31,0.06)]">
-        <p className="text-xs font-semibold uppercase tracking-[0.26em] text-slate-400">No conversations yet</p>
-        <h2 className="mt-3 text-2xl font-semibold tracking-tight text-slate-950">
-          {isCustomerMode ? 'Accepted proposals will open private chat here.' : 'Accepted requests will open private chat here.'}
-        </h2>
+      <section className="ml-card rounded-xl p-6">
+        <h2 className="text-xl font-bold tracking-tight text-[#192a48]">No conversations yet</h2>
         <p className="mt-2 max-w-2xl text-sm leading-6 text-slate-600">
           {isCustomerMode
-            ? 'Once you accept a provider proposal, the conversation appears here with the request context, estimate details, and live replies.'
-            : 'Once a customer accepts your proposal, the conversation appears here with the request context, estimate details, and live replies.'}
+            ? 'When you accept a proposal, you can message the expert and see the request details here.'
+            : 'When a customer accepts your proposal, you can message them and see the request details here.'}
         </p>
 
         <div className="mt-5 flex flex-col gap-3 sm:flex-row">
@@ -547,35 +545,29 @@ export default function ConversationWorkspace({
           >
             {isCustomerMode ? 'Open proposal inbox' : 'Open matched requests'}
           </Link>
-          <Link
-            href={isCustomerMode ? '/dashboard/customer/requests' : '/dashboard'}
-            className="ml-btn-secondary inline-flex min-h-11 items-center justify-center rounded-xl px-5 text-sm font-semibold text-slate-900"
-          >
-            {isCustomerMode ? 'Request history' : 'Back to dashboard'}
-          </Link>
+          {isCustomerMode ? (
+            <Link
+              href="/dashboard/customer/requests"
+              className="ml-btn-secondary inline-flex items-center justify-center px-5 text-sm font-semibold"
+            >
+              Request history
+            </Link>
+          ) : null}
         </div>
       </section>
     );
   }
 
   return (
-    <section className="grid gap-5 xl:grid-cols-[360px_minmax(0,1fr)]">
-      <aside className={`${showInboxOnMobile ? 'block' : 'hidden'} xl:block ml-card overflow-hidden rounded-[28px] p-4 shadow-[0_18px_50px_rgba(23,26,31,0.06)] sm:p-5`}>
+    <section className="grid items-start gap-5 xl:grid-cols-[minmax(0,340px)_minmax(0,1fr)]">
+      <aside className={`${showInboxOnMobile ? 'block' : 'hidden'} xl:block ml-card overflow-hidden rounded-xl p-4 sm:p-5`}>
         <div className="flex items-center justify-between gap-3 border-b border-slate-200/80 pb-4">
-          <div>
-            <div className="text-xs font-semibold uppercase tracking-[0.26em] text-slate-400">Inbox</div>
-            <h2 className="mt-2 text-2xl font-semibold tracking-tight text-slate-950">Accepted conversations</h2>
-          </div>
-          <div className="flex items-center gap-2">
-            {unreadCount ? (
-              <span className="inline-flex rounded-xl bg-slate-900 px-3 py-1 text-[11px] font-semibold uppercase tracking-[0.16em] text-white">
-                {unreadCount} unread
-              </span>
-            ) : null}
-            <span className="ml-pill inline-flex rounded-xl px-3 py-1 text-[11px] font-medium uppercase tracking-[0.16em] text-slate-500">
-              {conversations.length}
+          <h2 className="text-lg font-bold text-[#192a48]">Conversations</h2>
+          {unreadCount ? (
+            <span className="inline-flex rounded-lg bg-[#edf3ff] px-2.5 py-1 text-xs font-semibold text-[#192a48]">
+              {unreadCount} unread
             </span>
-          </div>
+          ) : null}
         </div>
 
         <div className="mt-4 grid gap-3">
@@ -587,53 +579,50 @@ export default function ConversationWorkspace({
               <button
                 key={conversation.id}
                 type="button"
+                aria-current={isSelected ? true : undefined}
                 onClick={() => {
                   setSelectedConversationId(conversation.id);
                   setShowInboxOnMobile(false);
                 }}
                 className={
                   isSelected
-                    ? 'rounded-[24px] border border-slate-900 bg-slate-900 px-4 py-4 text-left text-white shadow-[0_16px_34px_rgba(15,23,42,0.18)]'
-                    : 'rounded-[24px] border border-slate-200/80 bg-white px-4 py-4 text-left text-slate-950 shadow-[0_12px_24px_rgba(15,23,42,0.05)] transition hover:border-slate-300 hover:bg-slate-50'
+                    ? 'w-full rounded-lg border border-[#2455b5] bg-[#edf3ff] p-3 text-left'
+                    : 'w-full rounded-lg border border-slate-200 bg-white p-3 text-left hover:border-slate-300 hover:bg-slate-50'
                 }
               >
                 <div className="flex items-start justify-between gap-3">
                   <div className="min-w-0">
-                    <div className={`truncate text-sm font-semibold ${isSelected ? 'text-white' : 'text-slate-950'}`}>
+                    <div className="truncate text-sm font-bold text-[#192a48]">
                       {isCustomerMode
                         ? conversation.expert.businessName
                         : conversation.request.customerProfile?.businessName?.trim() ||
                           conversation.request.customerProfile?.name?.trim() ||
                           'Customer'}
                     </div>
-                    <div className={`mt-1 truncate text-sm ${isSelected ? 'text-white/75' : 'text-slate-500'}`}>{conversation.request.title}</div>
+                    <div className="mt-1 truncate text-sm text-slate-600">{conversation.request.title}</div>
                   </div>
-                  <div className={`shrink-0 text-xs ${isSelected ? 'text-white/65' : 'text-slate-400'}`}>
+                  <div className="shrink-0 text-xs text-slate-600">
                     {formatListTimestamp(conversation.latestMessage?.createdAt || conversation.lastMessageAt || conversation.updatedAt)}
                   </div>
                 </div>
 
                 <div className="mt-3 flex flex-wrap gap-2">
                   {conversation.hasUnread ? (
-                    <span
-                      className={`inline-flex rounded-xl px-3 py-1 text-[11px] font-semibold uppercase tracking-[0.16em] ${
-                        isSelected ? 'bg-white/15 text-white' : 'bg-[#1f314d] text-white'
-                      }`}
-                    >
+                    <span className="inline-flex rounded-md bg-[#192a48] px-2.5 py-1 text-xs font-semibold text-white">
                       Unread
                     </span>
                   ) : null}
-                  <span className={`inline-flex rounded-xl px-3 py-1 text-[11px] font-medium uppercase tracking-[0.16em] ${isSelected ? 'bg-white/10 text-white/80' : 'bg-slate-100 text-slate-500'}`}>
+                  <span className="inline-flex rounded-md bg-slate-100 px-2.5 py-1 text-xs font-medium text-slate-700">
                     {subject?.label || 'Not sure yet'}
                   </span>
                   {conversation.proposal?.priceLabel ? (
-                    <span className={`inline-flex rounded-xl px-3 py-1 text-[11px] font-medium ${isSelected ? 'bg-white/10 text-white/80' : 'bg-slate-100 text-slate-500'}`}>
+                    <span className="inline-flex rounded-md bg-slate-100 px-2.5 py-1 text-xs font-medium text-slate-700">
                       {conversation.proposal.priceLabel}
                     </span>
                   ) : null}
                 </div>
 
-                <p className={`mt-3 line-clamp-2 text-sm leading-6 ${isSelected ? 'text-white/80' : 'text-slate-600'}`}>
+                <p className="mt-3 line-clamp-2 text-sm leading-6 text-slate-600 [overflow-wrap:anywhere]">
                   {conversation.latestMessage?.body || 'No messages yet.'}
                 </p>
               </button>
@@ -644,16 +633,19 @@ export default function ConversationWorkspace({
 
       <div className={`${showInboxOnMobile ? 'hidden' : 'block'} xl:block min-w-0`}>
         {!hasSelection ? null : threadLoading ? (
-          <section className="ml-card rounded-[28px] p-6 shadow-[0_18px_50px_rgba(23,26,31,0.06)]">
-            <p className="text-sm text-slate-600">Loading conversation...</p>
+          <section className="ml-card rounded-xl p-6">
+            <p role="status" className="text-sm text-slate-600">Loading conversation...</p>
           </section>
         ) : threadError || !selectedSummary || !selectedConversation ? (
-          <section className="ml-card rounded-[28px] p-6 shadow-[0_18px_50px_rgba(23,26,31,0.06)]">
+          <section className="ml-card rounded-xl p-6">
             <div className="flex items-center justify-between gap-3">
-              <p className="text-sm text-red-700">{threadError || 'Conversation not found.'}</p>
+              <p role="alert" className="text-sm text-red-700">{threadError || 'Conversation not found.'}</p>
               <button
                 type="button"
-                onClick={() => setSelectedConversationId(conversations[0]?.id || null)}
+                onClick={() => {
+                  setSelectedConversationId(conversations[0]?.id || null);
+                  setShowInboxOnMobile(true);
+                }}
                 className="ml-btn-secondary inline-flex min-h-11 items-center justify-center rounded-xl px-5 text-sm font-semibold text-slate-900"
               >
                 Back to inbox
@@ -661,37 +653,36 @@ export default function ConversationWorkspace({
             </div>
           </section>
         ) : (
-          <section className="ml-card overflow-hidden rounded-[28px] shadow-[0_18px_50px_rgba(23,26,31,0.06)]">
+          <section className="ml-card overflow-hidden rounded-xl">
             <div className="border-b border-slate-200/80 px-5 py-5 sm:px-6">
               <div className="flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between">
                 <div className="min-w-0">
-                  <div className="flex items-center gap-2 xl:hidden">
+                  <div className="mb-3 xl:hidden">
                     <button
                       type="button"
                       onClick={() => setShowInboxOnMobile(true)}
-                      className="inline-flex min-h-10 items-center justify-center rounded-xl border border-slate-200 bg-white px-4 text-sm font-semibold text-slate-700"
+                      className="ml-btn-secondary inline-flex min-h-11 items-center justify-center px-4 text-sm font-semibold"
                     >
                       Inbox
                     </button>
-                    <span className="text-xs font-semibold uppercase tracking-[0.2em] text-slate-400">{summarizeLiveStatus(liveStatus)}</span>
                   </div>
 
-                  <div className="mt-1 flex flex-wrap gap-2 xl:mt-0">
-                    <span className="ml-pill inline-flex rounded-xl px-3 py-1 text-[11px] font-medium uppercase tracking-[0.16em] text-slate-500">
+                  <div className="flex flex-wrap gap-2">
+                    <span className="inline-flex rounded-md bg-slate-100 px-2.5 py-1 text-xs font-medium text-slate-700">
                       {selectedSubject?.label || 'Not sure yet'}
                     </span>
                     <span
                       className={
                         liveStatus === 'live'
-                          ? 'inline-flex rounded-xl bg-emerald-50 px-3 py-1 text-[11px] font-semibold uppercase tracking-[0.16em] text-emerald-700 ring-1 ring-emerald-200'
-                          : 'inline-flex rounded-xl bg-slate-100 px-3 py-1 text-[11px] font-semibold uppercase tracking-[0.16em] text-slate-500'
+                          ? 'inline-flex rounded-md bg-emerald-50 px-2.5 py-1 text-xs font-semibold text-emerald-800'
+                          : 'inline-flex rounded-md bg-slate-100 px-2.5 py-1 text-xs font-semibold text-slate-700'
                       }
                     >
                       {summarizeLiveStatus(liveStatus)}
                     </span>
                   </div>
 
-                  <h2 className="mt-3 text-2xl font-semibold tracking-tight text-slate-950">{selectedCounterpartyName}</h2>
+                  <h2 className="mt-3 break-words text-xl font-bold tracking-tight text-[#192a48]">{selectedCounterpartyName}</h2>
                   <p className="mt-1 text-sm leading-6 text-slate-600">{selectedSummary.request.title}</p>
 
                   <div className="mt-3 flex flex-wrap gap-2 text-sm text-slate-600">
@@ -715,7 +706,7 @@ export default function ConversationWorkspace({
                   {isCustomerMode ? (
                     <Link
                       href={`/experts/${selectedSummary.expert.slug}`}
-                      className="inline-flex min-h-11 items-center justify-center rounded-xl border border-slate-200 bg-white px-5 text-sm font-semibold text-slate-700 transition hover:border-slate-300 hover:bg-slate-50"
+                      className="ml-btn-secondary inline-flex min-h-11 items-center justify-center px-5 text-sm font-semibold"
                     >
                       Expert profile
                     </Link>
@@ -724,8 +715,8 @@ export default function ConversationWorkspace({
               </div>
             </div>
 
-            <div className="grid min-h-[620px] grid-rows-[1fr_auto] bg-[linear-gradient(180deg,rgba(248,250,252,0.8),rgba(255,255,255,0.96))]">
-              <div className="overflow-y-auto px-5 py-5 sm:px-6">
+            <div className="bg-[#f5f7fb]">
+              <div ref={messageListRef} className="min-h-48 max-h-[50dvh] overflow-y-auto px-5 py-5 sm:min-h-72 sm:px-6">
                 <div className="grid gap-4">
                   {selectedConversation.messages.length ? (
                     selectedConversation.messages.map((message) => (
@@ -736,16 +727,15 @@ export default function ConversationWorkspace({
                       />
                     ))
                   ) : (
-                    <div className="rounded-[24px] border border-dashed border-slate-200 bg-white/80 px-5 py-6 text-sm leading-6 text-slate-600">
-                      This conversation is open. Send the first message when you are ready to move the accepted proposal forward.
+                    <div className="max-w-lg rounded-lg border border-dashed border-slate-300 bg-white px-4 py-4 text-sm leading-6 text-slate-600">
+                      Send a message to start the conversation.
                     </div>
                   )}
-                  <div ref={messagesEndRef} />
                 </div>
               </div>
 
               <div className="border-t border-slate-200/80 bg-white px-5 py-4 sm:px-6">
-                {sendError ? <div className="mb-3 rounded-2xl border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700">{sendError}</div> : null}
+                {sendError ? <div role="alert" className="mb-3 rounded-lg border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700">{sendError}</div> : null}
 
                 <div className="flex flex-col gap-3">
                   <label htmlFor="conversation-message" className="text-sm font-semibold text-slate-900">
@@ -756,7 +746,7 @@ export default function ConversationWorkspace({
                     value={draft}
                     onChange={(event) => setDraft(event.target.value)}
                     placeholder="Write a message"
-                    className="min-h-28 rounded-[24px] border border-slate-200 bg-white px-4 py-3 text-sm leading-6 text-slate-900 outline-none transition placeholder:text-slate-400 focus:border-slate-400 focus:ring-2 focus:ring-slate-200"
+                    className="ml-input min-h-24 w-full px-3 py-2 text-base leading-6 text-slate-900"
                   />
                   <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
                     <p className="text-sm text-slate-500">

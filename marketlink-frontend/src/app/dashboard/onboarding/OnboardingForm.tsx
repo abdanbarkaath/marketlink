@@ -83,99 +83,95 @@ export default function OnboardingForm() {
   }
 
   const disabled = status === 'submitting';
-  const fieldClass =
-    'w-full rounded-2xl border border-slate-200/80 bg-white px-4 py-3 text-sm text-slate-800 outline-none transition placeholder:text-slate-500 focus:border-slate-400 focus:bg-white focus:ring-2 focus:ring-slate-200/70';
+  const fieldClass = 'ml-input min-h-12 w-full px-3 py-2 text-base';
   return (
-    <main className="mx-auto max-w-2xl px-4 py-6 sm:px-6 sm:py-8">
-        <section className="rounded-xl border border-slate-200 bg-white p-5 sm:p-6">
-          <div className="flex flex-col gap-1">
-            <h1 className="text-3xl font-semibold tracking-tight text-slate-950 sm:text-4xl">Create your expert profile</h1>
-            <p className="text-sm leading-6 text-slate-600 sm:text-base">
-              Create your public listing. You can add pricing and examples of your work later.
-            </p>
+    <main className="mx-auto max-w-3xl px-4 py-6 sm:px-6 sm:py-8">
+      <header className="dashboard-intro p-5 sm:p-6">
+        <h1 className="text-3xl font-extrabold tracking-tight sm:text-4xl">Create your expert profile</h1>
+        <p className="dashboard-intro-copy mt-2 text-sm leading-6">
+          Create your public listing. You can add pricing and examples of your work later.
+        </p>
+      </header>
+
+      <form className="ml-card mt-5 grid gap-5 rounded-xl p-5 sm:p-6" onSubmit={handleSubmit} aria-busy={disabled}>
+        <div>
+          <label className="mb-1 block text-sm font-medium text-slate-700" htmlFor="setup-name">Business name *</label>
+          <input id="setup-name" className={fieldClass} value={businessName} onChange={(e) => setBusinessName(e.target.value)} placeholder="Windy City Growth" required />
+        </div>
+
+        <div className="grid gap-4">
+          <LocationAutocompleteField
+            label="Business address (optional)"
+            value={streetAddress}
+            onChange={setStreetAddress}
+            onResolve={applyResolvedLocation}
+            type="address"
+            placeholder="Search for a business address"
+            fieldClass={fieldClass}
+            autoComplete="street-address"
+            helperText="Choose a suggestion to fill in city, state, and ZIP, or enter them below."
+          />
+        </div>
+
+        <div className="grid grid-cols-1 gap-4 sm:grid-cols-3">
+          <div>
+            <label className="mb-1 block text-sm font-medium text-slate-700" htmlFor="setup-city">City *</label>
+            <input id="setup-city" className={fieldClass} value={city} onChange={(e) => setCity(e.target.value)} required />
           </div>
+          <div>
+            <label className="mb-1 block text-sm font-medium text-slate-700" htmlFor="setup-state">State *</label>
+            <input id="setup-state" className={fieldClass} value={state} onChange={(e) => setState(e.target.value)} required />
+          </div>
+          <div>
+            <label className="mb-1 block text-sm font-medium text-slate-700" htmlFor="setup-zip">ZIP (optional)</label>
+            <input id="setup-zip" className={fieldClass} value={zip} onChange={(e) => setZip(e.target.value)} autoComplete="postal-code" />
+          </div>
+        </div>
 
-          <form className="mt-6 grid gap-5" onSubmit={handleSubmit}>
-            <div>
-              <label className="mb-1 block text-sm font-medium text-slate-700" htmlFor="setup-name">Business name *</label>
-              <input id="setup-name" className={fieldClass} value={businessName} onChange={(e) => setBusinessName(e.target.value)} placeholder="Windy City Growth" required />
-            </div>
+        <div>
+          <label className="mb-1 block text-sm font-medium text-slate-700" htmlFor="setup-type">Expert type *</label>
+          <select id="setup-type" className={fieldClass} value={expertType} onChange={(e) => setExpertType(e.target.value)} required>
+            <option value="">Select the best fit</option>
+            {EXPERT_TYPE_OPTIONS.map((opt) => (
+              <option key={opt.value} value={opt.value}>
+                {opt.label}
+              </option>
+            ))}
+          </select>
+          <p className="mt-2 text-xs text-slate-500">
+            {expertType === 'creator'
+              ? 'Creator proof, platform links, and audience detail can be added right after setup in your profile editor.'
+              : 'Pick the closest fit for how buyers should understand your business.'}
+          </p>
+        </div>
 
-            <div className="grid gap-4">
-              <LocationAutocompleteField
-                label="Business address (optional)"
-                value={streetAddress}
-                onChange={setStreetAddress}
-                onResolve={applyResolvedLocation}
-                type="address"
-                placeholder="Search for a business address"
-                fieldClass={fieldClass}
-                autoComplete="street-address"
-                helperText="Choose a suggestion to fill in city, state, and ZIP, or enter them below."
-              />
-            </div>
+        <div>
+          <label htmlFor="setup-location-display" className="mb-1 block text-sm font-medium text-slate-700">Public location</label>
+          <select id="setup-location-display" aria-describedby="setup-location-description" className={fieldClass} value={locationPrecision} onChange={(event) => setLocationPrecision(event.target.value)}>
+            <option value="approximate">City and state</option>
+            <option value="private">Hide my location</option>
+            <option value="exact">Show my exact business address</option>
+          </select>
+          <p id="setup-location-description" className="mt-2 text-sm text-slate-600">A hidden location is excluded from nearby searches. Buyers can still find your listing by name or service.</p>
+        </div>
 
-            <div className="grid grid-cols-1 gap-4 sm:grid-cols-3">
-              <div>
-                <label className="mb-1 block text-sm font-medium text-slate-700" htmlFor="setup-city">City *</label>
-                <input id="setup-city" className={fieldClass} value={city} onChange={(e) => setCity(e.target.value)} required />
-              </div>
-              <div>
-                <label className="mb-1 block text-sm font-medium text-slate-700" htmlFor="setup-state">State *</label>
-                <input id="setup-state" className={fieldClass} value={state} onChange={(e) => setState(e.target.value)} required />
-              </div>
-              <div>
-                <label className="mb-1 block text-sm font-medium text-slate-700" htmlFor="setup-zip">ZIP (optional)</label>
-                <input id="setup-zip" className={fieldClass} value={zip} onChange={(e) => setZip(e.target.value)} autoComplete="postal-code" />
-              </div>
-            </div>
+        <div>
+          <TaxonomyServicePicker services={services} onChange={setServices} required />
+        </div>
 
-            <div>
-              <label className="mb-1 block text-sm font-medium text-slate-700" htmlFor="setup-type">Expert type *</label>
-              <select id="setup-type" className={fieldClass} value={expertType} onChange={(e) => setExpertType(e.target.value)} required>
-                <option value="">Select the best fit</option>
-                {EXPERT_TYPE_OPTIONS.map((opt) => (
-                  <option key={opt.value} value={opt.value}>
-                    {opt.label}
-                  </option>
-                ))}
-              </select>
-              <p className="mt-2 text-xs text-slate-500">
-                {expertType === 'creator'
-                  ? 'Creator proof, platform links, and audience detail can be added right after setup in your profile editor.'
-                  : 'Pick the closest fit for how buyers should understand your business.'}
-              </p>
-            </div>
+        {error ? <p role="alert" tabIndex={-1} ref={(node) => { node?.focus(); }} className="rounded-lg border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700">{error}</p> : null}
 
-            <div>
-              <label htmlFor="setup-location-display" className="mb-1 block text-sm font-medium">Public location</label>
-              <select id="setup-location-display" className={fieldClass} value={locationPrecision} onChange={(event) => setLocationPrecision(event.target.value)}>
-                <option value="approximate">City and state</option>
-                <option value="private">Hide my location</option>
-                <option value="exact">Show my exact business address</option>
-              </select>
-              <p className="mt-2 text-sm text-slate-600">A hidden location is excluded from nearby searches. Buyers can still find your listing by name or service.</p>
-            </div>
-
-            <div>
-              <TaxonomyServicePicker services={services} onChange={setServices} required />
-            </div>
-
-            {error ? <p role="alert" tabIndex={-1} ref={(node) => { node?.focus(); }} className="rounded-2xl border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700">{error}</p> : null}
-
-            <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
-              <p className="text-xs text-slate-500">* required</p>
-              <button
-                type="submit"
-                disabled={disabled}
-                className="rounded-lg bg-[#2455B5] px-5 py-3 text-sm font-semibold text-white transition hover:bg-[#1E489A] focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#2455B5] disabled:cursor-not-allowed disabled:opacity-60"
-              >
-                {status === 'submitting' ? 'Creating...' : 'Create profile'}
-              </button>
-            </div>
-          </form>
-        </section>
-
+        <div className="flex flex-col gap-3 border-t border-slate-200 pt-4 sm:flex-row sm:items-center sm:justify-between">
+          <p className="text-sm text-slate-600">* Required</p>
+          <button
+            type="submit"
+            disabled={disabled}
+            className="ml-btn-primary px-5 py-3 text-sm font-bold disabled:cursor-not-allowed disabled:opacity-60"
+          >
+            {status === 'submitting' ? 'Creating...' : 'Create profile'}
+          </button>
+        </div>
+      </form>
     </main>
   );
 }

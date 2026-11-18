@@ -152,7 +152,7 @@ function ProviderRequestDetailPageContent() {
   }, [requestId, router]);
 
   const shellClass =
-    'rounded-[28px] border border-slate-200/80 bg-[linear-gradient(180deg,rgba(255,255,255,0.94),rgba(247,244,239,0.96))] p-5 shadow-[0_18px_50px_rgba(15,23,42,0.06)] sm:p-6';
+    'ml-card rounded-xl p-5 sm:p-6';
 
   const request = data?.request;
   const match = data?.match;
@@ -161,7 +161,7 @@ function ProviderRequestDetailPageContent() {
 
   return (
     <main className={`${t.pageBg} min-h-[calc(100vh-72px)]`}>
-      <div className="mx-auto max-w-6xl px-4 py-6 sm:px-6 sm:py-8">
+      <div className="dashboard-page-content mx-auto max-w-6xl px-4 py-6 sm:px-6 sm:py-8">
         {loading ? (
           <section className={shellClass}>
             <p className={`text-sm ${t.mutedText}`}>Loading request...</p>
@@ -174,31 +174,27 @@ function ProviderRequestDetailPageContent() {
           </section>
         ) : (
           <>
-            <section className={`${shellClass} overflow-hidden`}>
-              <div className="flex flex-col gap-3 sm:flex-row sm:items-end sm:justify-between">
+            <section className="dashboard-intro p-5 sm:p-6">
+              <div className="flex flex-col gap-3 lg:flex-row lg:items-end lg:justify-between">
                 <div>
-                  <p className="text-xs font-semibold uppercase tracking-[0.32em] text-slate-500">Matched request</p>
-                  <h1 className="mt-2 text-3xl font-semibold tracking-tight text-slate-950 sm:text-4xl">{request.title}</h1>
-                  <p className={`mt-3 text-sm ${t.mutedText}`}>
+                  <h1 className="text-3xl font-extrabold tracking-tight text-white sm:text-4xl">{request.title}</h1>
+                  <p className="dashboard-intro-copy mt-3 text-sm leading-6">
                     Created {formatShortDate(request.createdAt)} • {formatStatus(request.status)} • ZIP {request.zip}
                   </p>
                 </div>
 
-                <div className="flex flex-col gap-3 sm:flex-row">
-                  <Link href="/dashboard/requests" className="rounded-full border border-slate-200/80 bg-white px-4 py-2.5 text-sm font-semibold text-slate-700 transition hover:border-slate-300 hover:bg-slate-50">
+                <div className="flex flex-wrap gap-3">
+                  <Link href="/dashboard/requests" className="ml-btn-secondary inline-flex min-h-11 items-center justify-center px-4 py-2.5 text-sm font-semibold">
                     Back to inbox
                   </Link>
                   {proposal?.status === 'ACCEPTED' ? (
                     <Link
                       href={`/dashboard/messages?proposalId=${encodeURIComponent(proposal.id)}`}
-                      className="rounded-full border border-slate-200/80 bg-white px-4 py-2.5 text-sm font-semibold text-slate-700 transition hover:border-slate-300 hover:bg-slate-50"
+                      className="ml-btn-secondary inline-flex min-h-11 items-center justify-center px-4 py-2.5 text-sm font-semibold"
                     >
                       Open chat
                     </Link>
                   ) : null}
-                  <Link href="/dashboard" className="rounded-full bg-slate-900 px-4 py-2.5 text-sm font-semibold text-white transition hover:bg-slate-800">
-                    Dashboard
-                  </Link>
                 </div>
               </div>
             </section>
@@ -219,28 +215,28 @@ function ProviderRequestDetailPageContent() {
 
                 <div className="mt-5 grid gap-5 md:grid-cols-2">
                   <div>
-                    <div className="text-[11px] font-semibold uppercase tracking-[0.2em] text-slate-400">Description</div>
-                    <p className="mt-2 whitespace-pre-wrap text-sm leading-6 text-slate-700">{request.description}</p>
+                    <div className="text-sm font-semibold text-slate-700">Description</div>
+                    <p className="mt-2 whitespace-pre-wrap break-words text-sm leading-6 text-slate-700">{request.description}</p>
                   </div>
 
                   <div className="space-y-4">
                     <div>
-                      <div className="text-[11px] font-semibold uppercase tracking-[0.2em] text-slate-400">Business</div>
+                      <div className="text-sm font-semibold text-slate-700">Business</div>
                       <div className="mt-1 text-sm font-medium text-slate-900">{request.requesterBusinessName || request.requesterName}</div>
                     </div>
                     <div>
-                      <div className="text-[11px] font-semibold uppercase tracking-[0.2em] text-slate-400">Budget</div>
+                      <div className="text-sm font-semibold text-slate-700">Budget</div>
                       <div className="mt-1 text-sm font-medium text-slate-900">{request.budgetLabel || 'Not specified'}</div>
                     </div>
                     <div>
-                      <div className="text-[11px] font-semibold uppercase tracking-[0.2em] text-slate-400">Timeline</div>
+                      <div className="text-sm font-semibold text-slate-700">Timeline</div>
                       <div className="mt-1 text-sm font-medium text-slate-900">{request.timelineLabel || 'Not specified'}</div>
                     </div>
                   </div>
                 </div>
 
                 <div className="mt-5">
-                  <div className="text-[11px] font-semibold uppercase tracking-[0.2em] text-slate-400">Request tags</div>
+                  <div className="text-sm font-semibold text-slate-700">Request tags</div>
                   <div className="mt-2 flex flex-wrap gap-2">
                     {request.serviceTokens.map((token) => (
                       <span
@@ -254,16 +250,16 @@ function ProviderRequestDetailPageContent() {
                 </div>
               </section>
 
-              <aside className={shellClass}>
-                <div className="text-xs font-semibold uppercase tracking-[0.26em] text-slate-400">Why you matched</div>
-                <h2 className="mt-3 text-2xl font-semibold tracking-tight text-slate-950">{formatReason(match.primaryReason)}</h2>
+              <aside className={`${shellClass} self-start lg:col-start-2 lg:row-span-2 lg:row-start-1`}>
+                <h2 className="text-lg font-bold text-slate-950">Why you matched</h2>
+                <p className="mt-3 text-base font-semibold text-slate-900">{formatReason(match.primaryReason)}</p>
                 <p className={`mt-2 text-sm ${t.mutedText}`}>
                   This request is shown to you because your current expert profile overlaps on services and location rules.
                 </p>
 
                 <div className="mt-5 space-y-4">
                   <div>
-                    <div className="text-[11px] font-semibold uppercase tracking-[0.2em] text-slate-400">Matched tags</div>
+                    <div className="text-sm font-semibold text-slate-700">Matched tags</div>
                     <div className="mt-2 flex flex-wrap gap-2">
                       {match.matchedServiceTokens.map((token) => (
                         <span
@@ -278,16 +274,16 @@ function ProviderRequestDetailPageContent() {
 
                   {match.requestLocation ? (
                     <div>
-                      <div className="text-[11px] font-semibold uppercase tracking-[0.2em] text-slate-400">Request location</div>
+                      <div className="text-sm font-semibold text-slate-700">Request location</div>
                       <div className="mt-1 text-sm font-medium text-slate-900">
                         {[match.requestLocation.city, match.requestLocation.state].filter(Boolean).join(', ') || `ZIP ${request.zip}`}
                       </div>
                     </div>
                   ) : null}
                 </div>
-
-                <ProposalForm requestId={request.id} initialProposal={proposal} />
               </aside>
+
+              <ProposalForm requestId={request.id} initialProposal={proposal} />
             </div>
           </>
         )}
@@ -301,8 +297,8 @@ export default function ProviderRequestDetailPage() {
     <Suspense
       fallback={
         <main className="ml-page-bg min-h-[calc(100vh-72px)]">
-          <div className="mx-auto max-w-6xl px-4 py-6 sm:px-6 sm:py-8">
-            <section className="rounded-[28px] border border-slate-200/80 bg-[linear-gradient(180deg,rgba(255,255,255,0.94),rgba(247,244,239,0.96))] p-5 shadow-[0_18px_50px_rgba(15,23,42,0.06)] sm:p-6">
+          <div className="dashboard-page-content mx-auto max-w-6xl px-4 py-6 sm:px-6 sm:py-8">
+            <section className="rounded-[28px] border border-slate-200/80 bg-white p-5 sm:p-6">
               <p className="text-sm text-slate-600">Loading request...</p>
             </section>
           </div>

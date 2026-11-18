@@ -34,27 +34,22 @@ export default async function CustomerNewRequestPage() {
 
   return (
     <main className="ml-page-bg min-h-[calc(100vh-72px)]">
-      <div className="mx-auto max-w-5xl px-4 py-6 sm:px-6 sm:py-8">
-        <div className="grid gap-5 lg:grid-cols-[minmax(0,1.05fr)_320px]">
-          <section className="ml-card overflow-hidden rounded-[28px] p-5 shadow-[0_18px_50px_rgba(23,26,31,0.06)] sm:p-6">
-            <div className="h-1.5 bg-[linear-gradient(90deg,#0f172a,#25324a,#b6bdc8)] -mx-5 -mt-5 mb-5 sm:-mx-6 sm:-mt-6 sm:mb-6" />
-            <div className="flex flex-col gap-1">
-              <p className="text-xs font-semibold uppercase tracking-[0.32em] text-slate-500">Customer requests</p>
-              <h1 className="text-3xl font-semibold tracking-tight text-slate-950 sm:text-4xl">Create a request</h1>
-              <p className="max-w-2xl text-sm leading-6 text-slate-600">
-                Keep this simple. If you know the kind of help you want, choose it. If not, start broad with your ZIP code and radius, and keep the request easy to understand.
-              </p>
-            </div>
-
-            <div className="mt-6">
-              <CustomerRequestForm />
-            </div>
+      <div className="dashboard-page-content mx-auto max-w-5xl px-4 py-6 sm:px-6 sm:py-8">
+        <header className="dashboard-intro p-5 sm:p-6">
+          <h1 className="text-3xl font-extrabold tracking-tight text-white sm:text-4xl">Create a request</h1>
+          <p className="dashboard-intro-copy mt-3 max-w-2xl text-sm leading-6">
+            Choose a marketing area if you know what you need, or start with your ZIP code to find nearby help.
+          </p>
+        </header>
+        <div className="mt-5 grid gap-5 lg:grid-cols-[minmax(0,1.05fr)_300px]">
+          <section aria-label="Request details" className="ml-card min-w-0 rounded-xl p-5 sm:p-6">
+            <CustomerRequestForm />
           </section>
 
-          <aside className="ml-card rounded-[28px] p-5 shadow-[0_18px_50px_rgba(23,26,31,0.06)] sm:p-6 lg:sticky lg:top-6 lg:self-start">
-            <div className="text-xs font-semibold uppercase tracking-[0.26em] text-slate-400">How this works</div>
+          <aside className="ml-card rounded-xl p-5 sm:p-6 lg:sticky lg:top-6 lg:self-start">
+            <h2 className="text-lg font-bold text-slate-950">How requests work</h2>
             <div className="mt-4 grid gap-3">
-              <div className="ml-surface-muted rounded-2xl p-4">
+              <div className="border-b border-slate-200 pb-3">
                 <div className="text-sm font-semibold text-slate-900">Private by default</div>
                 <p className="mt-1 text-sm leading-6 text-slate-600">Requests stay inside your customer dashboard. Nothing here becomes a public marketplace page.</p>
               </div>

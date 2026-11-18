@@ -71,8 +71,8 @@ export default function RequestLifecycleActions({ requestId, status }: RequestLi
   }
 
   return (
-    <div className="mt-5 rounded-2xl border border-slate-200 bg-slate-50 px-4 py-4">
-      <div className="text-[11px] font-semibold uppercase tracking-[0.2em] text-slate-400">Request controls</div>
+    <div className="mt-5 rounded-xl border border-slate-200 bg-slate-50 px-4 py-4">
+      <div className="text-sm font-semibold text-slate-700">Request controls</div>
       <p className="mt-2 text-sm leading-6 text-slate-600">
         Active requests can keep matching. Closed requests can be reopened later. Cancelled requests stay in your history but stop here permanently.
       </p>
@@ -92,7 +92,7 @@ export default function RequestLifecycleActions({ requestId, status }: RequestLi
               type="button"
               disabled={Boolean(busyStatus) || deleting}
               onClick={() => updateStatus('CANCELLED')}
-              className="inline-flex min-h-11 items-center justify-center rounded-xl border border-slate-200 bg-white px-5 text-sm font-semibold text-slate-700 transition hover:border-slate-300 hover:bg-slate-50 disabled:opacity-60"
+              className="ml-btn-secondary inline-flex min-h-11 items-center justify-center px-4 py-2.5 text-sm font-semibold disabled:opacity-60"
             >
               {busyStatus === 'CANCELLED' ? 'Cancelling...' : 'Cancel request'}
             </button>
@@ -115,7 +115,7 @@ export default function RequestLifecycleActions({ requestId, status }: RequestLi
             type="button"
             disabled={Boolean(busyStatus) || deleting}
             onClick={deleteRequest}
-            className="inline-flex min-h-11 items-center justify-center rounded-xl border border-red-200 bg-white px-5 text-sm font-semibold text-red-700 transition hover:border-red-300 hover:bg-red-50 disabled:opacity-60"
+            className="inline-flex min-h-11 items-center justify-center rounded-lg border border-red-200 bg-white px-5 text-sm font-semibold text-red-700 transition hover:border-red-300 hover:bg-red-50 disabled:opacity-60"
           >
             {deleting ? 'Deleting...' : 'Delete request'}
           </button>
@@ -125,7 +125,7 @@ export default function RequestLifecycleActions({ requestId, status }: RequestLi
       {status === 'CANCELLED' ? <p className="mt-4 text-sm font-medium text-slate-700">This request is cancelled and cannot be reopened.</p> : null}
 
       {error ? (
-        <div role="alert" className="mt-4 rounded-2xl border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700">
+        <div role="alert" className="mt-4 rounded-xl border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700">
           {error}
         </div>
       ) : null}

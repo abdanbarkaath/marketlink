@@ -1,0 +1,259 @@
+.dashboard-workspace {
+  --ml-muted: 71 85 105;
+  --ml-bg-grad: none;
+  --ml-card-grad: #fff;
+  --ml-card-hover-grad: #f8faff;
+  --ml-surface-grad: #fff;
+  --ml-surface-muted-grad: #edf3ff;
+  --ml-input-grad: #fff;
+  --ml-btn-primary-bg: #2455b5;
+  --ml-btn-primary-hover: #1d478f;
+  --ml-primary-contrast: 255 255 255;
+  --ml-btn-secondary-bg: #fff;
+  --ml-btn-secondary-hover: #edf3ff;
+  --ml-btn-secondary-text: 25 42 72;
+  --ml-dark-panel-bg: #192a48;
+  --ml-dark-panel-text: 255 255 255;
+  --ml-ring: #2455b5;
+  min-height: calc(100dvh - 72px);
+  background: #f5f7fb;
+}
+
+.dashboard-workspace :is(.ml-card, .ml-surface, .ml-surface-muted, .ml-input) {
+  box-shadow: none;
+  backdrop-filter: none;
+}
+
+.dashboard-workspace :is(.ml-card, .ml-surface, .ml-surface-muted) {
+  border: 1px solid #dce3ee;
+}
+
+@layer components {
+  .dashboard-workspace :is(.ml-btn-primary, .ml-btn-secondary, .ml-input) {
+    border-radius: 8px !important;
+  }
+}
+
+.dashboard-workspace :is(.ml-btn-secondary, .ml-input) {
+  border: 1px solid #899ab3;
+}
+
+.dashboard-workspace :is(.ml-btn-primary, .ml-btn-secondary) {
+  min-height: 44px;
+}
+
+.dashboard-workspace :is(a, button, summary):focus-visible {
+  outline: 2px solid #2455b5;
+  outline-offset: 3px;
+}
+
+.dashboard-workspace :is(input, select, textarea):focus {
+  border-color: #526075;
+  outline: 1px solid #526075;
+  outline-offset: -1px;
+  box-shadow: none;
+}
+
+.dashboard-workspace input:is([type="checkbox"], [type="radio"]):focus-visible {
+  outline-offset: 2px;
+}
+
+.dashboard-back {
+  display: inline-flex;
+  min-height: 44px;
+  align-items: center;
+  gap: 0.625rem;
+  border-radius: 4px;
+  color: #192a48;
+  font-size: 0.875rem;
+  font-weight: 700;
+  text-align: start;
+}
+
+.dashboard-back::before {
+  content: "";
+  width: 7px;
+  height: 7px;
+  margin-inline-start: 3px;
+  border-block-end: 1.5px solid currentColor;
+  border-inline-start: 1.5px solid currentColor;
+  transform: rotate(45deg);
+}
+
+.dashboard-back:hover {
+  text-decoration: underline;
+  text-underline-offset: 4px;
+}
+
+.dashboard-intro .dashboard-back {
+  color: white;
+}
+
+.dashboard-workspace .ml-input::placeholder {
+  color: #627086 !important;
+}
+
+.dashboard-intro {
+  border-radius: 12px;
+  background: #192a48;
+  color: white;
+  overflow-wrap: anywhere;
+}
+
+.dashboard-intro-copy {
+  color: #d9e3f1;
+}
+
+.dashboard-intro .ml-btn-primary {
+  background: #efc3aa;
+  color: #192a48;
+}
+
+.dashboard-intro .ml-btn-primary:hover {
+  background: #f4d0bc;
+}
+
+.dashboard-intro :is(a, button):focus-visible {
+  outline-color: #efc3aa;
+  box-shadow: 0 0 0 3px #192a48;
+}
+
+.dashboard-shell {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr);
+  align-items: start;
+  gap: 1rem;
+  max-width: 76rem;
+  margin-inline: auto;
+  padding: 1.25rem 1rem 3rem;
+}
+
+.dashboard-sidebar {
+  display: flex;
+  flex-wrap: wrap;
+  align-content: start;
+  gap: 4px;
+  padding: 6px;
+  border: 1px solid #dbe2ed;
+  border-radius: 12px;
+  background: #eaf0f8;
+}
+
+.dashboard-sidebar :is(a, button) {
+  display: flex;
+  flex: 1 1 auto;
+  align-items: center;
+  justify-content: center;
+  min-height: 44px;
+  padding: 8px 10px;
+  border: 1px solid transparent;
+  border-radius: 8px;
+  color: #192a48;
+  font-size: 0.875rem;
+  font-weight: 750;
+  text-align: center;
+}
+
+.dashboard-sidebar :is(a, button):hover {
+  background: #f8faff;
+}
+
+.dashboard-sidebar a[aria-current],
+.dashboard-sidebar button[aria-pressed="true"] {
+  background: white;
+  border-color: #bdcce0;
+  color: #174798;
+}
+
+.dashboard-pane {
+  min-width: 0;
+}
+
+.dashboard-pane > main,
+.dashboard-pane > main > .dashboard-page-content {
+  min-height: 0;
+  max-width: none;
+  margin: 0;
+  padding: 0;
+}
+
+.dashboard-pane .dashboard-intro {
+  padding: 0;
+  border-radius: 0;
+  background: transparent;
+  color: #192a48;
+}
+
+.dashboard-pane .dashboard-intro h1 {
+  color: #192a48;
+}
+
+.dashboard-pane .dashboard-intro-copy {
+  color: #536278;
+}
+
+.dashboard-pane .dashboard-intro .ml-btn-primary {
+  background: var(--ml-btn-primary-bg);
+  color: white;
+}
+
+.dashboard-pane .dashboard-intro .ml-btn-primary:hover {
+  background: var(--ml-btn-primary-hover);
+}
+
+.dashboard-pane .dashboard-intro :is(a, button):focus-visible {
+  outline-color: #2455b5;
+  box-shadow: none;
+}
+
+.dashboard-pane .dashboard-intro .dashboard-back {
+  color: #192a48;
+}
+
+.dashboard-profile-panel[hidden] {
+  display: none;
+}
+
+.dashboard-editor > .dashboard-sidebar {
+  margin-block: 1.25rem 1rem;
+}
+
+@media (min-width: 62rem) {
+  .dashboard-shell,
+  .dashboard-editor {
+    display: grid;
+    align-items: start;
+    grid-template-columns: 12.75rem minmax(0, 1fr);
+    gap: 1.5rem;
+    padding: 1.75rem 2rem 3rem;
+  }
+
+  .dashboard-editor {
+    row-gap: 0;
+  }
+
+  .dashboard-editor > :not(.dashboard-sidebar, form) {
+    grid-column: 1 / -1;
+  }
+
+  .dashboard-editor > form,
+  .dashboard-editor > .dashboard-sidebar {
+    margin-top: 1.25rem;
+  }
+
+  .dashboard-editor > .dashboard-back {
+    justify-self: start;
+  }
+
+  .dashboard-sidebar {
+    position: sticky;
+    top: 1rem;
+    display: grid;
+    padding: 10px;
+  }
+
+  .dashboard-sidebar :is(a, button) {
+    justify-content: start;
+    text-align: start;
+  }
+}

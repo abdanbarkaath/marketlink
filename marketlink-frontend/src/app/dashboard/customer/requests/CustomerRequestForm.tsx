@@ -33,8 +33,8 @@ function getRequestServiceTokens(subjectId: string, subcategoryId: string) {
 
 function getPathCardClass(active: boolean) {
   return active
-    ? 'rounded-[24px] border border-slate-900 bg-slate-900 px-5 py-5 text-left text-white shadow-[0_16px_34px_rgba(15,23,42,0.16)]'
-    : 'rounded-[24px] border border-slate-200/80 bg-white px-5 py-5 text-left text-slate-900 shadow-[0_12px_24px_rgba(15,23,42,0.05)] transition hover:border-slate-300 hover:bg-slate-50';
+    ? 'rounded-xl border border-[#2455b5] bg-[#edf3ff] p-4 text-left text-[#192a48]'
+    : 'rounded-xl border border-slate-300 bg-white p-4 text-left text-slate-900 transition hover:border-slate-300 hover:bg-slate-50';
 }
 
 export default function CustomerRequestForm({ returnHref = '/dashboard/customer/requests' }: CustomerRequestFormProps) {
@@ -51,7 +51,7 @@ export default function CustomerRequestForm({ returnHref = '/dashboard/customer/
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
-  const fieldClassName = 'ml-input w-full rounded-2xl px-4 py-3 text-sm text-slate-900';
+  const fieldClassName = 'ml-input w-full rounded-2xl px-4 py-3 text-base text-slate-900';
 
   const subject = subjectId ? getMarketingSubjectById(subjectId) : null;
   const subcategories = subjectId ? getSubcategoriesForSubject(subjectId) : [];
@@ -146,22 +146,20 @@ export default function CustomerRequestForm({ returnHref = '/dashboard/customer/
       <section className="grid gap-3">
         <div>
           <div className="text-sm font-medium text-slate-700">How do you want to start?</div>
-          <p className="mt-1 text-sm leading-6 text-slate-500">Pick the path that feels easiest right now. You do not need to overfill this form.</p>
+          <p className="mt-1 text-sm leading-6 text-slate-500">Choose how you want to describe the kind of help you need.</p>
         </div>
 
         <div className="grid gap-3 md:grid-cols-2">
-          <button type="button" onClick={() => setIntakeMode('specific')} className={getPathCardClass(intakeMode === 'specific')}>
-            <div className="text-[11px] font-semibold uppercase tracking-[0.2em] text-current/70">Specific path</div>
-            <div className="mt-2 text-xl font-semibold tracking-tight">I know the kind of help I need</div>
-            <p className={`mt-2 text-sm leading-6 ${intakeMode === 'specific' ? 'text-white/78' : 'text-slate-600'}`}>
+          <button type="button" aria-pressed={intakeMode === 'specific'} onClick={() => setIntakeMode('specific')} className={getPathCardClass(intakeMode === 'specific')}>
+            <div className="text-base font-bold">I know the kind of help I need</div>
+            <p className="mt-2 text-sm leading-6 text-slate-600">
               Choose a marketing area first, then narrow it down only if you want.
             </p>
           </button>
 
-          <button type="button" onClick={() => setIntakeMode('unsure')} className={getPathCardClass(intakeMode === 'unsure')}>
-            <div className="text-[11px] font-semibold uppercase tracking-[0.2em] text-current/70">Unsure path</div>
-            <div className="mt-2 text-xl font-semibold tracking-tight">I am not sure yet</div>
-            <p className={`mt-2 text-sm leading-6 ${intakeMode === 'unsure' ? 'text-white/78' : 'text-slate-600'}`}>
+          <button type="button" aria-pressed={intakeMode === 'unsure'} onClick={() => setIntakeMode('unsure')} className={getPathCardClass(intakeMode === 'unsure')}>
+            <div className="text-base font-bold">I am not sure yet</div>
+            <p className="mt-2 text-sm leading-6 text-slate-600">
               Start with the problem and where the business is located. We will keep it broad.
             </p>
           </button>
@@ -195,7 +193,7 @@ export default function CustomerRequestForm({ returnHref = '/dashboard/customer/
       </div>
 
       {intakeMode === 'specific' ? (
-        <section className="grid gap-5 rounded-[28px] border border-slate-200/80 bg-slate-50/70 p-5">
+        <section className="grid gap-5 rounded-xl border border-slate-200/80 bg-slate-50/70 p-5">
           <div>
             <div className="text-sm font-medium text-slate-800">Specific request setup</div>
             <p className="mt-1 text-sm leading-6 text-slate-500">Start with the broader area. Specific help stays optional, and it unlocks only after the parent area is chosen.</p>
@@ -250,7 +248,7 @@ export default function CustomerRequestForm({ returnHref = '/dashboard/customer/
           </div>
         </section>
       ) : (
-        <section className="grid gap-5 rounded-[28px] border border-slate-200/80 bg-slate-50/70 p-5">
+        <section className="grid gap-5 rounded-xl border border-slate-200/80 bg-slate-50/70 p-5">
           <div>
             <div className="text-sm font-medium text-slate-800">Unsure request setup</div>
             <p className="mt-1 text-sm leading-6 text-slate-500">If you do not know the category yet, keep the request broad and tell us where to start looking.</p>
@@ -332,7 +330,7 @@ export default function CustomerRequestForm({ returnHref = '/dashboard/customer/
         </div>
       </div>
 
-      <section className="rounded-[28px] border border-slate-200/80 bg-[linear-gradient(180deg,rgba(248,250,252,0.96),rgba(255,255,255,0.9))] px-5 py-5">
+      <section className="rounded-[28px] border border-slate-200/80 bg-white px-5 py-5">
         <div className="text-sm font-semibold text-slate-900">{intakeMode === 'specific' ? 'This request will use these matching tags' : 'This request will stay broad for now'}</div>
         {intakeMode === 'specific' ? (
           subject ? (

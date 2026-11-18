@@ -76,7 +76,7 @@ function parseServices(raw: string) {
 }
 
 function Badge({ children }: { children: ReactNode }) {
-  return <span className="inline-flex items-center rounded-full border border-slate-200/80 bg-white px-3 py-1 text-xs font-medium text-slate-700 shadow-sm">{children}</span>;
+  return <span className="inline-flex items-center rounded-full border border-slate-200 bg-white px-3 py-1 text-xs font-medium text-slate-700">{children}</span>;
 }
 
 function StatusPill({ status }: { status: Provider['status'] }) {
@@ -93,16 +93,16 @@ function SectionTitle({ title, subtitle }: { title: string; subtitle?: string })
   return (
     <div className="space-y-1">
       <h2 className="text-lg font-semibold text-slate-900">{title}</h2>
-      {subtitle ? <p className="text-sm text-slate-500">{subtitle}</p> : null}
+      {subtitle ? <p className="text-sm text-slate-600">{subtitle}</p> : null}
     </div>
   );
 }
 
-function Field({ label, hint, children }: { label: string; hint?: string; children: ReactNode }) {
+function Field({ id, label, hint, children }: { id: string; label: string; hint?: string; children: ReactNode }) {
   return (
     <div className="grid gap-1.5">
-      <div className="flex items-center justify-between gap-3">
-        <label className="text-sm font-medium text-slate-800">{label}</label>
+      <div className="flex flex-wrap items-baseline justify-between gap-x-3 gap-y-1">
+        <label htmlFor={id} className="text-sm font-semibold text-slate-800">{label}</label>
         {hint ? <span className="text-xs text-slate-500">{hint}</span> : null}
       </div>
       {children}
@@ -164,60 +164,25 @@ export default async function AdminProviderEditPage({ params }: AdminProviderEdi
     redirect('/dashboard/admin');
   };
 
-  const shellClass =
-    'rounded-[28px] border border-slate-200/80 bg-[linear-gradient(180deg,rgba(255,255,255,0.94),rgba(236,242,248,0.96))] p-5 shadow-[0_18px_50px_rgba(15,23,42,0.06)] sm:p-6';
-  const mutedPanelClass =
-    'rounded-[24px] border border-slate-200/80 bg-[linear-gradient(180deg,rgba(248,250,252,0.98),rgba(226,232,240,0.72))] p-4 shadow-[0_10px_30px_rgba(15,23,42,0.04)]';
-  const inputClass =
-    'w-full rounded-2xl border border-slate-200/80 bg-white px-4 py-3 text-sm text-slate-800 outline-none transition placeholder:text-slate-400 placeholder:opacity-55 focus:border-slate-400 focus:bg-white focus:ring-2 focus:ring-slate-200/70';
+  const shellClass = 'ml-card rounded-xl p-5 sm:p-6';
+  const inputClass = 'ml-input min-h-11 w-full px-3 py-2 text-base text-slate-900';
 
   return (
     <main className="mx-auto max-w-7xl px-4 py-6 sm:px-6 sm:py-8">
-      <section className={`${shellClass} overflow-hidden`}>
-        <div className="flex flex-col gap-4 xl:grid xl:grid-cols-[minmax(0,1.45fr)_320px] xl:items-stretch">
-          <div className="space-y-2">
-            <div className="flex flex-wrap items-center gap-2">
-              <p className="text-xs font-semibold uppercase tracking-[0.32em] text-slate-500">Provider moderation</p>
-              <StatusPill status={p.status} />
-              {p.verified ? <Badge>Verified</Badge> : <Badge>Not verified</Badge>}
-            </div>
-            <h1 className="text-3xl font-semibold tracking-tight text-slate-950 sm:text-4xl">Edit provider</h1>
-            <p className="text-sm text-slate-600">{p.businessName}</p>
-            <div className="flex flex-wrap gap-2 text-xs text-slate-500">
-              <span>ID: {p.id}</span>
-              <span>•</span>
-              <span>Updated: {new Date(p.updatedAt).toLocaleString()}</span>
-            </div>
-            <div className="flex flex-wrap gap-2 pt-2">
-              <Badge>Neutral admin flow</Badge>
-              <Badge>Moderation safe</Badge>
-              <Badge>Public profile review</Badge>
-            </div>
+      <section className="dashboard-intro flex flex-col gap-4 p-5 sm:p-6 lg:flex-row lg:items-end lg:justify-between">
+        <div className="min-w-0">
+          <h1 className="text-3xl font-extrabold tracking-tight sm:text-4xl">Edit provider</h1>
+          <p className="dashboard-intro-copy mt-2 text-sm leading-6">{p.businessName}</p>
+          <div className="mt-3 flex flex-wrap items-center gap-2">
+            <StatusPill status={p.status} />
+            <Badge>{p.verified ? 'Verified' : 'Not verified'}</Badge>
           </div>
-
-          <div className={`${mutedPanelClass} flex flex-col justify-between`}>
-            <div>
-              <div className="text-xs font-semibold uppercase tracking-[0.28em] text-slate-400">Snapshot</div>
-              <div className="mt-3 grid grid-cols-2 gap-3">
-                <div className="rounded-2xl bg-slate-900 px-4 py-3 text-white shadow-[0_18px_34px_rgba(15,23,42,0.18)]">
-                  <div className="text-[11px] font-semibold uppercase tracking-[0.22em] text-slate-300">Status</div>
-                  <div className="mt-2 text-lg font-semibold capitalize">{p.status}</div>
-                </div>
-                <div className="rounded-2xl border border-slate-200/80 bg-white/90 px-4 py-3">
-                  <div className="text-[11px] font-semibold uppercase tracking-[0.22em] text-slate-400">Rating</div>
-                  <div className="mt-2 text-lg font-semibold text-slate-950">{typeof p.rating === 'number' ? p.rating.toFixed(1) : '0.0'}</div>
-                </div>
-              </div>
-            </div>
-            <div className="mt-4 flex flex-col gap-3">
-              <Link href={`/providers/${p.slug}`} className="rounded-full border border-slate-200/80 bg-white px-5 py-3 text-center text-sm font-semibold text-slate-700 transition hover:border-slate-300 hover:bg-slate-50">
-                View public page
-              </Link>
-              <Link href="/dashboard/admin" className="rounded-full bg-slate-900 px-5 py-3 text-center text-sm font-semibold text-white transition hover:bg-slate-800">
-                Back to admin
-              </Link>
-            </div>
-          </div>
+          <p className="dashboard-intro-copy mt-3 text-xs">Updated {new Date(p.updatedAt).toLocaleString()} · ID {p.id}</p>
+        </div>
+        <div className="flex flex-col gap-2 sm:flex-row sm:flex-wrap">
+          <Link href={`/providers/${p.slug}`} className="ml-btn-secondary inline-flex shrink-0 items-center justify-center px-5 text-sm font-semibold">
+            View public page
+          </Link>
         </div>
       </section>
 
@@ -225,25 +190,25 @@ export default async function AdminProviderEditPage({ params }: AdminProviderEdi
         <div className="order-1 space-y-5">
           <section className={shellClass}>
             <div className="flex items-start gap-4">
-              <div className="flex h-14 w-14 shrink-0 items-center justify-center overflow-hidden rounded-2xl border border-slate-200/80 bg-[linear-gradient(180deg,rgba(248,250,252,0.98),rgba(226,232,240,0.72))] text-xs text-slate-500 shadow-[0_10px_24px_rgba(15,23,42,0.04)]">
+              <div className="flex h-14 w-14 shrink-0 items-center justify-center overflow-hidden rounded-lg border border-slate-200 bg-slate-50 text-xs text-slate-600">
                 {p.logo ? (
                   // eslint-disable-next-line @next/next/no-img-element
                   <img src={p.logo} alt="" className="h-full w-full object-cover" />
                 ) : (
-                  'LOGO'
+                  <span aria-hidden="true" className="text-lg font-bold text-[#192a48]">{p.businessName.slice(0, 1).toUpperCase()}</span>
                 )}
               </div>
 
               <div className="min-w-0 flex-1">
                 <div className="flex flex-wrap items-center gap-2">
-                  <div className="text-lg font-semibold text-slate-900">{p.businessName}</div>
+                  <h2 className="text-lg font-semibold text-slate-900">{p.businessName}</h2>
                   {typeof p.rating === 'number' ? <Badge>Rating: {p.rating.toFixed(1)}</Badge> : <Badge>Rating: 0.0</Badge>}
                 </div>
                 <div className="mt-1 text-sm text-slate-600">
                   {p.city}, {p.state}
                   {p.zip ? ` ${p.zip}` : ''}
                 </div>
-                {p.tagline ? <div className="mt-1 text-sm text-slate-700">{p.tagline}</div> : <div className="mt-1 text-sm text-slate-400">No tagline</div>}
+                {p.tagline ? <div className="mt-1 text-sm text-slate-700">{p.tagline}</div> : <div className="mt-1 text-sm text-slate-600">No tagline</div>}
                 <div className="mt-2 break-all text-xs text-slate-500">
                   Slug: <span className="font-mono">{p.slug}</span>
                 </div>
@@ -267,43 +232,43 @@ export default async function AdminProviderEditPage({ params }: AdminProviderEdi
 
             <div className="mt-5 grid gap-4">
               <div className="grid gap-4 sm:grid-cols-2">
-                <Field label="Business name">
-                  <input name="businessName" defaultValue={p.businessName} className={inputClass} />
+                <Field id="admin-businessName" label="Business name">
+                  <input id="admin-businessName" name="businessName" defaultValue={p.businessName} className={inputClass} />
                 </Field>
 
-                <Field label="Email">
-                  <input name="email" defaultValue={p.email} className={inputClass} />
+                <Field id="admin-email" label="Email">
+                  <input id="admin-email" name="email" defaultValue={p.email} className={inputClass} />
                 </Field>
 
-                <Field label="Slug" hint="Used in URL">
-                  <input name="slug" defaultValue={p.slug} className={`${inputClass} font-mono`} />
+                <Field id="admin-slug" label="Slug" hint="Used in URL">
+                  <input id="admin-slug" name="slug" defaultValue={p.slug} className={`${inputClass} font-mono`} />
                 </Field>
 
-                <Field label="Tagline" hint="Optional">
-                  <input name="tagline" defaultValue={p.tagline ?? ''} className={inputClass} />
+                <Field id="admin-tagline" label="Tagline" hint="Optional">
+                  <input id="admin-tagline" name="tagline" defaultValue={p.tagline ?? ''} className={inputClass} />
                 </Field>
               </div>
 
               <div className="grid gap-4 sm:grid-cols-3">
-                <Field label="City">
-                  <input name="city" defaultValue={p.city} className={inputClass} />
+                <Field id="admin-city" label="City">
+                  <input id="admin-city" name="city" defaultValue={p.city} className={inputClass} />
                 </Field>
 
-                <Field label="State">
-                  <input name="state" defaultValue={p.state} className={inputClass} />
+                <Field id="admin-state" label="State">
+                  <input id="admin-state" name="state" defaultValue={p.state} className={inputClass} />
                 </Field>
 
-                <Field label="Zip" hint="Optional">
-                  <input name="zip" defaultValue={p.zip ?? ''} className={inputClass} />
+                <Field id="admin-zip" label="Zip" hint="Optional">
+                  <input id="admin-zip" name="zip" defaultValue={p.zip ?? ''} className={inputClass} />
                 </Field>
               </div>
 
-              <Field label="Logo URL" hint="Optional">
-                <input name="logo" defaultValue={p.logo ?? ''} className={inputClass} />
+              <Field id="admin-logo" label="Logo URL" hint="Optional">
+                <input id="admin-logo" name="logo" defaultValue={p.logo ?? ''} className={inputClass} />
               </Field>
 
-              <Field label="Services" hint="Comma or newline separated">
-                <textarea name="services" defaultValue={(p.services ?? []).join(', ')} className={`${inputClass} min-h-[112px]`} placeholder="SEO, Ads, Social Media" />
+              <Field id="admin-services" label="Services" hint="Comma or newline separated">
+                <textarea id="admin-services" name="services" defaultValue={(p.services ?? []).join(', ')} className={`${inputClass} min-h-[112px]`} placeholder="SEO, Ads, Social Media" />
               </Field>
             </div>
           </section>
@@ -314,25 +279,25 @@ export default async function AdminProviderEditPage({ params }: AdminProviderEdi
             <SectionTitle title="Admin controls" subtitle="Moderation and access-related settings." />
 
             <div className="mt-5 grid gap-4">
-              <Field label="Status">
-                <select name="status" defaultValue={p.status} className={inputClass}>
+              <Field id="admin-status" label="Status">
+                <select id="admin-status" name="status" defaultValue={p.status} className={inputClass}>
                   <option value="pending">pending</option>
                   <option value="active">active</option>
                   <option value="disabled">disabled</option>
                 </select>
               </Field>
 
-              <Field label="Disabled reason" hint="Required if disabled">
+              <Field id="admin-disabledReason" label="Disabled reason" hint="Required if disabled">
                 <div>
-                  <input name="disabledReason" defaultValue={p.disabledReason ?? ''} className={inputClass} placeholder="Explain why this provider is disabled" />
+                  <input id="admin-disabledReason" name="disabledReason" defaultValue={p.disabledReason ?? ''} className={inputClass} placeholder="Explain why this provider is disabled" />
                   <p className="mt-2 text-xs text-slate-500">
                     If you set status to <span className="font-medium">disabled</span>, this must be non-empty.
                   </p>
                 </div>
               </Field>
 
-              <Field label="Verified">
-                <select name="verified" defaultValue={String(p.verified)} className={inputClass}>
+              <Field id="admin-verified" label="Verified">
+                <select id="admin-verified" name="verified" defaultValue={String(p.verified)} className={inputClass}>
                   <option value="true">true</option>
                   <option value="false">false</option>
                 </select>
@@ -348,21 +313,21 @@ export default async function AdminProviderEditPage({ params }: AdminProviderEdi
           </section>
 
           <section className={shellClass}>
-            <SectionTitle title="Admin notes" subtitle="Internal notes, never shown publicly." />
-            <div className="mt-5">
+            <Field id="admin-notes" label="Admin notes" hint="Internal only">
               <textarea
+                id="admin-notes"
                 name="notes"
                 defaultValue={p.notes ?? ''}
                 className={`${inputClass} min-h-[160px]`}
                 placeholder="E.g., contacted provider on Dec 22. Missing portfolio links."
               />
-            </div>
+            </Field>
           </section>
 
           <section className={shellClass}>
             <div className="flex flex-col gap-3">
-              <button className="rounded-full bg-slate-900 px-5 py-3 text-sm font-semibold text-white transition hover:bg-slate-800">Save changes</button>
-              <Link href="/dashboard/admin" className="rounded-full border border-slate-200/80 bg-white px-5 py-3 text-center text-sm font-semibold text-slate-700 transition hover:border-slate-300 hover:bg-slate-50">
+              <button type="submit" className="ml-btn-primary px-5 py-3 text-sm font-semibold">Save changes</button>
+              <Link href="/dashboard/admin" className="ml-btn-secondary inline-flex items-center justify-center px-5 py-3 text-sm font-semibold">
                 Cancel
               </Link>
               <div className="text-xs text-slate-500">

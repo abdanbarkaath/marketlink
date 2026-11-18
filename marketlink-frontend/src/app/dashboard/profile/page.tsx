@@ -132,11 +132,19 @@ function getInstagramUrlKind(raw: string): 'profile' | 'post' | 'reel' | 'other'
   }
 }
 
+const profileSections = [
+  { id: 'basics', label: 'Basics and services', panelIds: ['profile-basics', 'profile-links'] },
+  { id: 'pricing', label: 'Pricing and fit', panelIds: ['profile-pricing', 'profile-fit'] },
+  { id: 'work', label: 'Work and clients', panelIds: ['profile-work', 'profile-clients', 'profile-media'] },
+] as const;
+type ProfileSection = (typeof profileSections)[number]['id'];
+
 export default function ProfileEditorPage() {
   const router = useRouter();
 
   const [role, setRole] = useState<Role | null>(null);
 
+  const [activeSection, setActiveSection] = useState<ProfileSection>('basics');
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -631,36 +639,29 @@ export default function ProfileEditorPage() {
   if (!data) return null;
 
   const disableSave = saving || !data.businessName.trim() || !data.city.trim() || !data.state.trim();
-  const sectionClass = 'rounded-xl border border-slate-200 bg-white p-5 sm:p-6';
+  const sectionClass = 'ml-card rounded-xl p-5 sm:p-6';
   const fieldClass =
-    'w-full rounded-2xl border border-slate-200/80 bg-white px-4 py-3 text-sm text-slate-800 outline-none transition placeholder:text-slate-500 focus:border-slate-400 focus:bg-white focus:ring-2 focus:ring-slate-200/70';
+    'ml-input min-h-12 w-full px-3 py-2 text-base';
   const checkboxClass = 'h-4 w-4 rounded border-slate-300 text-slate-900 focus:ring-slate-200';
   const subtleButtonClass =
-    'rounded-full border border-slate-200/80 bg-white px-4 py-2.5 text-sm font-medium text-slate-700 transition hover:border-slate-300 hover:bg-slate-50';
+    'ml-btn-secondary inline-flex items-center justify-center px-4 py-2 text-sm font-semibold';
   const primaryButtonClass =
-    'rounded-lg bg-[#2455B5] px-5 py-3 text-sm font-semibold text-white transition hover:bg-[#1E489A] focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#2455B5] disabled:cursor-not-allowed disabled:opacity-60';
+    'ml-btn-primary px-5 py-3 text-sm font-bold disabled:cursor-not-allowed disabled:opacity-60';
 
   return (
-    <main className="mx-auto max-w-6xl px-4 py-6 sm:px-6 sm:py-8">
-      <header className="rounded-xl border border-slate-200 bg-white p-5 sm:p-6">
-        <div className="flex flex-wrap items-start justify-between gap-4">
-          <div>
-            <h1 className="text-3xl font-semibold tracking-tight text-slate-950 sm:text-4xl">Edit profile</h1>
-            <p className="mt-2 text-sm leading-6 text-slate-600">Pricing, clients, and work samples are optional.</p>
-            {dirty ? <p className="mt-2 text-sm text-slate-700">Unsaved changes</p> : null}
-          </div>
-          <button type="button" onClick={() => { if (!dirty || window.confirm('Discard your unsaved profile changes?')) router.replace('/dashboard'); }} className={subtleButtonClass}>
-            Back to dashboard
-          </button>
+    <main className="dashboard-editor mx-auto max-w-[76rem] px-4 py-6 sm:px-8 sm:py-8">
+      <button type="button" onClick={() => { if (!dirty || window.confirm('Discard your unsaved profile changes?')) router.replace('/dashboard'); }} className="dashboard-back">
+        Back to dashboard
+      </button>
+      <header className="flex flex-wrap items-end justify-between gap-4">
+        <div>
+          <h1 className="text-3xl font-extrabold tracking-tight text-[#192a48] sm:text-4xl">Edit profile</h1>
+          <p className="mt-2 text-sm leading-6 text-slate-600">Pricing, clients, and work samples are optional.</p>
+          {dirty ? <p className="mt-2 text-sm font-semibold text-slate-600">Unsaved changes</p> : null}
         </div>
-        <nav aria-label="Profile sections" className="mt-4 flex flex-wrap gap-x-5 gap-y-2 text-sm font-medium text-[#2455B5]">
-          <a className="underline" href="#profile-basics">Basics and services</a>
-          <a className="underline" href="#profile-pricing">Pricing and fit</a>
-          <a className="underline" href="#profile-work">Work and clients</a>
-          {saved?.status === 'active' && saved.slug ? (
-            <a className="underline" target="_blank" rel="noreferrer" href={`/experts/${saved.slug}`}>View public profile</a>
-          ) : null}
-        </nav>
+        {saved?.status === 'active' && saved.slug ? (
+          <a className="ml-btn-secondary inline-flex items-center justify-center px-4 py-2 text-sm font-bold" target="_blank" rel="noreferrer" href={`/experts/${saved.slug}`}>View public profile</a>
+        ) : null}
       </header>
 
       {/* Admin-only moderation controls */}
@@ -673,8 +674,8 @@ export default function ProfileEditorPage() {
 
           <div className="mt-4 grid gap-4 md:grid-cols-2">
             <div>
-              <label className="mb-1 block text-sm font-medium text-slate-700">Status</label>
-              <select className={fieldClass} value={data.status || 'pending'} onChange={(e) => setField('status', e.target.value as ProviderStatus)}>
+              <label className="mb-1 block text-sm font-medium text-slate-700" htmlFor="profile-status">Status</label>
+              <select id="profile-status" className={fieldClass} value={data.status || 'pending'} onChange={(e) => setField('status', e.target.value as ProviderStatus)}>
                 <option value="active">Active (visible in search)</option>
                 <option value="pending">Pending (hidden)</option>
                 <option value="disabled">Disabled (hidden)</option>
@@ -683,8 +684,8 @@ export default function ProfileEditorPage() {
 
             {(data.status || 'pending') === 'disabled' ? (
               <div>
-                <label className="mb-1 block text-sm font-medium text-slate-700">Disabled reason (optional)</label>
-                <input
+                <label className="mb-1 block text-sm font-medium text-slate-700" htmlFor="profile-disabled-reason-optional">Disabled reason (optional)</label>
+                <input id="profile-disabled-reason-optional"
                   className={fieldClass}
                   value={data.disabledReason ?? ''}
                   onChange={(e) => setField('disabledReason', e.target.value)}
@@ -698,12 +699,28 @@ export default function ProfileEditorPage() {
         </section>
       ) : null}
 
-      {error && error !== confirmationError ? <p role="alert" tabIndex={-1} ref={(node) => { node?.focus(); }} className="mt-3 text-sm text-red-700">{error}</p> : null}
-      {savedMessage && !dirty ? <p role="status" className="mt-3 text-sm text-green-700">Profile saved.</p> : null}
-      <form id="profile-editor-form" inert={saving} onSubmit={handleSave} className="mt-5 grid gap-5 pb-24 md:pb-8">
-        <section id="profile-basics" className={`${sectionClass} scroll-mt-24`}>
+      {error && error !== confirmationError ? <p role="alert" tabIndex={-1} ref={(node) => { node?.focus(); }} className="mt-5 rounded-lg border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700">{error}</p> : null}
+      {savedMessage && !dirty ? <p role="status" className="mt-5 rounded-lg border border-green-200 bg-green-50 px-4 py-3 text-sm text-green-700">Profile saved.</p> : null}
+      <nav aria-label="Profile sections" className="dashboard-sidebar">
+        {profileSections.map(({ id, label, panelIds }) => (
+          <button key={id} type="button" aria-pressed={activeSection === id} aria-controls={panelIds.join(' ')} onClick={() => setActiveSection(id)}>
+            {label}
+          </button>
+        ))}
+      </nav>
+      <form id="profile-editor-form" inert={saving} onSubmit={handleSave} className="grid min-w-0 gap-5 pb-24 md:pb-8" onInvalidCapture={(event) => {
+        const field = event.target;
+        if (!(field instanceof HTMLElement)) return;
+        const section = profileSections.find(({ id }) => field.closest(`[data-profile-section="${id}"]`));
+        if (section && section.id !== activeSection) {
+          event.preventDefault();
+          setActiveSection(section.id);
+          requestAnimationFrame(() => field.focus());
+        }
+      }}>
+        <section id="profile-basics" data-profile-section="basics" hidden={activeSection !== 'basics'} className={`${sectionClass} dashboard-profile-panel`}>
           <div className="flex flex-col gap-1">
-            <h2 className="text-lg font-semibold text-slate-900">Core info</h2>
+            <h2 className="text-lg font-bold text-[#192a48]">Core info</h2>
             <p className="text-sm text-slate-500">This information appears on your public listing.</p>
           </div>
 
@@ -745,7 +762,7 @@ export default function ProfileEditorPage() {
               <label className="mb-1 block text-sm font-medium text-slate-700" htmlFor="profile-location-display">Public location</label>
               <select
                 className={fieldClass}
-                id="profile-location-display"
+                id="profile-location-display" aria-describedby="profile-location-description"
                 value={data.locationPrecision ?? (data.expertType === 'creator' ? 'approximate' : 'exact')}
                 onChange={(e) => setField('locationPrecision', e.target.value as Provider['locationPrecision'])}
               >
@@ -753,24 +770,24 @@ export default function ProfileEditorPage() {
                 <option value="private">Hide my location</option>
                 <option value="exact">Show my exact business address</option>
               </select>
-              <p className="mt-2 text-xs leading-6 text-slate-500">
+              <p id="profile-location-description" className="mt-2 text-sm leading-6 text-slate-600">
                 A hidden location is excluded from nearby searches. Buyers can still find your listing by name or service.
               </p>
             </div>
 
             <div>
-              <label className="mb-1 block text-sm font-medium text-slate-700">Tagline</label>
-              <input className={fieldClass} value={data.tagline ?? ''} onChange={(e) => setField('tagline', e.target.value)} />
+              <label className="mb-1 block text-sm font-medium text-slate-700" htmlFor="profile-tagline">Tagline</label>
+              <input id="profile-tagline" className={fieldClass} value={data.tagline ?? ''} onChange={(e) => setField('tagline', e.target.value)} />
             </div>
 
             <div>
-              <label className="mb-1 block text-sm font-medium text-slate-700">Short description</label>
-              <input className={fieldClass} value={data.shortDescription ?? ''} onChange={(e) => setField('shortDescription', e.target.value)} placeholder="One line summary for cards" />
+              <label className="mb-1 block text-sm font-medium text-slate-700" htmlFor="profile-short-description">Short description</label>
+              <input id="profile-short-description" className={fieldClass} value={data.shortDescription ?? ''} onChange={(e) => setField('shortDescription', e.target.value)} placeholder="One line summary for cards" />
             </div>
 
             <div>
-              <label className="mb-1 block text-sm font-medium text-slate-700">Expert type</label>
-              <select className={fieldClass} value={data.expertType ?? ''} onChange={(e) => setField('expertType', (e.target.value || null) as Provider['expertType'])}>
+              <label className="mb-1 block text-sm font-medium text-slate-700" htmlFor="profile-expert-type">Expert type</label>
+              <select id="profile-expert-type" className={fieldClass} value={data.expertType ?? ''} onChange={(e) => setField('expertType', (e.target.value || null) as Provider['expertType'])}>
                 <option value="">Select the best fit</option>
                 {EXPERT_TYPE_OPTIONS.map((opt) => (
                   <option key={opt.value} value={opt.value}>
@@ -781,15 +798,15 @@ export default function ProfileEditorPage() {
             </div>
 
             <div>
-              <label className="mb-1 block text-sm font-medium text-slate-700">Overview</label>
-              <textarea className={`${fieldClass} min-h-[144px]`} value={data.overview ?? ''} onChange={(e) => setField('overview', e.target.value)} placeholder="Describe your agency, focus areas, and approach." />
+              <label className="mb-1 block text-sm font-medium text-slate-700" htmlFor="profile-overview">Overview</label>
+              <textarea id="profile-overview" className={`${fieldClass} min-h-[144px]`} value={data.overview ?? ''} onChange={(e) => setField('overview', e.target.value)} placeholder="Describe your agency, focus areas, and approach." />
             </div>
 
             <div>
-              <label className="mb-1 block text-sm font-medium text-slate-700">Logo URL</label>
-              <input autoComplete="url" className={fieldClass} value={data.logo ?? ''} onChange={(e) => setField('logo', e.target.value)} placeholder="https://..." />
+              <label className="mb-1 block text-sm font-medium text-slate-700" htmlFor="profile-logo-url">Logo URL</label>
+              <input id="profile-logo-url" autoComplete="url" className={fieldClass} value={data.logo ?? ''} onChange={(e) => setField('logo', e.target.value)} placeholder="https://..." />
               {data.logo?.trim() ? (
-                <div className="mt-3 inline-flex items-center gap-3 rounded-[22px] border border-slate-200/80 bg-[linear-gradient(180deg,rgba(248,250,252,0.98),rgba(226,232,240,0.72))] px-3 py-3 shadow-[0_10px_24px_rgba(15,23,42,0.04)]">
+                <div className="mt-3 inline-flex items-center gap-3 rounded-xl border border-slate-200/80 bg-[#edf3ff] px-3 py-3">
                   {/* eslint-disable-next-line @next/next/no-img-element */}
                   <img src={data.logo} alt="Logo preview" className="h-14 w-14 rounded-xl border border-slate-200/80 object-cover" />
                   <div className="text-sm text-slate-600">Logo preview</div>
@@ -809,109 +826,109 @@ export default function ProfileEditorPage() {
           </div>
         </section>
 
-        <section className={sectionClass}>
+        <section id="profile-links" data-profile-section="basics" hidden={activeSection !== 'basics'} className={`${sectionClass} dashboard-profile-panel`}>
           <div className="flex flex-col gap-1">
-            <h2 className="text-lg font-semibold text-slate-900">Contact and presence</h2>
+            <h2 className="text-lg font-bold text-[#192a48]">Contact and presence</h2>
             <p className="text-sm text-slate-500">Make the direct contact paths easy and trustworthy.</p>
           </div>
 
           <div className="mt-5 grid gap-4">
             <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
               <div>
-                <label className="mb-1 block text-sm font-medium text-slate-700">Website</label>
-                <input autoComplete="url" className={fieldClass} value={data.websiteUrl ?? ''} onChange={(e) => setField('websiteUrl', e.target.value)} placeholder="https://..." />
+                <label className="mb-1 block text-sm font-medium text-slate-700" htmlFor="profile-website">Website</label>
+                <input id="profile-website" autoComplete="url" className={fieldClass} value={data.websiteUrl ?? ''} onChange={(e) => setField('websiteUrl', e.target.value)} placeholder="https://..." />
               </div>
               <div>
-                <label className="mb-1 block text-sm font-medium text-slate-700">Phone</label>
-                <input autoComplete="tel" className={fieldClass} value={data.phone ?? ''} onChange={(e) => setField('phone', e.target.value)} placeholder="(555) 123-4567" />
+                <label className="mb-1 block text-sm font-medium text-slate-700" htmlFor="profile-phone">Phone</label>
+                <input id="profile-phone" autoComplete="tel" className={fieldClass} value={data.phone ?? ''} onChange={(e) => setField('phone', e.target.value)} placeholder="(555) 123-4567" />
               </div>
             </div>
 
             <div className="grid grid-cols-1 gap-4 sm:grid-cols-3">
               <div>
-                <label className="mb-1 block text-sm font-medium text-slate-700">LinkedIn</label>
-                <input autoComplete="url" className={fieldClass} value={data.linkedinUrl ?? ''} onChange={(e) => setField('linkedinUrl', e.target.value)} placeholder="https://linkedin.com/company/..." />
+                <label className="mb-1 block text-sm font-medium text-slate-700" htmlFor="profile-linkedin">LinkedIn</label>
+                <input id="profile-linkedin" autoComplete="url" className={fieldClass} value={data.linkedinUrl ?? ''} onChange={(e) => setField('linkedinUrl', e.target.value)} placeholder="https://linkedin.com/company/..." />
               </div>
               <div>
-                <label className="mb-1 block text-sm font-medium text-slate-700">Instagram</label>
-                <input autoComplete="url" className={fieldClass} value={data.instagramUrl ?? ''} onChange={(e) => setField('instagramUrl', e.target.value)} placeholder="https://instagram.com/..." />
+                <label className="mb-1 block text-sm font-medium text-slate-700" htmlFor="profile-instagram">Instagram</label>
+                <input id="profile-instagram" autoComplete="url" className={fieldClass} value={data.instagramUrl ?? ''} onChange={(e) => setField('instagramUrl', e.target.value)} placeholder="https://instagram.com/..." />
                 {data.expertType === 'creator' ? (
                   <p className="mt-2 text-xs leading-6 text-slate-500">Use your public Instagram profile URL here. Specific proof posts and reels go in the media section below.</p>
                 ) : null}
               </div>
               <div>
-                <label className="mb-1 block text-sm font-medium text-slate-700">Facebook</label>
-                <input autoComplete="url" className={fieldClass} value={data.facebookUrl ?? ''} onChange={(e) => setField('facebookUrl', e.target.value)} placeholder="https://facebook.com/..." />
+                <label className="mb-1 block text-sm font-medium text-slate-700" htmlFor="profile-facebook">Facebook</label>
+                <input id="profile-facebook" autoComplete="url" className={fieldClass} value={data.facebookUrl ?? ''} onChange={(e) => setField('facebookUrl', e.target.value)} placeholder="https://facebook.com/..." />
               </div>
             </div>
           </div>
         </section>
 
-        <section id="profile-pricing" className={`${sectionClass} scroll-mt-24`}>
+        <section id="profile-pricing" data-profile-section="pricing" hidden={activeSection !== 'pricing'} className={`${sectionClass} dashboard-profile-panel`}>
           <div className="flex flex-col gap-1">
-            <h2 className="text-lg font-semibold text-slate-900">Pricing and fit</h2>
+            <h2 className="text-lg font-bold text-[#192a48]">Pricing and fit</h2>
             <p className="text-sm text-slate-500">Give buyers enough structure to understand fit without overwhelming them.</p>
           </div>
 
           <div className="mt-5 grid gap-5">
             <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
               <div>
-                <label className="mb-1 block text-sm font-medium text-slate-700">Founded year</label>
-                <input type="number" className={fieldClass} value={data.foundedYear ?? ''} onChange={(e) => setField('foundedYear', e.target.value)} placeholder="e.g. 2015" />
+                <label className="mb-1 block text-sm font-medium text-slate-700" htmlFor="profile-founded-year">Founded year</label>
+                <input id="profile-founded-year" type="number" className={fieldClass} value={data.foundedYear ?? ''} onChange={(e) => setField('foundedYear', e.target.value)} placeholder="e.g. 2015" />
               </div>
               <div>
-                <label className="mb-1 block text-sm font-medium text-slate-700">Response time (hours)</label>
-                <input type="number" className={fieldClass} value={data.responseTimeHours ?? ''} onChange={(e) => setField('responseTimeHours', e.target.value)} placeholder="e.g. 24" />
+                <label className="mb-1 block text-sm font-medium text-slate-700" htmlFor="profile-response-time-hours">Response time (hours)</label>
+                <input id="profile-response-time-hours" type="number" className={fieldClass} value={data.responseTimeHours ?? ''} onChange={(e) => setField('responseTimeHours', e.target.value)} placeholder="e.g. 24" />
               </div>
             </div>
 
-            <div className="rounded-3xl border border-slate-200/80 bg-[linear-gradient(180deg,rgba(248,250,252,0.98),rgba(226,232,240,0.72))] p-4 shadow-[0_10px_30px_rgba(15,23,42,0.04)]">
+            <div className="rounded-xl border border-slate-200/80 bg-[#edf3ff] p-4">
               <div className="text-sm font-semibold text-slate-900">Pricing</div>
               <div className="mt-3 grid grid-cols-1 gap-4 sm:grid-cols-2">
                 <div>
-                  <label className="mb-1 block text-sm font-medium text-slate-700">Hourly rate min</label>
-                  <input type="number" className={fieldClass} value={data.hourlyRateMin ?? ''} onChange={(e) => setField('hourlyRateMin', e.target.value)} placeholder="e.g. 75" />
+                  <label className="mb-1 block text-sm font-medium text-slate-700" htmlFor="profile-hourly-rate-min">Hourly rate min</label>
+                  <input id="profile-hourly-rate-min" type="number" className={fieldClass} value={data.hourlyRateMin ?? ''} onChange={(e) => setField('hourlyRateMin', e.target.value)} placeholder="e.g. 75" />
                 </div>
                 <div>
-                  <label className="mb-1 block text-sm font-medium text-slate-700">Hourly rate max</label>
-                  <input type="number" className={fieldClass} value={data.hourlyRateMax ?? ''} onChange={(e) => setField('hourlyRateMax', e.target.value)} placeholder="e.g. 150" />
+                  <label className="mb-1 block text-sm font-medium text-slate-700" htmlFor="profile-hourly-rate-max">Hourly rate max</label>
+                  <input id="profile-hourly-rate-max" type="number" className={fieldClass} value={data.hourlyRateMax ?? ''} onChange={(e) => setField('hourlyRateMax', e.target.value)} placeholder="e.g. 150" />
                 </div>
                 <div>
-                  <label className="mb-1 block text-sm font-medium text-slate-700">Min project budget</label>
-                  <input type="number" className={fieldClass} value={data.minProjectBudget ?? ''} onChange={(e) => setField('minProjectBudget', e.target.value)} placeholder="e.g. 5000" />
+                  <label className="mb-1 block text-sm font-medium text-slate-700" htmlFor="profile-min-project-budget">Min project budget</label>
+                  <input id="profile-min-project-budget" type="number" className={fieldClass} value={data.minProjectBudget ?? ''} onChange={(e) => setField('minProjectBudget', e.target.value)} placeholder="e.g. 5000" />
                 </div>
                 <div>
-                  <label className="mb-1 block text-sm font-medium text-slate-700">Currency</label>
-                  <input className={fieldClass} value={data.currencyCode ?? 'USD'} onChange={(e) => setField('currencyCode', e.target.value)} placeholder="USD" />
+                  <label className="mb-1 block text-sm font-medium text-slate-700" htmlFor="profile-currency">Currency</label>
+                  <input id="profile-currency" className={fieldClass} value={data.currencyCode ?? 'USD'} onChange={(e) => setField('currencyCode', e.target.value)} placeholder="USD" />
                 </div>
               </div>
             </div>
 
             <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
               <div>
-                <label className="mb-1 block text-sm font-medium text-slate-700">Languages (comma separated)</label>
-                <input className={fieldClass} value={(data.languages || []).join(', ')} onChange={(e) => setField('languages', parseTokenInput(e.target.value))} placeholder="english, spanish" />
+                <label className="mb-1 block text-sm font-medium text-slate-700" htmlFor="profile-languages">Languages (comma separated)</label>
+                <input id="profile-languages" className={fieldClass} value={(data.languages || []).join(', ')} onChange={(e) => setField('languages', parseTokenInput(e.target.value))} placeholder="english, spanish" />
               </div>
               <div>
-                <label className="mb-1 block text-sm font-medium text-slate-700">Industries (comma separated)</label>
-                <input className={fieldClass} value={(data.industries || []).join(', ')} onChange={(e) => setField('industries', parseTokenInput(e.target.value))} placeholder="healthcare, retail" />
+                <label className="mb-1 block text-sm font-medium text-slate-700" htmlFor="profile-industries">Industries (comma separated)</label>
+                <input id="profile-industries" className={fieldClass} value={(data.industries || []).join(', ')} onChange={(e) => setField('industries', parseTokenInput(e.target.value))} placeholder="healthcare, retail" />
               </div>
               <div>
-                <label className="mb-1 block text-sm font-medium text-slate-700">Client sizes (comma separated)</label>
-                <input className={fieldClass} value={(data.clientSizes || []).join(', ')} onChange={(e) => setField('clientSizes', parseTokenInput(e.target.value))} placeholder="smb, enterprise" />
+                <label className="mb-1 block text-sm font-medium text-slate-700" htmlFor="profile-client-sizes">Client sizes (comma separated)</label>
+                <input id="profile-client-sizes" className={fieldClass} value={(data.clientSizes || []).join(', ')} onChange={(e) => setField('clientSizes', parseTokenInput(e.target.value))} placeholder="smb, enterprise" />
               </div>
               <div>
-                <label className="mb-1 block text-sm font-medium text-slate-700">Specialties (comma separated)</label>
-                <input className={fieldClass} value={(data.specialties || []).join(', ')} onChange={(e) => setField('specialties', parseTokenInput(e.target.value))} placeholder="lead gen, ecommerce" />
+                <label className="mb-1 block text-sm font-medium text-slate-700" htmlFor="profile-specialties">Specialties (comma separated)</label>
+                <input id="profile-specialties" className={fieldClass} value={(data.specialties || []).join(', ')} onChange={(e) => setField('specialties', parseTokenInput(e.target.value))} placeholder="lead gen, ecommerce" />
               </div>
             </div>
 
             <div className="grid grid-cols-1 gap-3 sm:grid-cols-3">
-              <label className="flex items-center gap-3 rounded-2xl border border-slate-200/80 bg-[linear-gradient(180deg,rgba(248,250,252,0.98),rgba(226,232,240,0.72))] px-4 py-3 text-sm text-slate-700">
+              <label className="flex items-center gap-3 rounded-2xl border border-slate-200/80 bg-[#edf3ff] px-4 py-3 text-sm text-slate-700">
                 <input type="checkbox" className={checkboxClass} checked={Boolean(data.remoteFriendly)} onChange={(e) => setField('remoteFriendly', e.target.checked)} />
                 Remote friendly
               </label>
-              <label className="flex items-center gap-3 rounded-2xl border border-slate-200/80 bg-[linear-gradient(180deg,rgba(248,250,252,0.98),rgba(226,232,240,0.72))] px-4 py-3 text-sm text-slate-700">
+              <label className="flex items-center gap-3 rounded-2xl border border-slate-200/80 bg-[#edf3ff] px-4 py-3 text-sm text-slate-700">
                 <input type="checkbox" className={checkboxClass} checked={Boolean(data.servesNationwide)} onChange={(e) => setField('servesNationwide', e.target.checked)} />
                 Serves nationwide
               </label>
@@ -919,22 +936,22 @@ export default function ProfileEditorPage() {
           </div>
         </section>
 
-        <section className={sectionClass}>
+        <section id="profile-fit" data-profile-section="pricing" hidden={activeSection !== 'pricing'} className={`${sectionClass} dashboard-profile-panel`}>
           <div className="flex flex-col gap-1">
-            <h2 className="text-lg font-semibold text-slate-900">Proof and trust</h2>
+            <h2 className="text-lg font-bold text-[#192a48]">Proof and trust</h2>
             <p className="text-sm text-slate-500">Group the credibility signals buyers use to decide whether your profile feels real, relevant, and worth contacting.</p>
           </div>
 
           {data.expertType === 'creator' ? (
-            <div className="mt-5 grid gap-4 rounded-3xl border border-slate-200/80 bg-[linear-gradient(180deg,rgba(248,250,252,0.98),rgba(226,232,240,0.72))] p-4 shadow-[0_10px_30px_rgba(15,23,42,0.04)]">
+            <div className="mt-5 grid gap-4 rounded-xl border border-slate-200/80 bg-[#edf3ff] p-4">
               <div>
                 <div className="text-sm font-semibold text-slate-900">Creator proof</div>
                 <p className="mt-1 text-xs text-slate-500">Show the channels, audience size, and context that make your creator profile credible.</p>
               </div>
 
               <div>
-                <label className="mb-1 block text-sm font-medium text-slate-700">Platforms (comma separated)</label>
-                <input
+                <label className="mb-1 block text-sm font-medium text-slate-700" htmlFor="profile-platforms">Platforms (comma separated)</label>
+                <input id="profile-platforms"
                   className={fieldClass}
                   value={(data.creatorPlatforms || []).join(', ')}
                   onChange={(e) => setField('creatorPlatforms', parseTokenInput(e.target.value))}
@@ -943,8 +960,8 @@ export default function ProfileEditorPage() {
               </div>
 
               <div>
-                <label className="mb-1 block text-sm font-medium text-slate-700">Audience size</label>
-                <input
+                <label className="mb-1 block text-sm font-medium text-slate-700" htmlFor="profile-audience-size">Audience size</label>
+                <input id="profile-audience-size"
                   type="number"
                   min="0"
                   className={fieldClass}
@@ -955,8 +972,8 @@ export default function ProfileEditorPage() {
               </div>
 
               <div>
-                <label className="mb-1 block text-sm font-medium text-slate-700">Proof summary</label>
-                <textarea
+                <label className="mb-1 block text-sm font-medium text-slate-700" htmlFor="profile-proof-summary">Proof summary</label>
+                <textarea id="profile-proof-summary"
                   className={`${fieldClass} min-h-[112px]`}
                   value={data.creatorProofSummary ?? ''}
                   onChange={(e) => setField('creatorProofSummary', e.target.value)}
@@ -971,11 +988,11 @@ export default function ProfileEditorPage() {
           )}
         </section>
 
-        <section id="profile-work" className={`${sectionClass} scroll-mt-24`}>
+        <section id="profile-work" data-profile-section="work" hidden={activeSection !== 'work'} className={`${sectionClass} dashboard-profile-panel`}>
           <div className="flex items-center justify-between gap-4">
-            <button type="button" onClick={() => setProjectsOpen((open) => !open)} className="flex flex-1 items-center justify-between text-left md:pointer-events-none">
+            <button type="button" onClick={() => setProjectsOpen((open) => !open)} className="flex min-h-11 flex-1 items-center justify-between text-left md:pointer-events-none">
               <div>
-                <h2 className="text-lg font-semibold text-slate-900">Case studies</h2>
+                <h2 className="text-lg font-bold text-[#192a48]">Case studies</h2>
                 <p className="mt-1 text-sm text-slate-500">Share work you can publish. Leave client details and results blank when they’re confidential or unavailable.</p>
               </div>
               <span className="ml-4 rounded-full border border-slate-200/80 bg-white px-3 py-1 text-xs font-medium text-slate-600 shadow-sm md:hidden">
@@ -996,57 +1013,57 @@ export default function ProfileEditorPage() {
           <div className={`mt-4 ${projectsOpen ? 'grid gap-4' : 'hidden'} md:grid md:gap-4`}>
             {data.projects.length ? (
               data.projects.map((project, index) => (
-                <div key={project.id || index} className="rounded-[24px] border border-slate-200/80 bg-[linear-gradient(180deg,rgba(248,250,252,0.98),rgba(226,232,240,0.72))] p-4 shadow-[0_10px_30px_rgba(15,23,42,0.04)]">
+                <div key={project.id || index} className="rounded-xl border border-slate-200/80 bg-[#edf3ff] p-4">
                   <div className="flex items-center justify-between gap-4">
                     <div className="text-sm font-medium text-slate-800">Project {index + 1}</div>
-                    <button type="button" onClick={() => removeProject(index)} className="rounded-full border border-slate-200/80 bg-white px-3 py-1.5 text-xs font-medium text-slate-700 hover:bg-slate-50">
+                    <button type="button" onClick={() => removeProject(index)} className={subtleButtonClass}>
                       Remove
                     </button>
                   </div>
 
                   <div className="mt-4 grid gap-4">
                     <div>
-                      <label className="mb-1 block text-sm font-medium text-slate-700">Title</label>
-                      <input className={fieldClass} value={project.title} onChange={(e) => setProjectField(index, 'title', e.target.value)} placeholder="Paid search rebuild for regional clinic" />
+                      <label className="mb-1 block text-sm font-medium text-slate-700" htmlFor={`profile-project-title-${index}`}>Title</label>
+                      <input id={`profile-project-title-${index}`} className={fieldClass} value={project.title} onChange={(e) => setProjectField(index, 'title', e.target.value)} placeholder="Paid search rebuild for regional clinic" />
                     </div>
                     <div>
-                      <label className="mb-1 block text-sm font-medium text-slate-700">Summary</label>
-                      <textarea className={`${fieldClass} min-h-[96px]`} value={project.summary ?? ''} onChange={(e) => setProjectField(index, 'summary', e.target.value)} placeholder="What was the project and why did it matter?" />
+                      <label className="mb-1 block text-sm font-medium text-slate-700" htmlFor={`profile-project-summary-${index}`}>Summary</label>
+                      <textarea id={`profile-project-summary-${index}`} className={`${fieldClass} min-h-[96px]`} value={project.summary ?? ''} onChange={(e) => setProjectField(index, 'summary', e.target.value)} placeholder="What was the project and why did it matter?" />
                     </div>
                     <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
                       <div>
-                        <label className="mb-1 block text-sm font-medium text-slate-700">Challenge</label>
-                        <textarea className={`${fieldClass} min-h-[96px]`} value={project.challenge ?? ''} onChange={(e) => setProjectField(index, 'challenge', e.target.value)} />
+                        <label className="mb-1 block text-sm font-medium text-slate-700" htmlFor={`profile-project-challenge-${index}`}>Challenge</label>
+                        <textarea id={`profile-project-challenge-${index}`} className={`${fieldClass} min-h-[96px]`} value={project.challenge ?? ''} onChange={(e) => setProjectField(index, 'challenge', e.target.value)} />
                       </div>
                       <div>
-                        <label className="mb-1 block text-sm font-medium text-slate-700">Solution</label>
-                        <textarea className={`${fieldClass} min-h-[96px]`} value={project.solution ?? ''} onChange={(e) => setProjectField(index, 'solution', e.target.value)} />
+                        <label className="mb-1 block text-sm font-medium text-slate-700" htmlFor={`profile-project-solution-${index}`}>Solution</label>
+                        <textarea id={`profile-project-solution-${index}`} className={`${fieldClass} min-h-[96px]`} value={project.solution ?? ''} onChange={(e) => setProjectField(index, 'solution', e.target.value)} />
                       </div>
                     </div>
                     <div>
-                      <label className="mb-1 block text-sm font-medium text-slate-700">Results</label>
-                      <textarea className={`${fieldClass} min-h-[96px]`} value={project.results ?? ''} onChange={(e) => setProjectField(index, 'results', e.target.value)} placeholder="List measurable outcomes or a concise win summary." />
+                      <label className="mb-1 block text-sm font-medium text-slate-700" htmlFor={`profile-project-results-${index}`}>Results</label>
+                      <textarea id={`profile-project-results-${index}`} className={`${fieldClass} min-h-[96px]`} value={project.results ?? ''} onChange={(e) => setProjectField(index, 'results', e.target.value)} placeholder="List measurable outcomes or a concise win summary." />
                     </div>
                     <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
                       <div>
-                        <label className="mb-1 block text-sm font-medium text-slate-700">Project services (comma separated)</label>
-                        <input className={fieldClass} value={(project.services || []).join(', ')} onChange={(e) => setProjectField(index, 'services', parseTokenInput(e.target.value))} placeholder="ads, seo" />
+                        <label className="mb-1 block text-sm font-medium text-slate-700" htmlFor={`profile-project-services-${index}`}>Project services (comma separated)</label>
+                        <input id={`profile-project-services-${index}`} className={fieldClass} value={(project.services || []).join(', ')} onChange={(e) => setProjectField(index, 'services', parseTokenInput(e.target.value))} placeholder="ads, seo" />
                       </div>
                       <div>
-                        <label className="mb-1 block text-sm font-medium text-slate-700">Project budget</label>
-                        <input type="number" className={fieldClass} value={project.projectBudget ?? ''} onChange={(e) => setProjectField(index, 'projectBudget', e.target.value)} placeholder="e.g. 12000" />
+                        <label className="mb-1 block text-sm font-medium text-slate-700" htmlFor={`profile-project-budget-${index}`}>Project budget</label>
+                        <input id={`profile-project-budget-${index}`} type="number" className={fieldClass} value={project.projectBudget ?? ''} onChange={(e) => setProjectField(index, 'projectBudget', e.target.value)} placeholder="e.g. 12000" />
                       </div>
                       <div>
-                        <label className="mb-1 block text-sm font-medium text-slate-700">Started at</label>
-                        <input type="date" className={fieldClass} value={project.startedAt ?? ''} onChange={(e) => setProjectField(index, 'startedAt', e.target.value)} />
+                        <label className="mb-1 block text-sm font-medium text-slate-700" htmlFor={`profile-project-started-at-${index}`}>Started at</label>
+                        <input id={`profile-project-started-at-${index}`} type="date" className={fieldClass} value={project.startedAt ?? ''} onChange={(e) => setProjectField(index, 'startedAt', e.target.value)} />
                       </div>
                       <div>
-                        <label className="mb-1 block text-sm font-medium text-slate-700">Completed at</label>
-                        <input type="date" className={fieldClass} value={project.completedAt ?? ''} onChange={(e) => setProjectField(index, 'completedAt', e.target.value)} />
+                        <label className="mb-1 block text-sm font-medium text-slate-700" htmlFor={`profile-project-completed-at-${index}`}>Completed at</label>
+                        <input id={`profile-project-completed-at-${index}`} type="date" className={fieldClass} value={project.completedAt ?? ''} onChange={(e) => setProjectField(index, 'completedAt', e.target.value)} />
                       </div>
                       <div>
-                        <label className="mb-1 block text-sm font-medium text-slate-700">Cover image URL</label>
-                        <input className={fieldClass} value={project.coverImageUrl ?? ''} onChange={(e) => setProjectField(index, 'coverImageUrl', e.target.value)} placeholder="https://..." />
+                        <label className="mb-1 block text-sm font-medium text-slate-700" htmlFor={`profile-project-cover-image-url-${index}`}>Cover image URL</label>
+                        <input id={`profile-project-cover-image-url-${index}`} className={fieldClass} value={project.coverImageUrl ?? ''} onChange={(e) => setProjectField(index, 'coverImageUrl', e.target.value)} placeholder="https://..." />
                       </div>
                       <label className="flex items-center gap-3 rounded-2xl border border-slate-200/80 bg-white px-4 py-3 text-sm text-slate-700 sm:mt-7">
                         <input type="checkbox" className={checkboxClass} checked={Boolean(project.isFeatured)} onChange={(e) => setProjectField(index, 'isFeatured', e.target.checked)} />
@@ -1062,11 +1079,11 @@ export default function ProfileEditorPage() {
           </div>
         </section>
 
-        <section className={sectionClass}>
+        <section id="profile-clients" data-profile-section="work" hidden={activeSection !== 'work'} className={`${sectionClass} dashboard-profile-panel`}>
           <div className="flex items-center justify-between gap-4">
-            <button type="button" onClick={() => setClientsOpen((open) => !open)} className="flex flex-1 items-center justify-between text-left md:pointer-events-none">
+            <button type="button" onClick={() => setClientsOpen((open) => !open)} className="flex min-h-11 flex-1 items-center justify-between text-left md:pointer-events-none">
               <div>
-                <h2 className="text-lg font-semibold text-slate-900">Featured clients</h2>
+                <h2 className="text-lg font-bold text-[#192a48]">Featured clients</h2>
                 <p className="mt-1 text-sm text-slate-500">Add only clients who have agreed to be named publicly.</p>
               </div>
               <span className="ml-4 rounded-full border border-slate-200/80 bg-white px-3 py-1 text-xs font-medium text-slate-600 shadow-sm md:hidden">
@@ -1087,26 +1104,26 @@ export default function ProfileEditorPage() {
           <div className={`mt-4 ${clientsOpen ? 'grid gap-4' : 'hidden'} md:grid md:gap-4`}>
             {data.clients.length ? (
               data.clients.map((client, index) => (
-                <div key={client.id || index} className="rounded-[24px] border border-slate-200/80 bg-[linear-gradient(180deg,rgba(248,250,252,0.98),rgba(226,232,240,0.72))] p-4 shadow-[0_10px_30px_rgba(15,23,42,0.04)]">
+                <div key={client.id || index} className="rounded-xl border border-slate-200/80 bg-[#edf3ff] p-4">
                   <div className="flex items-center justify-between gap-4">
                     <div className="text-sm font-medium text-slate-800">Client {index + 1}</div>
-                    <button type="button" onClick={() => removeClient(index)} className="rounded-full border border-slate-200/80 bg-white px-3 py-1.5 text-xs font-medium text-slate-700 hover:bg-slate-50">
+                    <button type="button" onClick={() => removeClient(index)} className={subtleButtonClass}>
                       Remove
                     </button>
                   </div>
 
                   <div className="mt-4 grid gap-4 sm:grid-cols-2">
                     <div>
-                      <label className="mb-1 block text-sm font-medium text-slate-700">Client name</label>
-                      <input className={fieldClass} value={client.name} onChange={(e) => setClientField(index, 'name', e.target.value)} placeholder="Acme Health" />
+                      <label className="mb-1 block text-sm font-medium text-slate-700" htmlFor={`profile-client-name-${index}`}>Client name</label>
+                      <input id={`profile-client-name-${index}`} className={fieldClass} value={client.name} onChange={(e) => setClientField(index, 'name', e.target.value)} placeholder="Acme Health" />
                     </div>
                     <div>
-                      <label className="mb-1 block text-sm font-medium text-slate-700">Website URL</label>
-                      <input className={fieldClass} value={client.websiteUrl ?? ''} onChange={(e) => setClientField(index, 'websiteUrl', e.target.value)} placeholder="https://..." />
+                      <label className="mb-1 block text-sm font-medium text-slate-700" htmlFor={`profile-client-website-url-${index}`}>Website URL</label>
+                      <input id={`profile-client-website-url-${index}`} className={fieldClass} value={client.websiteUrl ?? ''} onChange={(e) => setClientField(index, 'websiteUrl', e.target.value)} placeholder="https://..." />
                     </div>
                     <div>
-                      <label className="mb-1 block text-sm font-medium text-slate-700">Logo URL</label>
-                      <input className={fieldClass} value={client.logoUrl ?? ''} onChange={(e) => setClientField(index, 'logoUrl', e.target.value)} placeholder="https://..." />
+                      <label className="mb-1 block text-sm font-medium text-slate-700" htmlFor={`profile-client-logo-url-${index}`}>Logo URL</label>
+                      <input id={`profile-client-logo-url-${index}`} className={fieldClass} value={client.logoUrl ?? ''} onChange={(e) => setClientField(index, 'logoUrl', e.target.value)} placeholder="https://..." />
                     </div>
                     <label className="flex items-center gap-3 rounded-2xl border border-slate-200/80 bg-white px-4 py-3 text-sm text-slate-700 sm:mt-7">
                       <input type="checkbox" className={checkboxClass} checked={Boolean(client.isFeatured)} onChange={(e) => setClientField(index, 'isFeatured', e.target.checked)} />
@@ -1121,11 +1138,11 @@ export default function ProfileEditorPage() {
           </div>
         </section>
 
-        <section className={sectionClass}>
+        <section id="profile-media" data-profile-section="work" hidden={activeSection !== 'work'} className={`${sectionClass} dashboard-profile-panel`}>
           <div className="flex items-center justify-between gap-4">
-            <button type="button" onClick={() => setMediaOpen((open) => !open)} className="flex flex-1 items-center justify-between text-left md:pointer-events-none">
+            <button type="button" onClick={() => setMediaOpen((open) => !open)} className="flex min-h-11 flex-1 items-center justify-between text-left md:pointer-events-none">
               <div>
-                <h2 className="text-lg font-semibold text-slate-900">Media gallery</h2>
+                <h2 className="text-lg font-bold text-[#192a48]">Media gallery</h2>
                 <p className="mt-1 text-sm text-slate-500">
                   {data.expertType === 'creator'
                     ? 'Add the public Instagram posts or reels you want buyers to see first, plus any other work samples.'
@@ -1149,7 +1166,7 @@ export default function ProfileEditorPage() {
 
           <div className={`mt-4 ${mediaOpen ? 'grid gap-4' : 'hidden'} md:grid md:gap-4`}>
             {data.expertType === 'creator' ? (
-              <div className="rounded-[24px] border border-slate-200/80 bg-[linear-gradient(180deg,rgba(248,250,252,0.98),rgba(226,232,240,0.72))] p-4 shadow-[0_10px_30px_rgba(15,23,42,0.04)]">
+              <div className="rounded-xl border border-slate-200/80 bg-[#edf3ff] p-4">
                 <div className="text-sm font-semibold text-slate-900">Instagram proof setup</div>
                 <ul className="mt-3 space-y-2 text-sm leading-7 text-slate-600">
                   <li>Use the Instagram field above for your public profile homepage.</li>
@@ -1161,18 +1178,18 @@ export default function ProfileEditorPage() {
 
             {data.media.length ? (
               data.media.map((item, index) => (
-                <div key={item.id || index} className="rounded-[24px] border border-slate-200/80 bg-[linear-gradient(180deg,rgba(248,250,252,0.98),rgba(226,232,240,0.72))] p-4 shadow-[0_10px_30px_rgba(15,23,42,0.04)]">
+                <div key={item.id || index} className="rounded-xl border border-slate-200/80 bg-[#edf3ff] p-4">
                   <div className="flex items-center justify-between gap-4">
                     <div className="text-sm font-medium text-slate-800">Media item {index + 1}</div>
-                    <button type="button" onClick={() => removeMedia(index)} className="rounded-full border border-slate-200/80 bg-white px-3 py-1.5 text-xs font-medium text-slate-700 hover:bg-slate-50">
+                    <button type="button" onClick={() => removeMedia(index)} className={subtleButtonClass}>
                       Remove
                     </button>
                   </div>
 
                   <div className="mt-4 grid gap-4 sm:grid-cols-2">
                     <div>
-                      <label className="mb-1 block text-sm font-medium text-slate-700">Type</label>
-                      <select className={fieldClass} value={item.type} onChange={(e) => setMediaField(index, 'type', e.target.value as MediaType)}>
+                      <label className="mb-1 block text-sm font-medium text-slate-700" htmlFor={`profile-media-type-${index}`}>Type</label>
+                      <select id={`profile-media-type-${index}`} className={fieldClass} value={item.type} onChange={(e) => setMediaField(index, 'type', e.target.value as MediaType)}>
                         {MEDIA_TYPE_OPTIONS.map((option) => (
                           <option key={option.value} value={option.value}>
                             {option.label}
@@ -1181,8 +1198,8 @@ export default function ProfileEditorPage() {
                       </select>
                     </div>
                     <div>
-                      <label className="mb-1 block text-sm font-medium text-slate-700">URL</label>
-                      <input className={fieldClass} value={item.url} onChange={(e) => setMediaField(index, 'url', e.target.value)} placeholder="https://instagram.com/... or https://your-site.com" />
+                      <label className="mb-1 block text-sm font-medium text-slate-700" htmlFor={`profile-media-url-${index}`}>URL</label>
+                      <input id={`profile-media-url-${index}`} className={fieldClass} value={item.url} onChange={(e) => setMediaField(index, 'url', e.target.value)} placeholder="https://instagram.com/... or https://your-site.com" />
                       {(() => {
                         const kind = getInstagramUrlKind(item.url);
                         if (kind === 'profile') {
@@ -1195,8 +1212,8 @@ export default function ProfileEditorPage() {
                       })()}
                     </div>
                     <div className="sm:col-span-2">
-                      <label className="mb-1 block text-sm font-medium text-slate-700">Alt text</label>
-                      <input className={fieldClass} value={item.altText ?? ''} onChange={(e) => setMediaField(index, 'altText', e.target.value)} placeholder="Describe what this media shows." />
+                      <label className="mb-1 block text-sm font-medium text-slate-700" htmlFor={`profile-media-alt-text-${index}`}>Alt text</label>
+                      <input id={`profile-media-alt-text-${index}`} className={fieldClass} value={item.altText ?? ''} onChange={(e) => setMediaField(index, 'altText', e.target.value)} placeholder="Describe what this media shows." />
                     </div>
                     <div className="sm:col-span-2 rounded-2xl border border-dashed border-slate-300 bg-white px-4 py-3 text-xs text-slate-500">
                       Supported embeds: public Instagram posts/reels and website previews when the site allows it.
@@ -1228,7 +1245,7 @@ export default function ProfileEditorPage() {
         <section className={sectionClass}>
           <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
             <div>
-              <h2 className="text-lg font-semibold text-slate-900">Password and access</h2>
+              <h2 className="text-lg font-bold text-[#192a48]">Password and access</h2>
               <p className="mt-1 text-sm text-slate-500">Keep account access separate from profile content changes.</p>
             </div>
             <button type="button" onClick={() => setPwOpen(true)} className={subtleButtonClass}>
@@ -1245,10 +1262,10 @@ export default function ProfileEditorPage() {
         </div>
       </form>
 
-      <div className="fixed inset-x-0 bottom-0 z-40 border-t border-slate-200/80 bg-[rgba(255,255,255,0.96)] px-4 py-3 backdrop-blur md:hidden">
+      <div className="fixed inset-x-0 bottom-0 z-40 border-t border-slate-200/80 bg-white px-4 py-3 md:hidden">
         <div className="mx-auto flex max-w-6xl items-center justify-between gap-3">
           <div className="min-w-0">
-            <div className="text-xs font-semibold uppercase tracking-[0.24em] text-slate-400">{dirty ? 'Unsaved' : 'Saved'}</div>
+            <div className="text-xs font-semibold text-slate-700">{dirty ? 'Unsaved' : 'Saved'}</div>
             <div className="truncate text-sm text-slate-600">{data.businessName || 'Profile editor'}</div>
           </div>
           <button type="submit" form="profile-editor-form" disabled={disableSave} className={primaryButtonClass}>
@@ -1277,16 +1294,16 @@ export default function ProfileEditorPage() {
 
             <form onSubmit={handleChangePassword} className="mt-4 grid gap-4">
               <div>
-                <label className="mb-1 block text-sm">Current password</label>
-                <input type="password" autoComplete="current-password" className="w-full rounded-xl border px-4 py-3" value={pwCurrent} onChange={(e) => setPwCurrent(e.target.value)} />
+                <label className="mb-1 block text-sm" htmlFor="profile-current-password">Current password</label>
+                <input id="profile-current-password" type="password" autoComplete="current-password" className={fieldClass} value={pwCurrent} onChange={(e) => setPwCurrent(e.target.value)} />
               </div>
               <div>
-                <label className="mb-1 block text-sm">New password</label>
-                <input type="password" autoComplete="new-password" className="w-full rounded-xl border px-4 py-3" value={pwNext} onChange={(e) => setPwNext(e.target.value)} />
+                <label className="mb-1 block text-sm" htmlFor="profile-new-password">New password</label>
+                <input id="profile-new-password" type="password" autoComplete="new-password" className={fieldClass} value={pwNext} onChange={(e) => setPwNext(e.target.value)} />
               </div>
               <div>
-                <label className="mb-1 block text-sm">Confirm new password</label>
-                <input type="password" autoComplete="new-password" className="w-full rounded-xl border px-4 py-3" value={pwConfirm} onChange={(e) => setPwConfirm(e.target.value)} />
+                <label className="mb-1 block text-sm" htmlFor="profile-confirm-new-password">Confirm new password</label>
+                <input id="profile-confirm-new-password" type="password" autoComplete="new-password" className={fieldClass} value={pwConfirm} onChange={(e) => setPwConfirm(e.target.value)} />
               </div>
 
               <div className="flex items-center justify-between">

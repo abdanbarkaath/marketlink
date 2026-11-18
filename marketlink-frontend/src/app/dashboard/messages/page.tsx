@@ -43,48 +43,24 @@ export default async function ProviderMessagesPage({
 
   return (
     <main className="ml-page-bg min-h-[calc(100vh-72px)]">
-      <div className="mx-auto max-w-7xl px-4 py-6 sm:px-6 sm:py-8">
-        <div className="flex flex-col gap-4 sm:flex-row sm:items-end sm:justify-between">
+      <div className="dashboard-page-content mx-auto max-w-7xl px-4 py-6 sm:px-6 sm:py-8">
+        <div className="dashboard-intro flex flex-col gap-4 p-5 sm:p-6 lg:flex-row lg:items-end lg:justify-between">
           <div>
-            <p className="text-xs font-semibold uppercase tracking-[0.32em] text-slate-500">Provider messages</p>
-            <h1 className="mt-2 text-3xl font-semibold tracking-tight text-slate-950 sm:text-4xl">Provider chat inbox</h1>
-            <p className="mt-3 max-w-3xl text-sm leading-6 text-slate-600">
-              Accepted proposals turn into private customer threads here. Keep the request context visible, reply in real time, and move the work forward without leaving your dashboard.
+            <h1 className="text-3xl font-extrabold tracking-tight sm:text-4xl">Messages</h1>
+            <p className="dashboard-intro-copy mt-2 max-w-2xl text-sm leading-6">
+              Follow up with customers who accepted your proposals.
             </p>
           </div>
 
           <div className="flex flex-col gap-3 sm:flex-row">
             <Link
               href="/dashboard/requests"
-              className="ml-btn-secondary inline-flex min-h-11 items-center justify-center rounded-xl px-5 text-sm font-semibold text-slate-900"
+              className="ml-btn-secondary inline-flex min-h-11 shrink-0 items-center justify-center px-5 text-sm font-semibold"
             >
               Matched requests
             </Link>
-            <Link
-              href="/dashboard"
-              className="ml-btn-primary inline-flex min-h-11 items-center justify-center rounded-xl px-6 text-sm font-semibold text-white"
-            >
-              Back to dashboard
-            </Link>
           </div>
         </div>
-
-        <section className="ml-card mt-5 rounded-[28px] p-5 shadow-[0_18px_50px_rgba(23,26,31,0.06)] sm:p-6">
-          <div className="grid gap-3 md:grid-cols-3">
-            <div className="rounded-2xl bg-slate-50 p-4">
-              <div className="text-[11px] font-semibold uppercase tracking-[0.2em] text-slate-400">Conversations</div>
-              <div className="mt-2 text-2xl font-semibold text-slate-950">{conversations.length}</div>
-            </div>
-            <div className="rounded-2xl bg-slate-50 p-4">
-              <div className="text-[11px] font-semibold uppercase tracking-[0.2em] text-slate-400">Flow</div>
-              <div className="mt-2 text-sm font-semibold text-slate-950">Accepted proposal only</div>
-            </div>
-            <div className="rounded-2xl bg-slate-50 p-4">
-              <div className="text-[11px] font-semibold uppercase tracking-[0.2em] text-slate-400">Realtime</div>
-              <div className="mt-2 text-sm font-semibold text-slate-950">Live replies without refresh</div>
-            </div>
-          </div>
-        </section>
 
         <div className="mt-5">
           <ConversationWorkspace
